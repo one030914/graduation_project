@@ -2,6 +2,7 @@ version: "3.9"
 services:
     project:
         build: .
+        image: one030914/ai_project # add this line
         container_name: project
         stdin_open: true
         tty: true
