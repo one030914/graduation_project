@@ -9,5 +9,8 @@ bot/
  │   └─ classes.py  # core class definitions
  ├─ data/           # data processing utilities
  ├─ model/          # models
- └─ utils/          # helper utilities
+ ├─ utils/          # helper utilities
+ ├─ .env            # environment variables (API keys, configs)
+ ├─ bot.py          # bot entry main launcher
+ └─ data.json       # persistent storage
 ```
