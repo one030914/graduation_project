@@ -1,9 +1,11 @@
+import asyncio
 import discord
 from discord import app_commands
 from discord.ui import View, Button
 from datetime import datetime
-from core.classes import Cog_Extension
-from pipeline.analyize import analyze
+from bot.core.classes import Cog_Extension
+from pipeline.analyze import analyze
+from bot.utils.embed import build_summary_embed
 
 class Slash(Cog_Extension):
     def __init__(self, bot):
@@ -24,9 +26,11 @@ class Slash(Cog_Extension):
         await interaction.response.defer(thinking=True)
 
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(None, analyze, url)
+        analysis = await loop.run_in_executor(None, analyze, url)
+        
+        embed = build_summary_embed(analysis)
 
-        await interaction.followup.send(embed=result)
+        await interaction.followup.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Slash(bot))

@@ -1,26 +1,24 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import discord
 from discord.ext import commands
 import os
 import json
+from pathlib import Path
 from dotenv import load_dotenv
+from configs.settings import ROOT, BOT_DIR
 
 load_dotenv(verbose=True)
-with open('./bot/data.json', 'r', encoding='utf8') as jfile:
+with open(f'{ROOT}/data.json', 'r', encoding='utf8') as jfile:
     jdata = json.load(jfile)
 
-intents = discord.Intents.all()
-intents.members = True
+intents = discord.Intents.default()
+intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-@bot.event
+@bot.event      # prefix: !
 async def on_ready():
-    for filename in os.listdir('./bot/cogs'):
-        if filename.endswith('.py'):
-            await bot.load_extension(f'cogs.{filename[:-3]}')
+    for path in (BOT_DIR / "cogs").glob("*.py"):
+        if path.name != "__init__.py":
+            await bot.load_extension(f"bot.cogs.{path.stem}")
     
     slash = await bot.tree.sync()
     print(f"loaded {len(slash)} slash commands.")
