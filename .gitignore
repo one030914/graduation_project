@@ -1,2 +1,10 @@
+venv/
+test*.py
 .env
 __pycache__/
+datasets/
+minilm*/
+MiniLM*.csv
+BERTSUM*/
+BERTSUM*.csv
+*.zip
