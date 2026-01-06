@@ -25,7 +25,7 @@ def _fmt_keywords(words, max_items: int = 12) -> str:
     words = words[:max_items]
     return " ".join(f"`{w}`" for w in words)
 
-def build_summary_embed(result: AnalysisResult) -> discord.Embed:
+def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.Embed:
     if result.error:
         return discord.Embed(
             title="⚠️ 分析失敗",
@@ -40,20 +40,22 @@ def build_summary_embed(result: AnalysisResult) -> discord.Embed:
     )
 
     # 摘要
-    if result.summary_zh:
-        e.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
-    if result.summary_en:
-        e.add_field(name="📌 English Summary", value=_clip(_fmt_list(result.summary_en, 6)), inline=False)
-    if not result.summary_zh and not result.summary_en:
-        e.add_field(name="📌 摘要", value="（無）", inline=False)
+    if mode in ("full", "summary"):
+        if result.summary_zh:
+            e.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
+        if result.summary_en:
+            e.add_field(name="📌 English Summary", value=_clip(_fmt_list(result.summary_en, 6)), inline=False)
+        if not result.summary_zh and not result.summary_en:
+            e.add_field(name="📌 摘要", value="（無）", inline=False)
 
     # 關鍵字
-    if result.keywords_zh:
-        e.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
-    if result.keywords_en:
-        e.add_field(name="🔑 English Keywords", value=_clip(_fmt_keywords(result.keywords_en, 15)), inline=False)
-    if not result.keywords_zh and not result.keywords_en:
-        e.add_field(name="🔑 關鍵字", value="（無）", inline=False)
+    if mode in ("full", "keywords"):
+        if result.keywords_zh:
+            e.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
+        if result.keywords_en:
+            e.add_field(name="🔑 English Keywords", value=_clip(_fmt_keywords(result.keywords_en, 15)), inline=False)
+        if not result.keywords_zh and not result.keywords_en:
+            e.add_field(name="🔑 關鍵字", value="（無）", inline=False)
 
     # 語言比例
     lr = result.lang_ratio

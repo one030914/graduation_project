@@ -13,10 +13,16 @@ class Cmd(Cog_Extension):
             return
         
         try:
-            await self.bot.load_extension(f'cogs.{extension}')
+            await self.bot.load_extension(f'bot.cogs.{extension}')
             await ctx.send(f'Loaded {extension} done.')
+        except commands.ExtensionNotFound as e:
+            await ctx.send(f'Extension {extension} not found.')
+        except commands.ExtensionAlreadyLoaded as e:
+            await ctx.send(f'Extension {extension} already loaded.')
+        except commands.ExtensionFailed as e:
+            await ctx.send(f'Extension {extension} failed to load.')
         except Exception as e:
-            await ctx.send(f'載入失敗：{str(e)}')
+            await ctx.send(f'An error occurred: {str(e)}')
     
     @commands.command()
     async def unload(self, ctx, extension=None):
@@ -25,10 +31,14 @@ class Cmd(Cog_Extension):
             return
         
         try:
-            await self.bot.unload_extension(f'cogs.{extension}')
+            await self.bot.unload_extension(f'bot.cogs.{extension}')
             await ctx.send(f'Unloaded {extension} done.')
+        except commands.ExtensionNotFound as e:
+            await ctx.send(f'Extension {extension} not found.')
+        except commands.ExtensionNotLoaded as e:
+            await ctx.send(f'Extension {extension} not loaded.')
         except Exception as e:
-            await ctx.send(f'卸載失敗：{str(e)}')
+            await ctx.send(f'An error occurred: {str(e)}')
 
     @commands.command()
     async def reload(self, ctx, extension=None):
@@ -37,10 +47,16 @@ class Cmd(Cog_Extension):
             return
         
         try:
-            await self.bot.reload_extension(f'cogs.{extension}')
+            await self.bot.reload_extension(f'bot.cogs.{extension}')
             await ctx.send(f'Reloaded {extension} done.')
+        except commands.ExtensionNotLoaded as e:
+            await ctx.send(f'Extension {extension} not loaded.')
+        except commands.ExtensionNotFound as e:
+            await ctx.send(f'Extension {extension} not found.')
+        except commands.ExtensionFailed as e:
+            await ctx.send(f'Extension {extension} failed to load.')
         except Exception as e:
-            await ctx.send(f'重新載入失敗：{str(e)}')
+            await ctx.send(f'An error occurred: {str(e)}')
 
 async def setup(bot):
     await bot.add_cog(Cmd(bot))
