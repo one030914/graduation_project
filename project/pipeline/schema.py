@@ -39,3 +39,12 @@ class AnalysisResult:
 
     # error handling
     error: Optional[str] = None
+    
+@dataclass
+class Job:
+    video_id: str
+    url: str
+    message: discord.Message
+    created_at: datetime
+    mode: str = "full"   # "full" | "summary" | "keywords"
+
