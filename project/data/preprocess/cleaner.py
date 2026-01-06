@@ -31,7 +31,7 @@ PATTERNS = {
     "repeated": re.compile(r"(?P<grp>.+?)\1+"),
 }
 
-CUSTOM_FIXES = {"喫": "吃", "纔": "才", "鬥內": "抖內", "傑哥": "杰哥", "孃": "娘", "穫": "獲", "裏": "裡", "三文治": "三明治", "面": "麵"}
+CUSTOM_FIXES = {"喫": "吃", "纔": "才", "鬥內": "抖內", "孃": "娘", "穫": "獲", "裏": "裡", "三文治": "三明治", "面": "麵"}
 JIEBA_PROTECTED = ["臺灣"]
 STOPWORDS = {"是","的","了","有","没","在","也","都","为","能","不","好","像","咧","袂","著","希望","人","听","歌","会","吃","要","看","爱","让","拍","到","说","没有","讲","大","小","首歌","不到"}
 
@@ -67,7 +67,7 @@ def _ja_char_ratio(s: str) -> float:
     ja = sum(1 for ch in s if ("\u3040" <= ch <= "\u309F") or ("\u30A0" <= ch <= "\u30FF"))
     return ja / total if total else 0.0
 
-def detect_language(s: str, *, zh_ratio_threshold: float = 0.20) -> str:
+def detect_language(s: str) -> str:
     if _ja_char_ratio(s) >= 0.10:
         return "unknown"
     s = (s or "").strip()
@@ -75,7 +75,7 @@ def detect_language(s: str, *, zh_ratio_threshold: float = 0.20) -> str:
         return "unknown"
 
     # 中文比例高 → zh
-    if _zh_char_ratio(s) >= zh_ratio_threshold:
+    if _zh_char_ratio(s) >= 0.20:
         return "zh"
 
     lang = langid.classify(s)[0]
@@ -85,7 +85,6 @@ def detect_language(s: str, *, zh_ratio_threshold: float = 0.20) -> str:
     if lang == "en":
         return "en"
     return "unknown"
-
 
 class TextNormalizer:
     def __init__(self):
