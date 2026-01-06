@@ -1,28 +1,32 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import pandas as pd
+import torch
+from sklearn.feature_extraction.text import CountVectorizer
 
 from configs.settings import MODEL_DIR
 
+ZH_VECTORIZER = CountVectorizer(
+    tokenizer=lambda s: s.split(),
+    preprocessor=None,
+    token_pattern=None,
+)
+
+def _device_str() -> str:
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 @lru_cache(maxsize=1)
 def _load_keybert_zh(model_folder_name: str = "minilm_chinese_finetuned"):
-    """
-    Loads SentenceTransformer + KeyBERT once.
-    Expected folder:
-      model/minilm_chinese_finetuned/  (or your actual fine-tuned output)
-    """
     from sentence_transformers import SentenceTransformer
     from keybert import KeyBERT
 
     model_dir = MODEL_DIR / model_folder_name
-    st_model = SentenceTransformer(str(model_dir))
+    st_model = SentenceTransformer(str(model_dir), device=_device_str())
     kw_model = KeyBERT(st_model)
     return st_model, kw_model
-
 
 def _dedup_preserve_order(items: List[str], limit: int) -> List[str]:
     seen = set()
@@ -37,64 +41,64 @@ def _dedup_preserve_order(items: List[str], limit: int) -> List[str]:
             break
     return out
 
-
-def _build_docs_for_keywords(
+def _build_aligned_docs(
     comments: List[str],
     tokens_zh: Optional[List[List[str]]] = None,
 ) -> List[str]:
     """
-    For Chinese KeyBERT, using token-joined docs often improves phrase stability.
-    If tokens_zh is missing/too sparse, fallback to comments.
+    回傳與 comments 等長的 docs（每筆留言一個 doc）
+    優先用 tokens join（"詞 詞 詞"），沒有就退回 comment 本文
     """
     comments = [str(c).strip() for c in (comments or []) if str(c).strip()]
     if not comments:
         return []
 
-    if tokens_zh:
-        # tokens_zh: list[list[str]] might include None/NaN
-        docs = []
-        for toks in tokens_zh:
-            if toks is None or (isinstance(toks, float) and pd.isna(toks)):
-                continue
-            if isinstance(toks, list):
-                toks = [str(w).strip() for w in toks if str(w).strip()]
-                if toks:
-                    docs.append(" ".join(toks))
-        # 如果 tokens 太少（例如大多數留言沒 tokens），退回用原句
-        if len(docs) >= max(10, len(comments) // 5):
-            return docs
+    if not tokens_zh:
+        return comments
 
-    return comments
+    aligned: List[str] = []
+    for i, c in enumerate(comments):
+        toks = tokens_zh[i] if i < len(tokens_zh) else None
+        if toks is None or (isinstance(toks, float) and pd.isna(toks)):
+            aligned.append(c)
+            continue
+        if isinstance(toks, list):
+            toks = [str(w).strip() for w in toks if str(w).strip()]
+            aligned.append(" ".join(toks) if toks else c)
+        else:
+            aligned.append(c)
 
+    return aligned
 
 def _extract_keywords_from_text(
     kw_model,
     text: str,
     *,
     top_n: int,
-    max_keyword_length: int = 3,
+    max_keyword_length: int = 6,
 ) -> List[str]:
-    """
-    Runs KeyBERT on a single long text and returns keyword list (filtered).
-    """
     if not text.strip():
         return []
 
-    # stop_words 對中文通常不設；你可以之後自訂停用詞再進一步過濾
-    kws = kw_model.extract_keywords(text, top_n=top_n, stop_words=None)
+    kws = kw_model.extract_keywords(
+        text,
+        top_n=top_n,
+        stop_words=None,
+        vectorizer=ZH_VECTORIZER,
+        keyphrase_ngram_range=(1, 2),
+        use_mmr=True,
+        diversity=0.5,
+    )
 
-    # KeyBERT 回傳 [(kw, score), ...]
     out = []
     for w, _s in kws:
         w = str(w).strip()
         if not w:
             continue
-        # 中文常用長度限制
         if max_keyword_length and len(w) > max_keyword_length:
             continue
         out.append(w)
     return out
-
 
 def extract_cluster_keywords_zh(
     comments: List[str],
@@ -103,39 +107,33 @@ def extract_cluster_keywords_zh(
     use_clustering: bool = True,
     min_cluster_size: int = 3,
     per_cluster_topn: int = 5,
-    max_keyword_length: int = 3,
+    max_keyword_length: int = 6,
     model_folder_name: str = "minilm_chinese_finetuned",
 ) -> Dict[int, List[str]]:
-    """
-    Returns cluster_id -> keywords list
-    """
     comments = [str(c).strip() for c in (comments or []) if str(c).strip()]
     if not comments:
         return {}
 
-    # 防呆：處理 NaN
     comments = [str(c) if not pd.isna(c) else "" for c in comments]
     comments = [c for c in comments if c]
 
     st_model, kw_model = _load_keybert_zh(model_folder_name=model_folder_name)
 
-    docs = _build_docs_for_keywords(comments, tokens_zh)
+    aligned_docs = _build_aligned_docs(comments, tokens_zh)
 
-    # 小資料：不分群，整段抽一次，視為 cluster 0
     if (not use_clustering) or len(comments) < max(min_cluster_size * 3, 30):
-        joined = "。".join(docs)
+        joined = " ".join(aligned_docs) 
         kws = _extract_keywords_from_text(
-            kw_model, joined,
+            kw_model,
+            joined,
             top_n=max(per_cluster_topn, 10),
-            max_keyword_length=max_keyword_length
+            max_keyword_length=max_keyword_length,
         )
         return {0: _dedup_preserve_order(kws, per_cluster_topn)}
 
-    # 分群需要 hdbscan
     try:
         import hdbscan
     except Exception:
-        # 沒裝 hdbscan 就降級
         return extract_cluster_keywords_zh(
             comments, tokens_zh,
             use_clustering=False,
@@ -145,7 +143,7 @@ def extract_cluster_keywords_zh(
             model_folder_name=model_folder_name,
         )
 
-    embeddings = st_model.encode(comments)
+    embeddings = st_model.encode(comments, device=_device_str(), batch_size=64, show_progress_bar=False)
 
     clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric="euclidean")
     labels = clusterer.fit_predict(embeddings)
@@ -157,7 +155,6 @@ def extract_cluster_keywords_zh(
         clusters.setdefault(int(lb), []).append(idx)
 
     if not clusters:
-        # 全部噪聲就降級
         return extract_cluster_keywords_zh(
             comments, tokens_zh,
             use_clustering=False,
@@ -169,19 +166,16 @@ def extract_cluster_keywords_zh(
 
     result: Dict[int, List[str]] = {}
     for cid, idxs in clusters.items():
-        # 用 docs（tokens join）會更穩，但 docs 長度可能和 comments 不一致（tokens sparse）
-        # 所以 cluster 內我們用「對應原留言」合併，穩定且不會 index 錯。
-        joined = "。".join(comments[i] for i in idxs if 0 <= i < len(comments))
-
+        joined = " ".join(aligned_docs[i] for i in idxs if 0 <= i < len(aligned_docs))
         kws = _extract_keywords_from_text(
-            kw_model, joined,
+            kw_model,
+            joined,
             top_n=per_cluster_topn,
-            max_keyword_length=max_keyword_length
+            max_keyword_length=max_keyword_length,
         )
         result[cid] = _dedup_preserve_order(kws, per_cluster_topn)
 
     return result
-
 
 def extract_keywords_zh(
     comments: List[str],
@@ -191,14 +185,9 @@ def extract_keywords_zh(
     use_clustering: bool = True,
     min_cluster_size: int = 3,
     per_cluster_topn: int = 5,
-    max_keyword_length: int = 3,
+    max_keyword_length: int = 6,
     model_folder_name: str = "minilm_chinese_finetuned",
 ) -> List[str]:
-    """
-    Pipeline-friendly API:
-    Input: cleaned zh comments + optional tokens_zh
-    Output: flattened keywords list (dedup, preserve order), length <= topk
-    """
     cluster_kw = extract_cluster_keywords_zh(
         comments, tokens_zh,
         use_clustering=use_clustering,
@@ -208,7 +197,6 @@ def extract_keywords_zh(
         model_folder_name=model_folder_name,
     )
 
-    # flatten in cluster_id order (stable)
     flat: List[str] = []
     for cid in sorted(cluster_kw.keys()):
         flat.extend(cluster_kw[cid])

@@ -4,9 +4,12 @@ from functools import lru_cache
 from typing import List
 
 import pandas as pd
+import torch
 
 from configs.settings import MODEL_DIR
 
+def _device_str() -> str:
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 @lru_cache(maxsize=1)
 def _load_keybert_en(model_folder_name: str = "minilm_english_finetuned"):
@@ -19,7 +22,7 @@ def _load_keybert_en(model_folder_name: str = "minilm_english_finetuned"):
     from keybert import KeyBERT
 
     model_dir = MODEL_DIR / model_folder_name
-    st_model = SentenceTransformer(str(model_dir))
+    st_model = SentenceTransformer(str(model_dir), device=_device_str())
     kw_model = KeyBERT(st_model)
     return st_model, kw_model
 
@@ -76,7 +79,7 @@ def extract_keywords_en(
             model_folder_name=model_folder_name,
         )
 
-    embeddings = st_model.encode(comments)
+    embeddings = st_model.encode(comments, device=_device_str(), batch_size=64, show_progress_bar=False)
 
     clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric="euclidean")
     labels = clusterer.fit_predict(embeddings)

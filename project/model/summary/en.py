@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
+from torch import amp
 from transformers import BertTokenizer, BertModel
 
 from configs.settings import MODEL_DIR
+
+
+def _get_device() -> torch.device:
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class BERTSentenceClassifier(nn.Module):
     """
@@ -29,37 +35,39 @@ class BERTSentenceClassifier(nn.Module):
 def _load_bertsum_en(
     model_folder_name: str = "BERTSUM_english_finetuned",
     pretrained_model: str = "bert-base-uncased",
-):
+) -> Tuple[BertTokenizer, nn.Module, torch.device]:
     """
-    Loads tokenizer + fine-tuned weights once.
-    Expected folder:
-      model/BERTSUM_english_finetuned/
-        - pytorch_model.bin
-        - tokenizer files saved by tokenizer.save_pretrained()
-    If folder doesn't exist / missing files, caller should handle exceptions (fallback).
+    Loads tokenizer + fine-tuned weights once, and moves model to GPU if available.
     """
+    device = _get_device()
+
     model_dir = MODEL_DIR / model_folder_name
     tokenizer = BertTokenizer.from_pretrained(model_dir)
 
     model = BERTSentenceClassifier(pretrained_model=pretrained_model)
     weights_path = model_dir / "pytorch_model.bin"
-    state = torch.load(weights_path, map_location="cpu")
+
+    state = torch.load(weights_path, map_location=device)
     model.load_state_dict(state)
+    model.to(device)
     model.eval()
 
-    return tokenizer, model
+    return tokenizer, model, device
 
 
 def _batch_probs(
     sentences: List[str],
     tokenizer: BertTokenizer,
     model: nn.Module,
+    device: torch.device,
     *,
     batch_size: int = 16,
     max_length: int = 256,
 ) -> List[float]:
     sigmoid = nn.Sigmoid()
     probs: List[float] = []
+
+    use_amp = device.type == "cuda"
 
     for i in range(0, len(sentences), batch_size):
         batch = sentences[i:i + batch_size]
@@ -70,9 +78,17 @@ def _batch_probs(
             truncation=True,
             max_length=max_length
         )
+        enc = {k: v.to(device) for k, v in enc.items()}
+
         with torch.no_grad():
-            logits = model(enc["input_ids"], enc["attention_mask"])
-            p = sigmoid(logits).detach().cpu().tolist()
+            if use_amp:
+                with amp.autocast(device_type="cuda"):
+                    logits = model(enc["input_ids"], enc["attention_mask"])
+            else:
+                logits = model(enc["input_ids"], enc["attention_mask"])
+
+            p = sigmoid(logits).detach().float().cpu().tolist()
+
         probs.extend([float(x) for x in p])
 
     return probs
@@ -91,22 +107,18 @@ def summarize_en(
     """
     Input: cleaned English comments
     Output: topk extractive summary sentences
-
-    If english fine-tuned model is not ready yet, this function can fallback.
     """
     comments = [str(s).strip() for s in (comments or []) if str(s).strip()]
     if not comments:
         return []
 
-    # filter super-short noise (e.g., "lol", "nice")
     filtered = [s for s in comments if len(s.split()) >= 3]
     if not filtered:
         filtered = comments
 
-    # Try load model; fallback if not available
     try:
-        tokenizer, model = _load_bertsum_en(model_folder_name=model_folder_name)
-        probs = _batch_probs(filtered, tokenizer, model, batch_size=batch_size, max_length=max_length)
+        tokenizer, model, device = _load_bertsum_en(model_folder_name=model_folder_name)
+        probs = _batch_probs(filtered, tokenizer, model, device, batch_size=batch_size, max_length=max_length)
 
         picked = [(s, p) for s, p in zip(filtered, probs) if p >= threshold]
         if len(picked) < topk:
@@ -123,7 +135,6 @@ def summarize_en(
         return [s for s, _ in picked]
 
     except Exception:
-        # Fallback: return something reasonable so pipeline never breaks
         if fallback_mode == "toplen":
             ranked = sorted(filtered, key=lambda s: len(s), reverse=True)
             return ranked[:topk]
