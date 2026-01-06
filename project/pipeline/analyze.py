@@ -2,8 +2,25 @@ from data.youtube.api import API
 from data.preprocess.pipeline import batch_preprocess_comments
 from pipeline.schema import AnalysisResult, Stats, LangRatio
 
+import time
+
+class Timer:
+    def __init__(self):
+        self.marks = []
+        self.start = time.perf_counter()
+
+    def mark(self, name: str):
+        now = time.perf_counter()
+        self.marks.append((name, now - self.start))
+        self.start = now
+
+    def report(self) -> dict:
+        return {name: round(sec, 3) for name, sec in self.marks}
+
 def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: int = 0,
-            summary_topk: int = 5, keyword_topk: int = 10) -> AnalysisResult:
+            summary_topk: int = 5, keyword_topk: int = 10, run_summary: bool = True, run_keywords: bool = True) -> AnalysisResult:
+    timer = Timer()
+    
     api = API()
     video_id = api.extract_video_id(video_url)
     if not video_id:
@@ -13,7 +30,12 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     title = (video_info or {}).get("title") or video_id
 
     comments = api.get_comments(url=video_url, page_size=page_size, pages=pages, min_likes=min_likes)
+    
+    timer.mark("api fetch")
+    
     df = batch_preprocess_comments(comments)
+    
+    timer.mark("preprocess")
 
     if df.empty:
         return AnalysisResult(
@@ -37,6 +59,8 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     comments_zh = comments_zh[:MAX_N]
     tokens_zh = tokens_zh[:MAX_N]
     comments_en = comments_en[:MAX_N]
+    
+    timer.mark("split language")
 
     summary_zh = comments_zh[:summary_topk]
     summary_en = comments_en[:summary_topk]
@@ -46,43 +70,53 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     # -------------------------
     # Summary
     # -------------------------
-    try:
-        from model.summary.zh import summarize_zh
-        summary_zh = summarize_zh(comments_zh, topk=summary_topk)
-    except Exception as e:
-        print("Error: ", e)
+    if run_summary:
+        try:
+            from model.summary.zh import summarize_zh
+            summary_zh = summarize_zh(comments_zh, topk=summary_topk)
+        except Exception as e:
+            print("Error: summarize zh", e)
+            
+        timer.mark("summarize zh")
 
-    try:
-        from model.summary.en import summarize_en
-        summary_en = summarize_en(comments_en, topk=summary_topk)
-    except Exception as e:
-        print("Error: ", e)
+        try:
+            from model.summary.en import summarize_en
+            summary_en = summarize_en(comments_en, topk=summary_topk)
+        except Exception as e:
+            print("Error: summarize en", e)
+
+        timer.mark("summarize en")
 
     # -------------------------
     # Keywords
     # -------------------------
-    try:
-        from model.keyword.zh import extract_keywords_zh
-        keywords_zh = extract_keywords_zh(comments_zh, tokens_zh, topk=keyword_topk)
-    except Exception:
-        # fallback：tokens 攤平 + 去重保序
-        flat = [w for toks in tokens_zh for w in (toks or [])]
-        seen = set()
-        for w in flat:
-            w = str(w).strip()
-            if w and w not in seen:
-                seen.add(w)
-                keywords_zh.append(w)
-            if len(keywords_zh) >= keyword_topk:
-                break
+    if run_keywords:
+        try:
+            from model.keyword.zh import extract_keywords_zh
+            keywords_zh = extract_keywords_zh(comments_zh, tokens_zh, topk=keyword_topk)
+        except Exception:
+            # fallback：tokens 攤平 + 去重保序
+            flat = [w for toks in tokens_zh for w in (toks or [])]
+            seen = set()
+            for w in flat:
+                w = str(w).strip()
+                if w and w not in seen:
+                    seen.add(w)
+                    keywords_zh.append(w)
+                if len(keywords_zh) >= keyword_topk:
+                    break
+                
+        timer.mark("extract keywords zh")
 
-    try:
-        from model.keyword.en import extract_keywords_en
-        keywords_en = extract_keywords_en(comments_en, topk=keyword_topk)
-    except Exception:
-        keywords_en = []
+        try:
+            from model.keyword.en import extract_keywords_en
+            keywords_en = extract_keywords_en(comments_en, topk=keyword_topk)
+        except Exception:
+            keywords_en = []
 
-    return AnalysisResult(
+        timer.mark("extract keywords en")
+
+    result = AnalysisResult(
         video_id=video_id,
         title=title,
         stats=Stats(n_comments=n),
@@ -95,3 +129,6 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
         keywords_zh=keywords_zh,
         keywords_en=keywords_en,
     )
+
+    print(timer.report())
+    return result
