@@ -10,13 +10,24 @@ cd to project folder and use command: `python -m bot.bot`
 project/
  ├─ bot/
  │  ├─ cogs/            # bot feature modules
- │  ├─ core/            # core logic & shared classes
- │  │   └─ classes.py   # core class definitions
- │  └─ bot.py           # bot entry main launcher
+ │  ├─ core/
+ │  │  └─ classes.py    # importing bot cogs
+ │  ├─ utils/           # custome discord components
+ │  ├─ bot.py           # bot entry main launcher
+ │  └─ queue.py         # multi-task queue
+ ├─ configs/
+ │  └─ settings.py      # define custom constent
  ├─ data/               # data processing utilities
+ |  ├─ preprocess/      # preprocess comments
+ |  └─ youtube/
+ │     └─ api.py        # get youtube comments
  ├─ model/              # models
- ├─ pipeline/           # 
- ├─ scripts/            # outer extension
+ |  ├─ keyword/         # processing keyword
+ |  └─ summary/         # processing summary
+ ├─ pipeline/
+ |  ├─ analyze.py       # workflow
+ |  └─ schema.py        # custom dataclasses
+ ├─ scripts/            # external extension
  ├─ .env
  └─ data.json           # persistent storage
 ```
@@ -29,7 +40,7 @@ project/
 -   [x] preprocess
 -   [x] models
 -   [x] pipeline
--   [ ] multi-task
+-   [x] multi-task
 -   [ ] models train again?
 
 ## add-ons
