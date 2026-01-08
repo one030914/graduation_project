@@ -12,7 +12,7 @@ project/
  │  ├─ cogs/            # bot feature modules
  │  ├─ core/
  │  │  └─ classes.py    # importing bot cogs
- │  ├─ utils/           # custome discord components
+ │  ├─ utils/           # custom discord components
  │  ├─ bot.py           # bot entry main launcher
  │  └─ queue.py         # multi-task queue
  ├─ configs/
@@ -21,14 +21,14 @@ project/
  |  ├─ preprocess/      # preprocess comments
  |  └─ youtube/
  │     └─ api.py        # get youtube comments
- ├─ model/              # models
+ ├─ model/
  |  ├─ keyword/         # processing keyword
  |  └─ summary/         # processing summary
  ├─ pipeline/
  |  ├─ analyze.py       # workflow
  |  └─ schema.py        # custom dataclasses
  ├─ scripts/            # external extension
- ├─ .env
+ ├─ .env                # enviroment variable
  └─ data.json           # persistent storage
 ```
 
