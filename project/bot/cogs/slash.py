@@ -3,8 +3,6 @@ from discord import app_commands
 from datetime import datetime
 
 from bot.core.classes import Cog_Extension
-from bot.utils.embed import build_summary_embed
-
 
 class Slash(Cog_Extension):
     def __init__(self, bot):
@@ -52,6 +50,18 @@ class Slash(Cog_Extension):
         pos = q.queue_size() + 1
         msg = await interaction.followup.send(f"🧾 已加入關鍵字隊列（#{pos}）。完成後會更新這則訊息。", wait=True)
         await q.submit(url, msg, mode="keywords")
+        
+    @app_commands.command(name="top_comments", description="Show top 15 comments of the video.")
+    @app_commands.describe(url="YouTube video URL")
+    async def top_comments(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+        msg = await interaction.followup.send(
+            content=f"🧾 已加入熱門留言隊列（#{pos}）。完成後會更新這則訊息。", wait=True)
+
+        await q.submit(url, msg, mode="top_comments")
 
 async def setup(bot):
     await bot.add_cog(Slash(bot))

@@ -4,7 +4,7 @@ Integrate I/O
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from typing import List, Optional, Literal
 
 @dataclass
 class Stats:
@@ -21,6 +21,7 @@ class AnalysisResult:
     # video metadata
     video_id: str = ""
     title: str = ""
+    url: str = ""
 
     # stats
     stats: Stats = field(default_factory=Stats)
@@ -46,5 +47,30 @@ class Job:
     url: str
     message: discord.Message
     created_at: datetime
-    mode: str = "full"   # "full" | "summary" | "keywords"
+    mode: str = "full"
 
+Order = Literal["relevance", "time"]
+SortBy = Literal["likes", "replies", "time"]
+
+@dataclass(slots=True)
+class TopComment:
+    text: str
+    like_count: int
+    reply_count: int
+    published_at: Optional[str] = None
+    author: Optional[str] = None
+    comment_id: Optional[str] = None
+
+@dataclass(slots=True)
+class TopCommentsResult:
+    # required fields (no defaults)
+    video_id: str
+    title: str
+    url: str
+    top: List[TopComment]
+    total_fetched: int
+    order: Order
+    sort_by: SortBy
+
+    # optional error info
+    error: Optional[str] = None

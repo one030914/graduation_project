@@ -1,9 +1,13 @@
 import discord
+from datetime import datetime
 from pipeline.schema import AnalysisResult
+from pipeline.schema import TopCommentsResult
 
-FIELD_VALUE_LIMIT = 1024
+# -------------------------
+# Summary Embed
+# -------------------------
 
-def _clip(text: str, limit: int = FIELD_VALUE_LIMIT) -> str:
+def _clip(text: str, limit: int = 1024) -> str:
     text = "" if text is None else str(text)
     return text if len(text) <= limit else text[: max(0, limit - 3)] + "..."
 
@@ -33,36 +37,85 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
             color=0xED4245
         )
 
-    e = discord.Embed(
-        title="YT 留言摘要機器人",
-        description=_clip(f"🧾 影片標題：**{result.title or result.video_id}**", 4096),
+    embed = discord.Embed(
+        title=_clip(f"🧾 影片標題：**{result.title}**", 256),
+        description=_clip(f"🔗 來源：{result.url}", 256),
         color=0x5865F2
     )
 
     # 摘要
     if mode in ("full", "summary"):
         if result.summary_zh:
-            e.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
+            embed.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
         if result.summary_en:
-            e.add_field(name="📌 English Summary", value=_clip(_fmt_list(result.summary_en, 6)), inline=False)
+            embed.add_field(name="📌 English Summary", value=_clip(_fmt_list(result.summary_en, 6)), inline=False)
         if not result.summary_zh and not result.summary_en:
-            e.add_field(name="📌 摘要", value="（無）", inline=False)
+            embed.add_field(name="📌 摘要", value="（無）", inline=False)
 
     # 關鍵字
     if mode in ("full", "keywords"):
         if result.keywords_zh:
-            e.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
+            embed.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
         if result.keywords_en:
-            e.add_field(name="🔑 English Keywords", value=_clip(_fmt_keywords(result.keywords_en, 15)), inline=False)
+            embed.add_field(name="🔑 English Keywords", value=_clip(_fmt_keywords(result.keywords_en, 15)), inline=False)
         if not result.keywords_zh and not result.keywords_en:
-            e.add_field(name="🔑 關鍵字", value="（無）", inline=False)
+            embed.add_field(name="🔑 關鍵字", value="（無）", inline=False)
 
     # 語言比例
     lr = result.lang_ratio
     lang_text = f"🇹🇼 中文：{lr.zh:.1%}\n🇺🇸 英文：{lr.en:.1%}\n🌐 其他：{lr.other:.1%}"
-    e.add_field(name="🌍 語言佔比", value=_clip(lang_text), inline=False)
+    embed.add_field(name="🌍 語言佔比", value=_clip(lang_text), inline=False)
 
     # footer
-    e.set_footer(text=f"總留言數：{result.stats.n_comments}")
+    embed.set_footer(text=f"總留言數：{result.stats.n_comments}")
 
-    return e
+    return embed
+
+# -------------------------
+# Top Comments Embed
+# -------------------------
+
+def discord_time(iso_time: str | None) -> str:
+    if not iso_time:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
+        unix = int(dt.timestamp())
+        return f"<t:{unix}:R>"
+    except Exception:
+        return ""
+
+def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
+    embed = discord.Embed(
+        title=_clip(f"🧾 影片標題：**{result.title}**", 256),
+        description=_clip(f"🔗 來源：{result.url}", 256),
+        color=0x5865F2
+    )
+
+    if not result.top:
+        embed.add_field(name="結果", value="（無符合條件的留言）", inline=False)
+        return embed
+
+    lines = []
+    for i, c in enumerate(result.top, start=1):
+        # show author and time if available
+        author = time = ""
+        if c.author:
+            author = c.author
+        if c.published_at:
+            time = discord_time(c.published_at)
+        meta_txt = f"{i}. **{author}** {time}\n" if author and time else ""
+        
+        counts = f" 👍 {c.like_count} ｜ 💬 {c.reply_count}"
+        comments = _clip(c.text, 160)
+        
+        lines.append(f"{meta_txt}{comments}\n{counts}")
+
+    # limit the length of the embed field value
+    chunk = "\n\n".join(lines)
+    if len(chunk) > 3500:
+        chunk = chunk[:3499] + "…"
+
+    embed.add_field(name=f"Top {len(result.top)} comments", value=_clip(chunk), inline=False)
+    embed.set_footer(text=f"共抓到可用留言：{result.total_fetched}")
+    return embed

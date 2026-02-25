@@ -7,6 +7,9 @@ from typing import Callable, Dict, Optional, Tuple
 import discord
 
 from pipeline.schema import Job
+from pipeline.top_comments import get_top_comments
+from bot.utils.embed import build_top_comments_embed
+from bot.utils.embed import build_summary_embed
 
 class AnalysisQueue:
     """
@@ -115,25 +118,37 @@ class AnalysisQueue:
                         continue
 
                     # 3) 真的跑 analyze（CPU/IO heavy），丟 executor
-                    mode_text = {"full":"全套分析", "summary":"摘要分析", "keywords":"關鍵字分析"}.get(job.mode, job.mode)
-                    await job.message.edit(content=f"🔎 {mode_text}中…（模型推論可能需要一點時間）", embed=None)
+                    await job.message.edit(content=f"🔎 分析中…（模型推論可能需要一點時間）", embed=None)
 
                     def _run():
                         if job.mode == "summary":
                             return self.analyze_fn(job.url, run_summary=True, run_keywords=False)
                         if job.mode == "keywords":
                             return self.analyze_fn(job.url, run_summary=False, run_keywords=True)
+                        if job.mode == "top_comments":
+                            return get_top_comments(
+                                job.url,
+                                n=10,
+                                order="relevance",
+                                sort_by="likes",
+                                pages=5,
+                                page_size=100,
+                                min_likes=1,
+                            )
+                        
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 
                     result = await loop.run_in_executor(None, _run)
 
                     # 4) 存快取 + 回傳
                     self._set_cache(cached_key, result)
-                    embed = self.build_embed_fn(result, mode=job.mode)
+                    if job.mode == "top_comments":
+                        embed = build_top_comments_embed(result)
+                    else:
+                        embed = build_summary_embed(result, job.mode)
                     await job.message.edit(content="✅ 分析完成", embed=embed)
 
             except Exception as e:
-                # 不讓 worker 死掉：回錯誤訊息即可
                 try:
                     await job.message.edit(content=f"⚠️ 分析失敗：{type(e).__name__}: {e}", embed=None)
                 except Exception:
