@@ -1,27 +1,14 @@
 from data.youtube.api import API
 from data.preprocess.pipeline import batch_preprocess_comments
 from pipeline.schema import AnalysisResult, Stats, LangRatio
-
-import time
-
-class Timer:
-    def __init__(self):
-        self.marks = []
-        self.start = time.perf_counter()
-
-    def mark(self, name: str):
-        now = time.perf_counter()
-        self.marks.append((name, now - self.start))
-        self.start = now
-
-    def report(self) -> dict:
-        return {name: round(sec, 3) for name, sec in self.marks}
+from scripts.timestamp import Timer
 
 def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: int = 0,
             summary_topk: int = 5, keyword_topk: int = 10, run_summary: bool = True, run_keywords: bool = True) -> AnalysisResult:
     timer = Timer()
     
     api = API()
+    
     video_id = api.extract_video_id(video_url)
     if not video_id:
         return AnalysisResult(error="Invalid YouTube URL / video_id not found.")
@@ -41,6 +28,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
         return AnalysisResult(
             video_id=video_id,
             title=title,
+            url=video_url,
             stats=Stats(n_comments=0),
             lang_ratio=LangRatio(zh=0.0, en=0.0, other=1.0),
         )
@@ -119,6 +107,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     result = AnalysisResult(
         video_id=video_id,
         title=title,
+        url=video_url,
         stats=Stats(n_comments=n),
         lang_ratio=LangRatio(zh=zh, en=en, other=other),
         comments_zh=comments_zh,
