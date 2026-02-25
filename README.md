@@ -1,10 +1,10 @@
 # graduation_project
 
-## startup
+## Startup
 
 cd to project folder and use command: `python -m bot.bot`
 
-## structure
+## Project Structure
 
 ```
 project/
@@ -24,17 +24,15 @@ project/
  ├─ model/
  |  ├─ keyword/         # processing keyword
  |  └─ summary/         # processing summary
- ├─ pipeline/
- |  ├─ analyze.py       # workflow
- |  └─ schema.py        # custom dataclasses
- ├─ scripts/            # external extension
+ ├─ pipeline/           # workflow
+ ├─ scripts/            # additional scripts
  ├─ .env                # enviroment variable
  └─ data.json           # persistent storage
 ```
 
-# Todo
+# Todos
 
-## rebuild project
+## Rebuilding project
 -   [x] bot and cogs
 -   [x] youtube api
 -   [x] preprocess
@@ -43,7 +41,9 @@ project/
 -   [x] multi-task
 -   [ ] models train again?
 
-## add-ons
--   [ ] 標題分析分類
--   [ ] 留言情緒分析
--   [ ] 縮圖分析分類
+## Add-ons
+-   [x] top comments
+-   [ ] topics
+-   [ ] sentiment
+-   [ ] trend comments
+-   [ ] spam comments dectection
