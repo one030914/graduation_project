@@ -56,6 +56,8 @@ class API:
 
                 if likes >= min_likes:
                     comments.append({
+                        "comment_id": top.get("id"),
+                        "author": s.get("authorDisplayName"),
                         "原留言": s.get("textDisplay", ""),
                         "按讚數": likes,
                         "回覆數": item["snippet"].get("totalReplyCount", 0),
@@ -72,9 +74,13 @@ class API:
     def extract_video_id(self, url: str) -> str:
         parsed_url = urlparse(url)
 
-        # 處理 youtu.be 短網址
+        # 處理短網址
         if parsed_url.netloc == "youtu.be":
             return parsed_url.path.strip("/")
+
+        # 處理 Shorts
+        if parsed_url.path.startswith("/shorts/"):
+            return parsed_url.path.split("/")[2]
 
         # 處理 youtube.com/watch?v=xxxx
         if parsed_url.path == "/watch":
