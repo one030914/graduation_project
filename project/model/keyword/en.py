@@ -4,28 +4,11 @@ from functools import lru_cache
 from typing import List
 
 import pandas as pd
-import torch
+from keybert import KeyBERT
+from model.embedding.loader import get_en_embedder, get_device_str
 
-from configs.settings import MODEL_DIR
-
-def _device_str() -> str:
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-@lru_cache(maxsize=1)
-def _load_keybert_en(model_folder_name: str = "minilm_english_finetuned"):
-    """
-    Loads SentenceTransformer + KeyBERT once.
-    Expected folder:
-      model/minilm_english_finetuned/  (or your actual fine-tuned output)
-    """
-    from sentence_transformers import SentenceTransformer
-    from keybert import KeyBERT
-
-    model_dir = MODEL_DIR / model_folder_name
-    st_model = SentenceTransformer(str(model_dir), device=_device_str())
-    kw_model = KeyBERT(st_model)
-    return st_model, kw_model
-
+st_model = get_en_embedder()
+device = get_device_str()
 
 def extract_keywords_en(
     comments: List[str],
@@ -51,12 +34,12 @@ def extract_keywords_en(
     comments = [str(c) if not pd.isna(c) else "" for c in comments]
     comments = [c for c in comments if c]
 
-    st_model, kw_model = _load_keybert_en(model_folder_name=model_folder_name)
+    st_model = get_en_embedder(model_folder_name=model_folder_name)
 
     # Small data: no clustering (faster + more stable)
     if (not use_clustering) or len(comments) < max(min_cluster_size * 3, 30):
         joined = ". ".join(comments)
-        kws = kw_model.extract_keywords(joined, top_n=max(topk, per_cluster_topn), stop_words="english")
+        kws = KeyBERT(st_model).extract_keywords(joined, top_n=max(topk, per_cluster_topn), stop_words="english")
         out = []
         seen = set()
         for w, _score in kws:
@@ -79,7 +62,7 @@ def extract_keywords_en(
             model_folder_name=model_folder_name,
         )
 
-    embeddings = st_model.encode(comments, device=_device_str(), batch_size=64, show_progress_bar=False)
+    embeddings = st_model.encode(comments, device=device, batch_size=64, show_progress_bar=False)
 
     clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric="euclidean")
     labels = clusterer.fit_predict(embeddings)
@@ -103,7 +86,7 @@ def extract_keywords_en(
     flat: List[str] = []
     for _cid, cmt_list in clusters.items():
         joined = ". ".join(cmt_list)
-        kws = kw_model.extract_keywords(joined, top_n=per_cluster_topn, stop_words="english")
+        kws = KeyBERT(st_model).extract_keywords(joined, top_n=per_cluster_topn, stop_words="english")
         flat.extend([w for w, _ in kws])
 
     # dedup preserve order

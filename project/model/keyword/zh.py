@@ -4,10 +4,10 @@ from functools import lru_cache
 from typing import Dict, List, Optional
 
 import pandas as pd
-import torch
+from keybert import KeyBERT
 from sklearn.feature_extraction.text import CountVectorizer
 
-from configs.settings import MODEL_DIR
+from model.embedding.loader import get_zh_embedder, get_device_str
 
 ZH_VECTORIZER = CountVectorizer(
     tokenizer=lambda s: s.split(),
@@ -15,18 +15,9 @@ ZH_VECTORIZER = CountVectorizer(
     token_pattern=None,
 )
 
-def _device_str() -> str:
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-@lru_cache(maxsize=1)
-def _load_keybert_zh(model_folder_name: str = "minilm_chinese_finetuned"):
-    from sentence_transformers import SentenceTransformer
-    from keybert import KeyBERT
-
-    model_dir = MODEL_DIR / model_folder_name
-    st_model = SentenceTransformer(str(model_dir), device=_device_str())
-    kw_model = KeyBERT(st_model)
-    return st_model, kw_model
+st_model = get_zh_embedder()
+device = get_device_str()
+kw_model = KeyBERT(st_model)
 
 def _dedup_preserve_order(items: List[str], limit: int) -> List[str]:
     seen = set()
@@ -71,7 +62,6 @@ def _build_aligned_docs(
     return aligned
 
 def _extract_keywords_from_text(
-    kw_model,
     text: str,
     *,
     top_n: int,
@@ -80,7 +70,7 @@ def _extract_keywords_from_text(
     if not text.strip():
         return []
 
-    kws = kw_model.extract_keywords(
+    kws = KeyBERT(st_model).extract_keywords(
         text,
         top_n=top_n,
         stop_words=None,
@@ -117,7 +107,8 @@ def extract_cluster_keywords_zh(
     comments = [str(c) if not pd.isna(c) else "" for c in comments]
     comments = [c for c in comments if c]
 
-    st_model, kw_model = _load_keybert_zh(model_folder_name=model_folder_name)
+    st_model = get_zh_embedder(model_folder_name=model_folder_name)
+    kw_model = KeyBERT(st_model)
 
     aligned_docs = _build_aligned_docs(comments, tokens_zh)
 
@@ -143,7 +134,7 @@ def extract_cluster_keywords_zh(
             model_folder_name=model_folder_name,
         )
 
-    embeddings = st_model.encode(comments, device=_device_str(), batch_size=64, show_progress_bar=False)
+    embeddings = st_model.encode(comments, device=device, batch_size=64, show_progress_bar=False)
 
     clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric="euclidean")
     labels = clusterer.fit_predict(embeddings)

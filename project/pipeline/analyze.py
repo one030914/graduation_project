@@ -18,6 +18,16 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
 
     comments = api.get_comments(url=video_url, page_size=page_size, pages=pages, min_likes=min_likes)
     
+    if len(comments) < 100:
+        return AnalysisResult(
+            video_id=video_id,
+            title=title,
+            url=video_url,
+            stats=Stats(n_comments=0),
+            lang_ratio=LangRatio(zh=0.0, en=0.0, other=1.0),
+            error="留言數不足以分析"
+        )
+    
     timer.mark("api fetch")
     
     df = batch_preprocess_comments(comments)
