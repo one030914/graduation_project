@@ -2,6 +2,7 @@ import discord
 from datetime import datetime
 from pipeline.schema import AnalysisResult
 from pipeline.schema import TopCommentsResult
+from pipeline.schema import TopicsResult
 
 # -------------------------
 # Summary Embed
@@ -118,4 +119,48 @@ def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
 
     embed.add_field(name=f"Top {len(result.top)} comments", value=_clip(chunk), inline=False)
     embed.set_footer(text=f"共抓到可用留言：{result.total_fetched}")
+    return embed
+
+# -------------------------
+# Topics Embed
+# -------------------------
+
+def build_topics_embed(result: TopicsResult) -> discord.Embed:
+    if result.error:
+        return discord.Embed(
+            title="⚠️ Topic 分析失敗",
+            description=result.error,
+            color=0xED4245
+        )
+
+    embed = discord.Embed(
+        title="YT 留言主題分析",
+        description=f"🧾 影片標題：**{result.title}**\n🌐 分析語言：{result.language}",
+        color=0x5865F2
+    )
+
+    if not result.topics:
+        embed.add_field(name="結果", value="（未形成明確主題群）", inline=False)
+        return embed
+
+    for i, topic in enumerate(result.topics[:5], start=1):
+        kw_text = "、".join(topic.keywords[:5]) if topic.keywords else "（無）"
+        rep_text = "\n".join(f"- {_clip(x, 100)}" for x in topic.representative_comments[:2]) or "（無）"
+
+        value = (
+            f"**占比：** {topic.ratio:.1%}\n"
+            f"**關鍵詞：** {kw_text}\n"
+            f"**代表留言：**\n{rep_text}"
+        )
+
+        if len(value) > 1000:
+            value = value[:999] + "…"
+
+        embed.add_field(
+            name=f"Topic {i}（{topic.size} 則）",
+            value=value,
+            inline=False
+        )
+
+    embed.set_footer(text=f"總留言數：{result.total_comments}")
     return embed

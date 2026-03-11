@@ -6,6 +6,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal
 
+# Analysis
+
 @dataclass
 class Stats:
     n_comments: int = 0
@@ -49,6 +51,8 @@ class Job:
     created_at: datetime
     mode: str = "full"
 
+# Top Comments
+
 Order = Literal["relevance", "time"]
 SortBy = Literal["likes", "replies", "time"]
 
@@ -73,4 +77,24 @@ class TopCommentsResult:
     sort_by: SortBy
 
     # optional error info
+    error: Optional[str] = None
+
+# Topics
+
+@dataclass(slots=True)
+class TopicCluster:
+    cluster_id: int
+    size: int
+    ratio: float
+    keywords: List[str]
+    representative_comments: List[str]
+    language: Optional[str] = None
+
+@dataclass(slots=True)
+class TopicsResult:
+    url: str
+    title: str = ""
+    total_comments: int = 0
+    language: str = ""
+    topics: List[TopicCluster] = field(default_factory=list)
     error: Optional[str] = None

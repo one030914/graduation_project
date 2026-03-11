@@ -10,6 +10,8 @@ from pipeline.schema import Job
 from pipeline.top_comments import get_top_comments
 from bot.utils.embed import build_top_comments_embed
 from bot.utils.embed import build_summary_embed
+from bot.utils.embed import build_topics_embed
+from pipeline.topic import build_topics
 
 class AnalysisQueue:
     """
@@ -103,7 +105,12 @@ class AnalysisQueue:
                 cached_key = self._key(job.video_id, job.mode)
                 cached = self._get_cached(cached_key)
                 if cached is not None:
-                    embed = self.build_embed_fn(cached)
+                    if job.mode == "top_comments":
+                        embed = build_top_comments_embed(cached)
+                    elif job.mode == "topics":
+                        embed = build_topics_embed(cached)
+                    else:
+                        embed = self.build_embed_fn(cached)
                     await job.message.edit(content="✅（快取）分析完成", embed=embed)
                     continue
 
@@ -113,7 +120,12 @@ class AnalysisQueue:
                     # double-check cache（可能另一個 worker 已算完）
                     cached2 = self._get_cached(cached_key)
                     if cached2 is not None:
-                        embed = self.build_embed_fn(cached2)
+                        if job.mode == "top_comments":
+                            embed = build_top_comments_embed(cached2)
+                        elif job.mode == "topics":
+                            embed = build_topics_embed(cached2)
+                        else:
+                            embed = self.build_embed_fn(cached2)
                         await job.message.edit(content="✅（快取）分析完成", embed=embed)
                         continue
 
@@ -135,6 +147,8 @@ class AnalysisQueue:
                                 page_size=100,
                                 min_likes=1,
                             )
+                        if job.mode == "topics":
+                            return build_topics(job.url)
                         
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 
@@ -144,6 +158,8 @@ class AnalysisQueue:
                     self._set_cache(cached_key, result)
                     if job.mode == "top_comments":
                         embed = build_top_comments_embed(result)
+                    elif job.mode == "topics":
+                        embed = build_topics_embed(result)
                     else:
                         embed = build_summary_embed(result, job.mode)
                     await job.message.edit(content="✅ 分析完成", embed=embed)
