@@ -2,7 +2,13 @@
 
 ## Startup
 
-cd to project folder and use command: `python -m bot.bot`
+### Docker build
+
+`docker compose up -d` to bulid up docker container in background, `docker compose down -v` to close the container with volume.
+
+### Run the bot
+
+cd to project folder and use command: `python -m bot.bot`.
 
 ## Project Structure
 
@@ -28,6 +34,9 @@ project/
  ├─ scripts/            # additional scripts
  ├─ .env                # enviroment variable
  └─ data.json           # persistent storage
+docker-compose.yml      # docker services configuration
+Dockerfile              # docker image build instrcutions
+requirements.txt        # dependencies
 ```
 
 # Todos
@@ -43,7 +52,7 @@ project/
 
 ## Add-ons
 -   [x] top comments
--   [ ] topics
+-   [x] topics
 -   [ ] sentiment
 -   [ ] trend comments
 -   [ ] spam comments dectection
