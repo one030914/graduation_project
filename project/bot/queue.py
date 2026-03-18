@@ -8,10 +8,9 @@ import discord
 
 from pipeline.schema import Job
 from pipeline.top_comments import get_top_comments
-from bot.utils.embed import build_top_comments_embed
-from bot.utils.embed import build_summary_embed
-from bot.utils.embed import build_topics_embed
 from pipeline.topic import build_topics
+from pipeline.emotion import build_emotion
+from bot.utils.embed import build_top_comments_embed, build_summary_embed, build_topics_embed, build_emotion_embed
 
 class AnalysisQueue:
     """
@@ -101,6 +100,7 @@ class AnalysisQueue:
         while not self._stop_event.is_set():
             job = await self.queue.get()
             try:
+                file = None
                 # 1) cache 命中就直接回
                 cached_key = self._key(job.video_id, job.mode)
                 cached = self._get_cached(cached_key)
@@ -109,9 +109,15 @@ class AnalysisQueue:
                         embed = build_top_comments_embed(cached)
                     elif job.mode == "topics":
                         embed = build_topics_embed(cached)
+                    elif job.mode == "emotion":
+                        embed, file = build_emotion_embed(cached)
                     else:
                         embed = self.build_embed_fn(cached)
-                    await job.message.edit(content="✅（快取）分析完成", embed=embed)
+                    
+                    if file:
+                        await job.message.edit(content="✅（快取）分析完成", embed=embed, attachments=[file])
+                    else:
+                        await job.message.edit(content="✅（快取）分析完成", embed=embed)
                     continue
 
                 # 2) 同影片去重：同一 video_id 同時只允許一個 worker 做
@@ -124,9 +130,15 @@ class AnalysisQueue:
                             embed = build_top_comments_embed(cached2)
                         elif job.mode == "topics":
                             embed = build_topics_embed(cached2)
+                        elif job.mode == "emotion":
+                            embed, file = build_emotion_embed(cached2)
                         else:
                             embed = self.build_embed_fn(cached2)
-                        await job.message.edit(content="✅（快取）分析完成", embed=embed)
+                            
+                        if file:
+                            await job.message.edit(content="✅（快取）分析完成", embed=embed, attachments=[file])
+                        else:
+                            await job.message.edit(content="✅（快取）分析完成", embed=embed)
                         continue
 
                     # 3) 真的跑 analyze（CPU/IO heavy），丟 executor
@@ -135,9 +147,9 @@ class AnalysisQueue:
                     def _run():
                         if job.mode == "summary":
                             return self.analyze_fn(job.url, run_summary=True, run_keywords=False)
-                        if job.mode == "keywords":
+                        elif job.mode == "keywords":
                             return self.analyze_fn(job.url, run_summary=False, run_keywords=True)
-                        if job.mode == "top_comments":
+                        elif job.mode == "top_comments":
                             return get_top_comments(
                                 job.url,
                                 n=10,
@@ -147,8 +159,10 @@ class AnalysisQueue:
                                 page_size=100,
                                 min_likes=1,
                             )
-                        if job.mode == "topics":
+                        elif job.mode == "topics":
                             return build_topics(job.url)
+                        elif job.mode == "emotion":
+                            return build_emotion(job.url)
                         
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 
@@ -160,9 +174,15 @@ class AnalysisQueue:
                         embed = build_top_comments_embed(result)
                     elif job.mode == "topics":
                         embed = build_topics_embed(result)
+                    elif job.mode == "emotion":
+                        embed, file = build_emotion_embed(result)
                     else:
                         embed = build_summary_embed(result, job.mode)
-                    await job.message.edit(content="✅ 分析完成", embed=embed)
+                        
+                    if file:
+                        await job.message.edit(content="✅（快取）分析完成", embed=embed, attachments=[file])
+                    else:
+                        await job.message.edit(content="✅（快取）分析完成", embed=embed)
 
             except Exception as e:
                 try:

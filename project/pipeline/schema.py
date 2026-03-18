@@ -75,8 +75,6 @@ class TopCommentsResult:
     total_fetched: int
     order: Order
     sort_by: SortBy
-
-    # optional error info
     error: Optional[str] = None
 
 # Topics
@@ -97,4 +95,20 @@ class TopicsResult:
     total_comments: int = 0
     language: str = ""
     topics: List[TopicCluster] = field(default_factory=list)
+    error: Optional[str] = None
+    
+# Emotion
+
+@dataclass(slots=True)
+class EmotionStats:
+    emotions: Dict[str, int] = field(default_factory=dict)
+    total: int = 0
+
+@dataclass(slots=True)
+class EmotionResult:
+    url: str
+    title: str = ""
+    total_comments: int = 0
+    language: str = ""
+    stats: EmotionStats | None = None
     error: Optional[str] = None

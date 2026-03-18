@@ -1,8 +1,6 @@
 import discord
 from datetime import datetime
-from pipeline.schema import AnalysisResult
-from pipeline.schema import TopCommentsResult
-from pipeline.schema import TopicsResult
+from pipeline.schema import AnalysisResult, TopCommentsResult, TopicsResult, EmotionResult
 
 # -------------------------
 # Summary Embed
@@ -125,6 +123,12 @@ def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
 # Topics Embed
 # -------------------------
 
+LANG_MAP = {
+    "zh": "中文",
+    "en": "英文",
+    "unknown": "其他"
+}
+
 def build_topics_embed(result: TopicsResult) -> discord.Embed:
     if result.error:
         return discord.Embed(
@@ -133,9 +137,11 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
             color=0xED4245
         )
 
+    display_lang = LANG_MAP.get(result.language, result.language)
+    
     embed = discord.Embed(
         title="YT 留言主題分析",
-        description=f"🧾 影片標題：**{result.title}**\n🌐 分析語言：{result.language}",
+        description=f"🧾 影片標題：**{result.title}**\n🌐 主要語言：{display_lang}",
         color=0x5865F2
     )
 
@@ -164,3 +170,58 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
 
     embed.set_footer(text=f"總留言數：{result.total_comments}")
     return embed
+
+# -------------------------
+# Emotion Embed
+# -------------------------
+
+from bot.utils.chart import build_emotion_radar_chart
+
+EMOTION_ORDER = [
+    "Joy",
+    "Angry",
+    "Sad",
+    "Surprised",
+    "Disgusted",
+    "Neutral",
+]
+
+def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.File | None]:
+    if result.error:
+        embed = discord.Embed(
+            title="⚠️ Emotion 分析失敗",
+            description=result.error,
+            color=0xED4245
+        )
+        return embed, None
+
+    display_lang = LANG_MAP.get(result.language, result.language)
+
+    embed = discord.Embed(
+        title="YT 留言情緒分析",
+        description=f"🧾 影片標題：**{result.title}**\n🌐 分析語言：{display_lang}",
+        color=0x5865F2
+    )
+
+    stats = result.stats.emotions if result.stats else {}
+    total = result.stats.total if result.stats else 0
+
+    lines = []
+    for emo in EMOTION_ORDER:
+        count = stats.get(emo, 0)
+        ratio = (count / total) if total else 0
+        lines.append(f"**{emo}**：{count}（{ratio:.1%}）")
+
+    embed.add_field(
+        name="情緒分布",
+        value="\n".join(lines) if lines else "（無）",
+        inline=False
+    )
+
+    embed.set_footer(text=f"總留言數：{result.total_comments} ｜ 參與情緒分析留言數：{total}")
+
+    buf = build_emotion_radar_chart(result.stats.emotions)
+    file = discord.File(buf, filename="emotion_radar.png")
+    embed.set_image(url="attachment://emotion_radar.png")
+
+    return embed, file

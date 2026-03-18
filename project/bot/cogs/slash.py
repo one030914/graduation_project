@@ -63,14 +63,14 @@ class Slash(Cog_Extension):
         msg = await interaction.followup.send(f"🧾 已加入主題隊列（#{pos}）。完成後會更新這則訊息。", wait=True)
         await q.submit(url, msg, mode="topics")
         
-    # @app_commands.command(name="sentiment", description="Show sentiment of the video.")
-    # @app_commands.describe(url="YouTube video URL")
-    # async def sentiment(self, interaction: discord.Interaction, url: str):
-    #     await interaction.response.defer(thinking=True)
-    #     q = self.bot.analysis_queue
-    #     pos = q.queue_size() + 1
-    #     msg = await interaction.followup.send(f"🧾 已加入情感隊列（#{pos}）。完成後會更新這則訊息。", wait=True)
-    #     await q.submit(url, msg, mode="sentiment")
+    @app_commands.command(name="emotion", description="Analyzing emotions of the video comments.")
+    @app_commands.describe(url="YouTube video URL")
+    async def emotion(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+        msg = await interaction.followup.send(f"🧾 已加入情感隊列（#{pos}）。完成後會更新這則訊息。", wait=True)
+        await q.submit(url, msg, mode="emotion")
         
     # @app_commands.command(name="trend_comments", description="Show trend comments of the video.")
     # @app_commands.describe(url="YouTube video URL")
