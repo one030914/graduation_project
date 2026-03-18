@@ -18,7 +18,7 @@ project/
  │  ├─ cogs/            # bot feature modules
  │  ├─ core/
  │  │  └─ classes.py    # importing bot cogs
- │  ├─ utils/           # custom discord components
+ │  ├─ utils/           # components
  │  ├─ bot.py           # bot entry main launcher
  │  └─ queue.py         # multi-task queue
  ├─ configs/
@@ -48,11 +48,12 @@ requirements.txt        # dependencies
 -   [x] models
 -   [x] pipeline
 -   [x] multi-task
--   [ ] models train again?
+-   [ ] retrain models
+-   [ ] rebuild enviroment (consider a lower GPU capable of supporting)
 
 ## Add-ons
 -   [x] top comments
 -   [x] topics
--   [ ] sentiment
+-   [x] emotion
 -   [ ] trend comments
 -   [ ] spam comments dectection
