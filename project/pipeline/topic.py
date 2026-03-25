@@ -10,7 +10,8 @@ def get_main_language(df) -> str:
     counts = df["語言"].value_counts().to_dict()
     zh = counts.get("zh", 0)
     en = counts.get("en", 0)
-    return "zh" if zh >= en else "en"
+    unknown = counts.get("unknown", 0)
+    return "zh" if zh >= en and zh >= unknown else "en" if en >= zh and en >= unknown else "unknown"
 
 def build_topics(
     url: str,
@@ -66,8 +67,17 @@ def build_topics(
 
     if main_lang == "zh":
         topics = build_topics_zh(df_lang)
-    else:
+    elif main_lang == "en":
         topics = build_topics_en(df_lang)
+    else:
+        return TopicsResult(
+            url=url,
+            title=title,
+            total_comments=len(df),
+            language=main_lang,
+            topics=[],
+            error="無法分析此語言"
+        )
 
     return TopicsResult(
         url=url,
