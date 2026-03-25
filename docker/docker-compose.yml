@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+    project:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile
+            args:
+                BASE: ${BASE:-pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime}
+                FILE: ${FILE:-docker/pt2.7-cu128.txt}
+        image: one030914/ai_project:${TAG:-cu128}
+        container_name: project
+        stdin_open: true
+        tty: true
+        command: bash
+        gpus: all
+        working_dir: /app
+        volumes:
+            - type: bind
+              source: ../project
+              target: /app

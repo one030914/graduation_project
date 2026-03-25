@@ -4,7 +4,41 @@
 
 ### Docker build
 
-`docker compose up -d` to bulid up docker container in background, `docker compose down -v` to close the container with volume.
+Use these commands depending on your situation:
+
+- Build or rebuild the image, then start the container:
+
+```bash
+docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d --build
+```
+
+- Start the container directly when the image already exists and nothing in the build config has changed:
+
+```bash
+docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d
+```
+
+- Stop the container and remove volumes:
+
+```bash
+docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml down -v
+```
+
+CUDA variants:
+
+- Default uses image tag `cu128`, `pt2.7-cu128.txt`, and `pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime`
+- To switch variant in both `CMD` and `PowerShell`, use `--env-file`
+- `cu118` example:
+
+```bash
+docker compose --env-file ./docker/cu118.env -f ./docker/docker-compose.yml up -d --build
+```
+
+- `cu128` example:
+
+```bash
+docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d --build
+```
 
 ### Run the bot
 
@@ -13,30 +47,31 @@ cd to project folder and use command: `python -m bot.bot`.
 ## Project Structure
 
 ```
-project/
- ├─ bot/
- │  ├─ cogs/            # bot feature modules
- │  ├─ core/
- │  │  └─ classes.py    # importing bot cogs
- │  ├─ utils/           # components
- │  ├─ bot.py           # bot entry main launcher
- │  └─ queue.py         # multi-task queue
- ├─ configs/
- │  └─ settings.py      # define custom constent
- ├─ data/               # data processing utilities
- |  ├─ preprocess/      # preprocess comments
- |  └─ youtube/
- │     └─ api.py        # get youtube comments
- ├─ model/
- |  ├─ keyword/         # processing keyword
- |  └─ summary/         # processing summary
- ├─ pipeline/           # workflow
- ├─ scripts/            # additional scripts
- ├─ .env                # enviroment variable
- └─ data.json           # persistent storage
-docker-compose.yml      # docker services configuration
-Dockerfile              # docker image build instrcutions
-requirements.txt        # dependencies
+graduation_project/
+├─ docker/                  # docker build and compose configuration
+├─ project/
+│  ├─ bot/
+│  │  ├─ cogs/              # bot feature modules
+│  │  ├─ core/
+│  │  │  └─ classes.py      # importing bot cogs
+│  │  ├─ utils/             # components
+│  │  ├─ bot.py             # bot entry point
+│  │  └─ queue.py           # multi-task queue
+│  ├─ configs/
+│  │  └─ settings.py        # constants and settings
+│  ├─ data/
+│  │  ├─ preprocess/        # comment preprocessing
+│  │  └─ youtube/
+│  │     └─ api.py          # youtube comment retrieval
+│  ├─ model/
+│  │  ├─ keyword/           # keyword processing
+│  │  └─ summary/           # summary processing
+│  ├─ pipeline/             # workflow pipeline
+│  ├─ scripts/              # helper scripts
+│  ├─ .env                  # environment variables
+│  └─ data.json             # persistent storage
+├─ .gitignore
+└─ README.md
 ```
 
 # Todos
@@ -48,12 +83,12 @@ requirements.txt        # dependencies
 -   [x] models
 -   [x] pipeline
 -   [x] multi-task
+-   [x] rebuild enviroment (consider a lower GPU capable of supporting)
 -   [ ] retrain models
--   [ ] rebuild enviroment (consider a lower GPU capable of supporting)
 
 ## Add-ons
--   [x] top comments
+-   [x] top
 -   [x] topics
 -   [x] emotion
--   [ ] trend comments
--   [ ] spam comments dectection
+-   [ ] trend
+-   [ ] spam
