@@ -145,9 +145,9 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
         color=0x5865F2
     )
 
-    if not result.topics:
-        embed.add_field(name="結果", value="（未形成明確主題群）", inline=False)
-        return embed
+    # if not result.topics:
+    #     embed.add_field(name="結果", value="（未形成明確主題群）", inline=False)
+    #     return embed
 
     for i, topic in enumerate(result.topics[:5], start=1):
         kw_text = "、".join(topic.keywords[:5]) if topic.keywords else "（無）"

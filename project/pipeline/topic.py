@@ -52,7 +52,8 @@ def build_topics(
             title=title,
             total_comments=len(df),
             language=main_lang,
-            topics=[]
+            topics=[],
+            error="未形成明確主題群"
         )
         
     if len(df_lang) < 15:
