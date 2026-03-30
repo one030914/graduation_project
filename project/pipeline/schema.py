@@ -3,6 +3,7 @@ Integrate I/O
 """
 
 from __future__ import annotations
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal
 
@@ -45,9 +46,12 @@ class AnalysisResult:
     
 @dataclass
 class Job:
+    """
+    Queue 工作單（不依賴任何 Discord/web 型別）
+    """
+    job_id: str
     video_id: str
     url: str
-    message: discord.Message
     created_at: datetime
     mode: str = "full"
 

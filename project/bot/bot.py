@@ -8,7 +8,6 @@ from configs.settings import ROOT, BOT_DIR
 from bot.queue import AnalysisQueue
 
 from pipeline.analyze import analyze
-from bot.utils.embed import build_summary_embed
 
 from data.youtube.api import API
 
@@ -39,7 +38,6 @@ class MyBot(commands.Bot):
         # 3) analysis queue
         self.analysis_queue = AnalysisQueue(
             analyze_fn=analyze,
-            build_embed_fn=build_summary_embed,
             extract_video_id_fn=extract_video_id_only,
             workers=4,
             cache_ttl_minutes=10,
