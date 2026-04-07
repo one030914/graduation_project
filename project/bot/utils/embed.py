@@ -85,15 +85,18 @@ def discord_time(iso_time: str | None) -> str:
         return ""
 
 def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
+    if result.error:
+        return discord.Embed(
+            title="⚠️ Top comments 分析失敗",
+            description=_clip(result.error, 4096),
+            color=0xED4245
+        )
+
     embed = discord.Embed(
         title=_clip(f"🧾 影片標題：**{result.title}**", 256),
         description=_clip(f"🔗 來源：{result.url}", 256),
         color=0x5865F2
     )
-
-    if not result.top:
-        embed.add_field(name="結果", value="（無符合條件的留言）", inline=False)
-        return embed
 
     lines = []
     for i, c in enumerate(result.top, start=1):
@@ -145,10 +148,6 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
         color=0x5865F2
     )
 
-    # if not result.topics:
-    #     embed.add_field(name="結果", value="（未形成明確主題群）", inline=False)
-    #     return embed
-
     for i, topic in enumerate(result.topics[:5], start=1):
         kw_text = "、".join(topic.keywords[:5]) if topic.keywords else "（無）"
         rep_text = "\n".join(f"- {_clip(x, 100)}" for x in topic.representative_comments[:2]) or "（無）"
@@ -168,7 +167,7 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
             inline=False
         )
 
-    embed.set_footer(text=f"總留言數：{result.total_comments}")
+    embed.set_footer(text=f"參與主題分析留言數：{result.total_comments}")
     return embed
 
 # -------------------------

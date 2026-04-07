@@ -45,24 +45,11 @@ def build_topics(
 
     main_lang = get_main_language(df)
     df_lang = df[df["語言"] == main_lang].copy()
-
-    if df_lang.empty:
-        return TopicsResult(
-            url=url,
-            title=title,
-            total_comments=len(df),
-            language=main_lang,
-            topics=[],
-            error="未形成明確主題群"
-        )
         
     if len(df_lang) < 15:
         return TopicsResult(
             url=url,
             title=title,
-            total_comments=len(df),
-            language=main_lang,
-            topics=[],
             error="留言數不足以形成穩定主題群"
         )
 
@@ -74,16 +61,20 @@ def build_topics(
         return TopicsResult(
             url=url,
             title=title,
-            total_comments=len(df),
-            language=main_lang,
-            topics=[],
             error="無法分析此語言"
+        )
+    
+    if not topics:
+        return TopicsResult(
+            url=url,
+            title=title,
+            error="未形成明確主題群"
         )
 
     return TopicsResult(
         url=url,
         title=title,
-        total_comments=len(df),
+        total_comments=len(df_lang),
         language=main_lang,
         topics=topics
     )

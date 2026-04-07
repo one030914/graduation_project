@@ -19,7 +19,7 @@ def get_top_comments(
     
     video_id = api.extract_video_id(url)
     if not video_id:
-        return TopCommentsResult(error="Invalid YouTube URL / video_id not found.")
+        return TopCommentsResult(url=url, error="Invalid YouTube URL / video_id not found.")
 
     video_info = api.get_video_info(video_id)
     title = (video_info or {}).get("title") or video_id
@@ -31,6 +31,15 @@ def get_top_comments(
         min_likes=min_likes,
         order=order,
     )
+    if not comments:
+        return TopCommentsResult(
+            video_id=video_id,
+            title=title,
+            url=url,
+            order=order,
+            sort_by=sort_by,
+            error="No comments found"
+        )
 
     def _to_int(x) -> int:
         try:
@@ -64,6 +73,16 @@ def get_top_comments(
     # limit the number of comments
     n = max(1, min(int(n), 10))
     top = items[:n]
+    if not top:
+        return TopCommentsResult(
+            video_id=video_id,
+            title=title,
+            url=url,
+            total_fetched=len(items),
+            order=order,
+            sort_by=sort_by,
+            error="No valid comments after filtering"
+        )
 
     return TopCommentsResult(
         video_id=video_id,
