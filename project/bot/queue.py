@@ -6,25 +6,10 @@ from dataclasses import dataclass, asdict, is_dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from pipeline.schema import Job
+from pipeline.schema import Job, JobStatus
 from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
-
-
-@dataclass(slots=True)
-class JobStatus:
-    status: str  # queued | running | completed | failed
-    video_id: str
-    mode: str
-    created_at: datetime
-    updated_at: datetime
-    expires_at: datetime
-    from_cache: Optional[bool] = None
-    error: Optional[str] = None
-    # 可選：不要讓 web adapter 依賴 queue 內部型別就能序列化結果
-    result: Any = None
-
 
 def _to_jsonable(obj: Any) -> Any:
     # 讓 FastAPI 之類的 JSON response 可以直接用
@@ -37,7 +22,6 @@ def _to_jsonable(obj: Any) -> Any:
     if isinstance(obj, tuple):
         return [_to_jsonable(x) for x in obj]
     return obj
-
 
 class AnalysisQueue:
     """

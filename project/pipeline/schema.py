@@ -5,7 +5,7 @@ Integrate I/O
 from __future__ import annotations
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional, Literal
+from typing import Any, Dict, List, Optional, Literal
 
 # Analysis
 
@@ -43,7 +43,22 @@ class AnalysisResult:
 
     # error handling
     error: Optional[str] = None
-    
+
+# Queue
+
+@dataclass(slots=True)
+class JobStatus:
+    status: str  # queued | running | completed | failed
+    video_id: str
+    mode: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime
+    from_cache: Optional[bool] = None
+    error: Optional[str] = None
+    # 可選：不要讓 web adapter 依賴 queue 內部型別就能序列化結果
+    result: Any = None
+  
 @dataclass
 class Job:
     """
@@ -54,6 +69,18 @@ class Job:
     url: str
     created_at: datetime
     mode: str = "full"
+    
+@dataclass
+class Req:
+    video_url: str
+    job_mode: str = "full"
+    pages: int = 5
+    page_size: int = 100
+    min_likes: int = 0
+    summary_topk: int = 5
+    keyword_topk: int = 10
+    run_summary: bool = True
+    run_keywords: bool = True
 
 # Top Comments
 
@@ -71,14 +98,13 @@ class TopComment:
 
 @dataclass(slots=True)
 class TopCommentsResult:
-    # required fields (no defaults)
-    video_id: str
-    title: str
-    url: str
-    top: List[TopComment]
-    total_fetched: int
-    order: Order
-    sort_by: SortBy
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+    top: List[TopComment] = field(default_factory=list)
+    total_fetched: int = 0
+    order: Order = "relevance"
+    sort_by: SortBy = "likes"
     error: Optional[str] = None
 
 # Topics
