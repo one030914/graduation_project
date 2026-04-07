@@ -13,7 +13,12 @@ services:
         tty: true
         command: bash
         gpus: all
+        environment:
+            - NEXT_TELEMETRY_DISABLED=1
         working_dir: /app
+        ports:
+            - "3000:3000"
+            - "8000:8000"
         volumes:
             - type: bind
               source: ../project

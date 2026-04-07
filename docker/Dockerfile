@@ -48,11 +48,21 @@ ENV PIP_NO_CACHE_DIR=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH
 
+ENV BUN_INSTALL=/opt/bun \
+    PATH=/opt/bun/bin:$PATH
+
 COPY --from=builder /app/requirements.docker.txt ./requirements.docker.txt
 COPY --from=builder /opt/venv /opt/venv
 
 RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels,ro \
     "$VIRTUAL_ENV/bin/pip" install --no-compile --no-index --find-links=/wheels -r requirements.docker.txt \
     && rm -rf /root/.cache /tmp/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://bun.sh/install | bash
 
 CMD ["/bin/bash"]
