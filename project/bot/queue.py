@@ -10,6 +10,7 @@ from pipeline.schema import Job, JobStatus
 from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
+from pipeline.video_content import build_video_content
 
 def _to_jsonable(obj: Any) -> Any:
     # 讓 FastAPI 之類的 JSON response 可以直接用
@@ -261,6 +262,8 @@ class AnalysisQueue:
                             return build_topics(job.url)
                         elif job.mode == "emotion":
                             return build_emotion(job.url)
+                        elif job.mode == "video_content":
+                            return build_video_content(job.url)
                         
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 

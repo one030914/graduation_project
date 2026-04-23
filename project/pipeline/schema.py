@@ -44,6 +44,23 @@ class AnalysisResult:
     # error handling
     error: Optional[str] = None
 
+# Video Content
+
+TranscriptSource = Literal["caption", "whisper"]
+
+@dataclass(slots=True)
+class VideoContentResult:
+    title: str = ""
+    url: str = ""
+    language: str = ""
+    summary_zh: List[str] = field(default_factory=list)
+    summary_en: List[str] = field(default_factory=list)
+    keywords_zh: List[str] = field(default_factory=list)
+    keywords_en: List[str] = field(default_factory=list)
+    highlights: List[str] = field(default_factory=list)
+    transcript_source: Optional[TranscriptSource] = None
+    error: Optional[str] = None
+
 # Queue
 
 @dataclass(slots=True)

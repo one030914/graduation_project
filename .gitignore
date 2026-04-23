@@ -1,4 +1,5 @@
 venv/
+.venv/
 test*.py
 .env
 __pycache__/
@@ -8,3 +9,4 @@ MiniLM*.csv
 BERTSUM*/
 BERTSUM*.csv
 *.zip
+runlogs/

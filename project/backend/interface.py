@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="YouTube Comment Analyzer API", lifespan=lifespan)
-ALLOWED_JOB_MODES = {"full", "summary", "keywords", "top_comments", "topics", "emotion"}
+ALLOWED_JOB_MODES = {"full", "summary", "keywords", "top_comments", "topics", "emotion", "video_content"}
 
 # 允許前端跨域請求
 app.add_middleware(

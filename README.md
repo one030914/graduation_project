@@ -44,6 +44,33 @@ docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -
 
 cd to project folder and use command: `python -m bot.bot`.
 
+### Video content analysis
+
+The project also supports transcript-based video content analysis.
+
+- It only uses manually provided YouTube CC captions.
+- If manual CC is unavailable, it falls back to downloading the full audio and transcribing it with local Whisper.
+- The transcript is then sent to Gemini through the Google AI Studio API to generate a summary, keywords, and representative highlights.
+
+Additional Python dependencies:
+
+- `youtube-transcript-api`
+- `yt-dlp`
+- `faster-whisper`
+- `google-genai`
+
+Docker runtime also needs `ffmpeg` for the audio fallback path.
+
+Optional environment variable:
+
+```bash
+WHISPER_MODEL_SIZE=small
+GEMINI_API_KEY=your_google_ai_studio_key
+GEMINI_VIDEO_ANALYSIS_MODEL=gemini-2.5-flash
+GEMINI_VIDEO_ANALYSIS_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
+GEMINI_VIDEO_ANALYSIS_RETRIES=3
+```
+
 ## Project Structure
 
 ```

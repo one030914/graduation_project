@@ -12,6 +12,8 @@ opencc-python-reimplemented
 pandas
 contractions
 datasets
+youtube-transcript-api
+yt-dlp
 
 # tools
 matplotlib
@@ -28,6 +30,8 @@ sentence-transformers
 KeyBERT
 hdbscan
 tqdm
+faster-whisper
+google-genai
 
 # backend interface
 fastapi

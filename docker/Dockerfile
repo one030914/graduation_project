@@ -61,6 +61,7 @@ RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels,ro \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    ffmpeg \
     unzip \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://bun.sh/install | bash
