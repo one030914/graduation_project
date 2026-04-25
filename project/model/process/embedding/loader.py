@@ -14,17 +14,29 @@ from configs.settings import MODEL_DIR
 def get_device_str() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
+def _resolve_model_source(model_folder_name: str, fallback_model_name: str) -> str:
+    model_dir = MODEL_DIR / model_folder_name
+    if model_dir.exists() and any(model_dir.iterdir()):
+        return str(model_dir)
+    return fallback_model_name
+
 @lru_cache(maxsize=1)
 def get_zh_embedder(model_folder_name: str = "minilm_chinese_finetuned") -> SentenceTransformer:
     device = get_device_str()
-    model_dir = MODEL_DIR / model_folder_name
-    return SentenceTransformer(str(model_dir), device=device)
+    model_source = _resolve_model_source(
+        model_folder_name=model_folder_name,
+        fallback_model_name="paraphrase-multilingual-MiniLM-L12-v2",
+    )
+    return SentenceTransformer(model_source, device=device)
 
 @lru_cache(maxsize=1)
 def get_en_embedder(model_folder_name: str = "minilm_english_finetuned") -> SentenceTransformer:
     device = get_device_str()
-    model_dir = MODEL_DIR / model_folder_name
-    return SentenceTransformer(str(model_dir), device=device)
+    model_source = _resolve_model_source(
+        model_folder_name=model_folder_name,
+        fallback_model_name="all-MiniLM-L6-v2",
+    )
+    return SentenceTransformer(model_source, device=device)
 
 # BERTSUM Embedder
 

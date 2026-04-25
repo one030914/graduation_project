@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Literal
+from pydantic import BaseModel, Field
 
 # Analysis
 
@@ -44,11 +45,28 @@ class AnalysisResult:
     # error handling
     error: Optional[str] = None
 
+# Video Content
+
+TranscriptSource = Literal["caption", "whisper"]
+
+@dataclass(slots=True)
+class VideoContentResult:
+    title: str = ""
+    url: str = ""
+    language: str = ""
+    summary_zh: List[str] = field(default_factory=list)
+    summary_en: List[str] = field(default_factory=list)
+    keywords_zh: List[str] = field(default_factory=list)
+    keywords_en: List[str] = field(default_factory=list)
+    highlights: List[str] = field(default_factory=list)
+    transcript_source: Optional[TranscriptSource] = None
+    error: Optional[str] = None
+
 # Queue
 
 @dataclass(slots=True)
 class JobStatus:
-    status: str  # queued | running | completed | failed
+    status: str  # queued | running | completed | failed | cancelled
     video_id: str
     mode: str
     created_at: datetime
@@ -142,3 +160,29 @@ class EmotionResult:
     language: str = ""
     stats: EmotionStats | None = None
     error: Optional[str] = None
+
+# Video Analysis
+
+class TranscriptChunkAnalysis(BaseModel):
+    summary: List[str] = Field(default_factory=list)
+    keywords: List[str] = Field(default_factory=list)
+    highlights: List[str] = Field(default_factory=list)
+
+
+class TranscriptVideoAnalysis(BaseModel):
+    language: str = "unknown"
+    summary: List[str] = Field(default_factory=list)
+    keywords: List[str] = Field(default_factory=list)
+    highlights: List[str] = Field(default_factory=list)
+    
+@dataclass(slots=True)
+class TranscriptSegment:
+    text: str
+    start: float = 0.0
+    duration: float = 0.0
+
+@dataclass(slots=True)
+class TranscriptPayload:
+    language: str
+    source: str
+    segments: List[TranscriptSegment]

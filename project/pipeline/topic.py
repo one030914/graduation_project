@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from data.youtube.api import API
 from data.preprocess.pipeline import batch_preprocess_comments
-from pipeline.schema import TopicsResult, TopicCluster
-from model.topic.zh import build_topics_zh
-from model.topic.en import build_topics_en
+from configs.schema import TopicsResult, TopicCluster
+from model.process.topic.zh import build_topics_zh
+from model.process.topic.en import build_topics_en
 
 def get_main_language(df) -> str:
     counts = df["語言"].value_counts().to_dict()

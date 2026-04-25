@@ -7,7 +7,7 @@ import pandas as pd
 from keybert import KeyBERT
 from sklearn.feature_extraction.text import CountVectorizer
 
-from model.embedding.loader import get_zh_embedder, get_device_str
+from model.process.embedding.loader import get_zh_embedder, get_device_str
 
 ZH_VECTORIZER = CountVectorizer(
     tokenizer=lambda s: s.split(),
@@ -15,9 +15,13 @@ ZH_VECTORIZER = CountVectorizer(
     token_pattern=None,
 )
 
-st_model = get_zh_embedder()
 device = get_device_str()
-kw_model = KeyBERT(st_model)
+kw_model = None
+
+@lru_cache(maxsize=None)
+def _get_keyword_model(model_folder_name: str = "minilm_chinese_finetuned") -> KeyBERT:
+    st_model = get_zh_embedder(model_folder_name=model_folder_name)
+    return KeyBERT(st_model)
 
 def _dedup_preserve_order(items: List[str], limit: int) -> List[str]:
     seen = set()
@@ -62,6 +66,7 @@ def _build_aligned_docs(
     return aligned
 
 def _extract_keywords_from_text(
+    kw_model: KeyBERT,
     text: str,
     *,
     top_n: int,
@@ -70,7 +75,7 @@ def _extract_keywords_from_text(
     if not text.strip():
         return []
 
-    kws = KeyBERT(st_model).extract_keywords(
+    kws = kw_model.extract_keywords(
         text,
         top_n=top_n,
         stop_words=None,
@@ -108,7 +113,7 @@ def extract_cluster_keywords_zh(
     comments = [c for c in comments if c]
 
     st_model = get_zh_embedder(model_folder_name=model_folder_name)
-    kw_model = KeyBERT(st_model)
+    kw_model = _get_keyword_model(model_folder_name=model_folder_name)
 
     aligned_docs = _build_aligned_docs(comments, tokens_zh)
 

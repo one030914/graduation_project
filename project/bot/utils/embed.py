@@ -1,6 +1,6 @@
 import discord
 from datetime import datetime
-from pipeline.schema import AnalysisResult, TopCommentsResult, TopicsResult, EmotionResult
+from configs.schema import AnalysisResult, TopCommentsResult, TopicsResult, EmotionResult
 
 # -------------------------
 # Summary Embed

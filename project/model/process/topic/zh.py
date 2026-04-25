@@ -1,22 +1,23 @@
+from __future__ import annotations
+
 import hdbscan
 import numpy as np
-import pandas as pd
 from typing import List
 
 from keybert import KeyBERT
 
-from pipeline.schema import TopicCluster
-from model.embedding.loader import get_en_embedder, get_device_str
-from model.keyword.en import extract_keywords_en
+from configs.schema import TopicCluster
+from model.process.embedding.loader import get_zh_embedder, get_device_str
 
 def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
 
-def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
+def build_topics_zh(df_lang) -> List[TopicCluster]:
     comments = df_lang["清理後留言"].tolist()
-    comments = [c for c in comments if len(c) >= 6]
+    tokens_zh = df_lang["tokens"].tolist()
+    comments = [c for c in comments if len(c.split()) >= 3]
 
-    st_model = get_en_embedder()
+    st_model = get_zh_embedder()
     device = get_device_str()
     kw_model = KeyBERT(st_model)
 
@@ -40,12 +41,20 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
     for cid in sorted(valid_labels):
         idxs = [i for i, lb in enumerate(labels) if lb == cid]
         cluster_comments = [comments[i] for i in idxs]
+        cluster_tokens = [tokens_zh[i] for i in idxs]
 
-        joined = ". ".join(cluster_comments)
+        joined = " ".join(
+            " ".join(toks) if isinstance(toks, list) else ""
+            for toks in cluster_tokens
+        ).strip()
+
+        if not joined:
+            joined = " ".join(cluster_comments)
+
         kws = kw_model.extract_keywords(
             joined,
             top_n=5,
-            stop_words="english"
+            stop_words=None
         )
         keywords = [w for w, _ in kws][:5]
 
@@ -75,7 +84,7 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
                 ratio=len(idxs) / total,
                 keywords=keywords,
                 representative_comments=representatives,
-                language="en"
+                language="zh"
             )
         )
 

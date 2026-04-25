@@ -5,10 +5,14 @@ from typing import List
 
 import pandas as pd
 from keybert import KeyBERT
-from model.embedding.loader import get_en_embedder, get_device_str
+from model.process.embedding.loader import get_en_embedder, get_device_str
 
-st_model = get_en_embedder()
 device = get_device_str()
+
+@lru_cache(maxsize=None)
+def _get_keyword_model(model_folder_name: str = "minilm_english_finetuned") -> KeyBERT:
+    st_model = get_en_embedder(model_folder_name=model_folder_name)
+    return KeyBERT(st_model)
 
 def extract_keywords_en(
     comments: List[str],
@@ -35,11 +39,12 @@ def extract_keywords_en(
     comments = [c for c in comments if c]
 
     st_model = get_en_embedder(model_folder_name=model_folder_name)
+    kw_model = _get_keyword_model(model_folder_name=model_folder_name)
 
     # Small data: no clustering (faster + more stable)
     if (not use_clustering) or len(comments) < max(min_cluster_size * 3, 30):
         joined = ". ".join(comments)
-        kws = KeyBERT(st_model).extract_keywords(joined, top_n=max(topk, per_cluster_topn), stop_words="english")
+        kws = kw_model.extract_keywords(joined, top_n=max(topk, per_cluster_topn), stop_words="english")
         out = []
         seen = set()
         for w, _score in kws:
@@ -86,7 +91,7 @@ def extract_keywords_en(
     flat: List[str] = []
     for _cid, cmt_list in clusters.items():
         joined = ". ".join(cmt_list)
-        kws = KeyBERT(st_model).extract_keywords(joined, top_n=per_cluster_topn, stop_words="english")
+        kws = kw_model.extract_keywords(joined, top_n=per_cluster_topn, stop_words="english")
         flat.extend([w for w, _ in kws])
 
     # dedup preserve order

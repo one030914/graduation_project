@@ -1,6 +1,6 @@
 from data.youtube.api import API
 from data.preprocess.pipeline import batch_preprocess_comments
-from pipeline.schema import AnalysisResult, Stats, LangRatio
+from configs.schema import AnalysisResult, Stats, LangRatio
 from scripts.timestamp import Timer
 
 def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: int = 0,
@@ -70,7 +70,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     # -------------------------
     if run_summary:
         try:
-            from model.summary.zh import summarize_zh
+            from model.process.summary.zh import summarize_zh
             summary_zh = summarize_zh(comments_zh, topk=summary_topk)
         except Exception as e:
             print("Error: summarize zh", e)
@@ -78,7 +78,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
         timer.mark("summarize zh")
 
         try:
-            from model.summary.en import summarize_en
+            from model.process.summary.en import summarize_en
             summary_en = summarize_en(comments_en, topk=summary_topk)
         except Exception as e:
             print("Error: summarize en", e)
@@ -90,7 +90,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     # -------------------------
     if run_keywords:
         try:
-            from model.keyword.zh import extract_keywords_zh
+            from model.process.keyword.zh import extract_keywords_zh
             keywords_zh = extract_keywords_zh(comments_zh, tokens_zh, topk=keyword_topk)
         except Exception:
             # fallback：tokens 攤平 + 去重保序
@@ -107,7 +107,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
         timer.mark("extract keywords zh")
 
         try:
-            from model.keyword.en import extract_keywords_en
+            from model.process.keyword.en import extract_keywords_en
             keywords_en = extract_keywords_en(comments_en, topk=keyword_topk)
         except Exception:
             keywords_en = []

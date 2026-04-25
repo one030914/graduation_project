@@ -2,13 +2,23 @@
 
 import { useRef, useState } from "react";
 import { API_BASE } from "@/lib/apiBase";
-import { AnalysisResultView, TopicsResultView } from "@/lib/ResultViews";
+import { AnalysisResultView, TopicsResultView, VideoContentResultView } from "@/lib/ResultViews";
 import { Input } from "@/components/Input";
 import { Header } from "@/components/Header";
-import { JobStatusPanel } from "@/components/JobStatusPanel"
+import { JobStatusPanel } from "@/components/JobStatusPanel";
 
-const MODE = { analysis: "analysis", topics: "topics" };
-const JOB_MODE = { analysis: "full", topics: "topics" };
+const MODE = {
+  analysis: "analysis",
+  topics: "topics",
+  videoContent: "videoContent",
+};
+
+const JOB_MODE = {
+  analysis: "full",
+  topics: "topics",
+  videoContent: "video_content",
+};
+
 const POLL_INTERVAL_MS = 1200;
 
 function sleep(ms) {
@@ -23,6 +33,7 @@ export default function Page() {
   const [visiblePanel, setVisiblePanel] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [topicsResult, setTopicsResult] = useState(null);
+  const [videoContentResult, setVideoContentResult] = useState(null);
   const [jobState, setJobState] = useState(null);
   const activeJobRef = useRef(null);
 
@@ -34,22 +45,19 @@ export default function Page() {
 
     if (action === MODE.topics) {
       setTopicsResult(result);
+      return;
+    }
+
+    if (action === MODE.videoContent) {
+      setVideoContentResult(result);
     }
   };
 
   const resetOtherPanel = (action) => {
-    if (action === MODE.analysis) {
-      setVisiblePanel(MODE.analysis);
-      setAnalysisResult(null);
-      setTopicsResult(null);
-      return;
-    }
-
-    if (action === MODE.topics) {
-      setVisiblePanel(MODE.topics);
-      setAnalysisResult(null);
-      setTopicsResult(null);
-    }
+    setAnalysisResult(null);
+    setTopicsResult(null);
+    setVideoContentResult(null);
+    setVisiblePanel(action);
   };
 
   const fetchJobResult = async (jobId) => {
@@ -57,7 +65,7 @@ export default function Page() {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || "取得分析結果失敗");
+      throw new Error(data.error || "Failed to fetch job result.");
     }
 
     return data.result ?? null;
@@ -69,7 +77,7 @@ export default function Page() {
       const statusData = await statusRes.json();
 
       if (!statusRes.ok) {
-        throw new Error(statusData.error || "查詢工作狀態失敗");
+        throw new Error(statusData.error || "Failed to fetch job status.");
       }
 
       setJobState({
@@ -93,10 +101,55 @@ export default function Page() {
       }
 
       if (statusData.status === "failed") {
-        throw new Error(statusData.error || "分析失敗");
+        throw new Error(statusData.error || "Job failed.");
+      }
+
+      if (statusData.status === "cancelled") {
+        activeJobRef.current = null;
+        setJobState((prev) =>
+          prev && prev.jobId === jobId
+            ? { ...prev, status: "cancelled", error: statusData.error || null }
+            : prev,
+        );
+        return;
       }
 
       await sleep(POLL_INTERVAL_MS);
+    }
+  };
+
+  const handleCancelJob = async () => {
+    const jobId = activeJobRef.current || jobState?.jobId;
+    if (!jobId) return;
+
+    activeJobRef.current = null;
+    setLoading(false);
+    setJobState((prev) =>
+      prev && prev.jobId === jobId
+        ? { ...prev, status: "cancelled", error: "已停止分析。" }
+        : prev,
+    );
+
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to cancel job.");
+      }
+      setJobState((prev) =>
+        prev && prev.jobId === jobId
+          ? { ...prev, status: data.status || "cancelled", error: "已停止分析。" }
+          : prev,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to cancel job.";
+      setJobState((prev) =>
+        prev && prev.jobId === jobId
+          ? { ...prev, status: "failed", error: message }
+          : prev,
+      );
     }
   };
 
@@ -129,7 +182,7 @@ export default function Page() {
       const createData = await createRes.json();
 
       if (!createRes.ok) {
-        throw new Error(createData.error || "無法建立分析工作");
+        throw new Error(createData.error || "Failed to create job.");
       }
 
       const jobId = createData.job_id;
@@ -145,7 +198,7 @@ export default function Page() {
 
       await pollJobUntilDone(jobId, action);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "分析失敗";
+      const message = error instanceof Error ? error.message : "Job failed.";
       setJobState((prev) => ({
         ...(prev ?? {}),
         action,
@@ -171,13 +224,19 @@ export default function Page() {
             onSubmit={handleSubmit}
           />
 
-          {jobState && <JobStatusPanel jobState={jobState} />}
+          {jobState && <JobStatusPanel jobState={jobState} onCancel={handleCancelJob} />}
 
           {visiblePanel === MODE.analysis && analysisResult && (
             <AnalysisResultView result={analysisResult} />
           )}
 
-          {visiblePanel === MODE.topics && topicsResult && <TopicsResultView result={topicsResult} />}
+          {visiblePanel === MODE.topics && topicsResult && (
+            <TopicsResultView result={topicsResult} />
+          )}
+
+          {visiblePanel === MODE.videoContent && videoContentResult && (
+            <VideoContentResultView result={videoContentResult} />
+          )}
         </main>
       </div>
     </div>

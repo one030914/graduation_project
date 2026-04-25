@@ -7,6 +7,7 @@
 From `project/frontend`, start the Next.js development server with Bun:
 
 ```bash
+bun install
 bun run dev
 ```
 
