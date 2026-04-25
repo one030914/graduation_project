@@ -6,7 +6,7 @@ from transformers import BertTokenizer
 import torch.amp as amp
 from typing import List
 
-from model.embedding.loader import get_zh_summary_model
+from model.process.embedding.loader import get_en_summary_model
 
 def _batch_probs(
     sentences: List[str],
@@ -17,8 +17,8 @@ def _batch_probs(
     batch_size: int = 16,
     max_length: int = 256,
 ) -> List[float]:
-    probs: List[float] = []
     sigmoid = nn.Sigmoid()
+    probs: List[float] = []
 
     use_amp = device.type == "cuda"
 
@@ -46,41 +46,48 @@ def _batch_probs(
 
     return probs
 
-def summarize_zh(
+def summarize_en(
     comments: List[str],
     *,
     topk: int = 5,
     threshold: float = 0.5,
     batch_size: int = 16,
     max_length: int = 256,
-    model_folder_name: str = "BERTSUM_chinese_finetuned",
+    model_folder_name: str = "BERTSUM_english_finetuned",
+    fallback_mode: str = "first",  # "first" or "toplen"
 ) -> List[str]:
     """
-    輸入：中文留言（清理後）
-    輸出：摘要句 topk（extractive）
+    Input: cleaned English comments
+    Output: topk extractive summary sentences
     """
     comments = [str(s).strip() for s in (comments or []) if str(s).strip()]
     if not comments:
         return []
 
-    filtered = [s for s in comments if len(s) >= 4]
+    filtered = [s for s in comments if len(s.split()) >= 3]
     if not filtered:
         filtered = comments
 
-    tokenizer, model, device = get_zh_summary_model(model_folder_name=model_folder_name)
-    probs = _batch_probs(sentences=filtered, tokenizer=tokenizer, model=model, device=device, batch_size=batch_size, max_length=max_length)
+    try:
+        tokenizer, model, device = get_en_summary_model(model_folder_name=model_folder_name)
+        probs = _batch_probs(sentences=filtered, tokenizer=tokenizer, model=model, device=device, batch_size=batch_size, max_length=max_length)
 
-    picked = [(s, p) for s, p in zip(filtered, probs) if p >= threshold]
+        picked = [(s, p) for s, p in zip(filtered, probs) if p >= threshold]
+        if len(picked) < topk:
+            ranked = sorted(zip(filtered, probs), key=lambda x: x[1], reverse=True)
+            seen = {s for s, _ in picked}
+            for s, p in ranked:
+                if s not in seen:
+                    picked.append((s, p))
+                    seen.add(s)
+                if len(picked) >= topk:
+                    break
 
-    if len(picked) < topk:
-        ranked = sorted(zip(filtered, probs), key=lambda x: x[1], reverse=True)
-        seen = set(s for s, _ in picked)
-        for s, p in ranked:
-            if s not in seen:
-                picked.append((s, p))
-                seen.add(s)
-            if len(picked) >= topk:
-                break
+        picked = sorted(picked, key=lambda x: x[1], reverse=True)[:topk]
+        return [s for s, _ in picked]
 
-    picked = sorted(picked, key=lambda x: x[1], reverse=True)[:topk]
-    return [s for s, _ in picked]
+    except Exception:
+        if fallback_mode == "toplen":
+            ranked = sorted(filtered, key=lambda s: len(s), reverse=True)
+            return ranked[:topk]
+        return filtered[:topk]

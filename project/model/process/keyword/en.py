@@ -5,7 +5,7 @@ from typing import List
 
 import pandas as pd
 from keybert import KeyBERT
-from model.embedding.loader import get_en_embedder, get_device_str
+from model.process.embedding.loader import get_en_embedder, get_device_str
 
 device = get_device_str()
 

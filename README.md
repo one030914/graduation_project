@@ -9,19 +9,19 @@ Use these commands depending on your situation:
 - Build or rebuild the image, then start the container:
 
 ```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d --build
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --build
 ```
 
 - Start the container directly when the image already exists and nothing in the build config has changed:
 
 ```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d
 ```
 
 - Stop the container and remove volumes:
 
 ```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml down -v
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml down -v
 ```
 
 CUDA variants:
@@ -31,45 +31,18 @@ CUDA variants:
 - `cu118` example:
 
 ```bash
-docker compose --env-file ./docker/cu118.env -f ./docker/docker-compose.yml up -d --build
+docker compose --env-file ./docker/cu118.env -f ./docker/compose.yml up -d --build
 ```
 
 - `cu128` example:
 
 ```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/docker-compose.yml up -d --build
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --build
 ```
 
 ### Run the bot
 
 cd to project folder and use command: `python -m bot.bot`.
-
-### Video content analysis
-
-The project also supports transcript-based video content analysis.
-
-- It only uses manually provided YouTube CC captions.
-- If manual CC is unavailable, it falls back to downloading the full audio and transcribing it with local Whisper.
-- The transcript is then sent to Gemini through the Google AI Studio API to generate a summary, keywords, and representative highlights.
-
-Additional Python dependencies:
-
-- `youtube-transcript-api`
-- `yt-dlp`
-- `faster-whisper`
-- `google-genai`
-
-Docker runtime also needs `ffmpeg` for the audio fallback path.
-
-Optional environment variable:
-
-```bash
-WHISPER_MODEL_SIZE=small
-GEMINI_API_KEY=your_google_ai_studio_key
-GEMINI_VIDEO_ANALYSIS_MODEL=gemini-2.5-flash
-GEMINI_VIDEO_ANALYSIS_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
-GEMINI_VIDEO_ANALYSIS_RETRIES=3
-```
 
 ## Project Structure
 
@@ -85,6 +58,7 @@ graduation_project/
 │  │  ├─ bot.py             # bot entry point
 │  │  └─ queue.py           # multi-task queue
 │  ├─ configs/
+│  │  ├─ schema.py          # defining custom constants
 │  │  └─ settings.py        # constants and settings
 │  ├─ data/
 │  │  ├─ preprocess/        # comment preprocessing
@@ -111,11 +85,14 @@ graduation_project/
 -   [x] pipeline
 -   [x] multi-task
 -   [x] rebuild enviroment (consider a lower GPU capable of supporting)
+-   [ ] get datasets
 -   [ ] retrain models
 
 ## Add-ons
+-   [x] frontend interface
 -   [x] top
 -   [x] topics
 -   [x] emotion
 -   [ ] trend
--   [ ] spam
+-   [ ] video analysis
+-   [ ] criticism

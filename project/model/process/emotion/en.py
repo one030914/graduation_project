@@ -1,4 +1,4 @@
-from model.embedding.loader import get_en_emotion_model
+from model.process.embedding.loader import get_en_emotion_model
 
 EN_LABEL_MAP = {
     "anger": "Angry",

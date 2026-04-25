@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Literal
+from pydantic import BaseModel, Field
 
 # Analysis
 
@@ -159,3 +160,29 @@ class EmotionResult:
     language: str = ""
     stats: EmotionStats | None = None
     error: Optional[str] = None
+
+# Video Analysis
+
+class TranscriptChunkAnalysis(BaseModel):
+    summary: List[str] = Field(default_factory=list)
+    keywords: List[str] = Field(default_factory=list)
+    highlights: List[str] = Field(default_factory=list)
+
+
+class TranscriptVideoAnalysis(BaseModel):
+    language: str = "unknown"
+    summary: List[str] = Field(default_factory=list)
+    keywords: List[str] = Field(default_factory=list)
+    highlights: List[str] = Field(default_factory=list)
+    
+@dataclass(slots=True)
+class TranscriptSegment:
+    text: str
+    start: float = 0.0
+    duration: float = 0.0
+
+@dataclass(slots=True)
+class TranscriptPayload:
+    language: str
+    source: str
+    segments: List[TranscriptSegment]

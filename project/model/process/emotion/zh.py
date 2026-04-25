@@ -1,4 +1,4 @@
-from model.embedding.loader import get_zh_emotion_model
+from model.process.embedding.loader import get_zh_emotion_model
 
 def analyze_emotion_zh(comments: list[str]) -> list[str]:
     if not comments:

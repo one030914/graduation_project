@@ -6,8 +6,8 @@ from typing import List
 
 from keybert import KeyBERT
 
-from pipeline.schema import TopicCluster
-from model.embedding.loader import get_zh_embedder, get_device_str
+from configs.schema import TopicCluster
+from model.process.embedding.loader import get_zh_embedder, get_device_str
 
 def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))

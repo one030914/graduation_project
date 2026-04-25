@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict, is_dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from pipeline.schema import Job, JobStatus
+from configs.schema import Job, JobStatus
 from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion

@@ -7,7 +7,7 @@ import pandas as pd
 from keybert import KeyBERT
 from sklearn.feature_extraction.text import CountVectorizer
 
-from model.embedding.loader import get_zh_embedder, get_device_str
+from model.process.embedding.loader import get_zh_embedder, get_device_str
 
 ZH_VECTORIZER = CountVectorizer(
     tokenizer=lambda s: s.split(),

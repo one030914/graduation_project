@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List
 
 from data.youtube.api import API
-from pipeline.schema import TopCommentsResult, TopComment, Order, SortBy
+from configs.schema import TopCommentsResult, TopComment, Order, SortBy
 
 def get_top_comments(
     url: str,

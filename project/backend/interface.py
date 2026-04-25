@@ -10,11 +10,11 @@ from fastapi.encoders import jsonable_encoder
 
 from pipeline.analyze import analyze
 from pipeline.emotion import build_emotion
-from pipeline.schema import Req
+from configs.schema import Req
 from pipeline.topic import build_topics
 from data.youtube.api import API
 from bot.utils.chart import build_emotion_radar_chart
-from bot.queue import AnalysisQueue
+from pipeline.queue import AnalysisQueue
 
 load_dotenv(verbose=True)
 

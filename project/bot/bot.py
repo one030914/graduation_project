@@ -5,7 +5,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from configs.settings import ROOT, BOT_DIR
 
-from bot.queue import AnalysisQueue
+from pipeline.queue import AnalysisQueue
 
 from pipeline.analyze import analyze
 
