@@ -8,9 +8,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-import torch
+import ctranslate2
 import yt_dlp
-from faster_whisper import WhisperModel
+from faster_whisper import WhisperModel, BatchedInferencePipeline
 from youtube_transcript_api import (
     FetchedTranscript,
     YouTubeTranscriptApi,
@@ -125,10 +125,15 @@ def _transcribe_audio(url: str) -> TranscriptPayload:
     audio_path, temp_dir = _download_audio(url)
     try:
         model = _get_whisper_model()
-        segments_iter, info = model.transcribe(
+        batch_model = BatchedInferencePipeline(model=model)
+        segments_iter, info = batch_model.transcribe(
             audio_path,
+            batch_size=32,
             vad_filter=True,
-            beam_size=5,
+            beam_size=1,
+            best_of=1,
+            without_timestamps=True,
+            condition_on_previous_text=False,
         )
         segments = [
             TranscriptSegment(
@@ -181,11 +186,18 @@ def _download_audio(url: str) -> tuple[str, str]:
 
     raise RuntimeError("Audio download failed")
 
+def _get_whisper_device_config() -> tuple[str, str]:
+    try:
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda", "float16"
+    except Exception:
+        pass
+    return "cpu", "int8"
+
 @lru_cache(maxsize=1)
 def _get_whisper_model() -> WhisperModel:
     model_size = os.getenv("WHISPER_MODEL_SIZE", "small")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if device == "cuda" else "int8"
+    device, compute_type = _get_whisper_device_config()
     download_root = MODEL_DIR / "whisper"
     return WhisperModel(
         model_size,

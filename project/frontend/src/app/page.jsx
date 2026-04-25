@@ -104,7 +104,52 @@ export default function Page() {
         throw new Error(statusData.error || "Job failed.");
       }
 
+      if (statusData.status === "cancelled") {
+        activeJobRef.current = null;
+        setJobState((prev) =>
+          prev && prev.jobId === jobId
+            ? { ...prev, status: "cancelled", error: statusData.error || null }
+            : prev,
+        );
+        return;
+      }
+
       await sleep(POLL_INTERVAL_MS);
+    }
+  };
+
+  const handleCancelJob = async () => {
+    const jobId = activeJobRef.current || jobState?.jobId;
+    if (!jobId) return;
+
+    activeJobRef.current = null;
+    setLoading(false);
+    setJobState((prev) =>
+      prev && prev.jobId === jobId
+        ? { ...prev, status: "cancelled", error: "已停止分析。" }
+        : prev,
+    );
+
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to cancel job.");
+      }
+      setJobState((prev) =>
+        prev && prev.jobId === jobId
+          ? { ...prev, status: data.status || "cancelled", error: "已停止分析。" }
+          : prev,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to cancel job.";
+      setJobState((prev) =>
+        prev && prev.jobId === jobId
+          ? { ...prev, status: "failed", error: message }
+          : prev,
+      );
     }
   };
 
@@ -179,7 +224,7 @@ export default function Page() {
             onSubmit={handleSubmit}
           />
 
-          {jobState && <JobStatusPanel jobState={jobState} />}
+          {jobState && <JobStatusPanel jobState={jobState} onCancel={handleCancelJob} />}
 
           {visiblePanel === MODE.analysis && analysisResult && (
             <AnalysisResultView result={analysisResult} />

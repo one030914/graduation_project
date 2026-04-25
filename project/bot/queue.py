@@ -63,6 +63,8 @@ class AnalysisQueue:
         self._job_status: Dict[str, JobStatus] = {}
         self._job_futures: Dict[str, asyncio.Future] = {}
         self._running_events: Dict[str, asyncio.Event] = {}
+        self._cancelled_jobs: set[str] = set()
+        self._running_executor_futures: Dict[str, asyncio.Future] = {}
         
     def _key(self, video_id: str, mode: str) -> str:
         return f"{video_id}:{mode}"
@@ -158,6 +160,28 @@ class AnalysisQueue:
             return await future
         return await asyncio.wait_for(future, timeout=timeout)
 
+    def cancel_job(self, job_id: str) -> bool:
+        st = self._job_status.get(job_id)
+        if st is None or st.status in ("completed", "failed", "cancelled"):
+            return False
+
+        self._cancelled_jobs.add(job_id)
+        st.status = "cancelled"
+        st.updated_at = datetime.utcnow()
+        st.from_cache = False
+        st.error = "Job cancelled by user."
+        st.result = None
+
+        future = self._job_futures.get(job_id)
+        if future and not future.done():
+            future.cancel()
+
+        running_event = self._running_events.get(job_id)
+        if running_event:
+            running_event.set()
+
+        return True
+
     def get_status(self, job_id: str) -> Optional[dict]:
         st = self._job_status.get(job_id)
         if st is None:
@@ -166,6 +190,8 @@ class AnalysisQueue:
             self._job_status.pop(job_id, None)
             self._job_futures.pop(job_id, None)
             self._running_events.pop(job_id, None)
+            self._cancelled_jobs.discard(job_id)
+            self._running_executor_futures.pop(job_id, None)
             return None
         return {
             "job_id": job_id,
@@ -186,6 +212,8 @@ class AnalysisQueue:
             self._job_status.pop(job_id, None)
             self._job_futures.pop(job_id, None)
             self._running_events.pop(job_id, None)
+            self._cancelled_jobs.discard(job_id)
+            self._running_executor_futures.pop(job_id, None)
             return None
         if st.status == "failed" or st.result is None:
             return None
@@ -199,6 +227,13 @@ class AnalysisQueue:
             try:
                 # 1) cache 命中就直接回
                 cached_key = self._key(job.video_id, job.mode)
+                if job.job_id in self._cancelled_jobs:
+                    st = self._job_status.get(job.job_id)
+                    if st:
+                        st.status = "cancelled"
+                        st.updated_at = datetime.utcnow()
+                    continue
+
                 cached = self._get_cached(cached_key)
                 if cached is not None:
                     st = self._job_status.get(job.job_id)
@@ -216,6 +251,13 @@ class AnalysisQueue:
                 # 2) 同影片去重：同一 video_id 同時只允許一個 worker 做
                 lock = self._get_lock(cached_key)
                 async with lock:
+                    if job.job_id in self._cancelled_jobs:
+                        st = self._job_status.get(job.job_id)
+                        if st:
+                            st.status = "cancelled"
+                            st.updated_at = datetime.utcnow()
+                        continue
+
                     # double-check cache（可能另一個 worker 已算完）
                     cached2 = self._get_cached(cached_key)
                     if cached2 is not None:
@@ -267,7 +309,17 @@ class AnalysisQueue:
                         
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 
-                    result = await loop.run_in_executor(None, _run)
+                    executor_future = loop.run_in_executor(None, _run)
+                    self._running_executor_futures[job.job_id] = executor_future
+                    result = await executor_future
+
+                    if job.job_id in self._cancelled_jobs:
+                        st = self._job_status.get(job.job_id)
+                        if st:
+                            st.status = "cancelled"
+                            st.updated_at = datetime.utcnow()
+                            st.result = None
+                        continue
 
                     # 4) 存快取 + 回傳
                     self._set_cache(cached_key, result)
@@ -282,8 +334,25 @@ class AnalysisQueue:
                     if future and not future.done():
                         future.set_result(result)
 
+            except asyncio.CancelledError:
+                st = self._job_status.get(job.job_id)
+                if st:
+                    st.status = "cancelled"
+                    st.updated_at = datetime.utcnow()
+                    st.from_cache = False
+                    st.error = "Job cancelled by user."
+                    st.result = None
             except Exception as e:
                 st = self._job_status.get(job.job_id)
+                if job.job_id in self._cancelled_jobs:
+                    if st:
+                        st.status = "cancelled"
+                        st.updated_at = datetime.utcnow()
+                        st.from_cache = False
+                        st.error = "Job cancelled by user."
+                        st.result = None
+                    continue
+
                 if st:
                     st.status = "failed"
                     st.updated_at = datetime.utcnow()
@@ -294,4 +363,5 @@ class AnalysisQueue:
                 if future and not future.done():
                     future.set_exception(e)
             finally:
+                self._running_executor_futures.pop(job.job_id, None)
                 self.queue.task_done()
