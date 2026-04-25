@@ -17,6 +17,7 @@ from youtube_transcript_api import (
 )
 
 from configs.settings import MODEL_DIR
+from configs.schema import TranscriptSegment, TranscriptPayload
 
 PREFERRED_CAPTION_LANGUAGES = (
     "zh-TW",
@@ -29,18 +30,6 @@ PREFERRED_CAPTION_LANGUAGES = (
     "en-GB",
     "en",
 )
-
-@dataclass(slots=True)
-class TranscriptSegment:
-    text: str
-    start: float = 0.0
-    duration: float = 0.0
-
-@dataclass(slots=True)
-class TranscriptPayload:
-    language: str
-    source: str
-    segments: List[TranscriptSegment]
 
 def fetch_video_transcript(url: str, *, video_id: str) -> TranscriptPayload:
     caption_error: Optional[Exception] = None
@@ -95,7 +84,6 @@ def _pick_preferred_transcript(transcript_list):
         raise RuntimeError("No manually created captions available") from last_error
     raise RuntimeError("No manually created captions available")
 
-
 def _manual_caption_rank(transcript) -> tuple[int, str]:
     language_code = str(getattr(transcript, "language_code", "") or "")
     try:
@@ -126,14 +114,20 @@ def _transcribe_audio(url: str) -> TranscriptPayload:
     try:
         model = _get_whisper_model()
         batch_model = BatchedInferencePipeline(model=model)
+        beam_size = _get_env_int("WHISPER_BEAM_SIZE", 8)
+        best_of = _get_env_int("WHISPER_BEST_OF", 5)
+        patience = _get_env_float("WHISPER_PATIENCE", 1.2)
+        condition_on_previous_text = _get_env_bool("WHISPER_CONDITION_ON_PREVIOUS_TEXT", True)
         segments_iter, info = batch_model.transcribe(
             audio_path,
             batch_size=32,
             vad_filter=True,
-            beam_size=1,
-            best_of=1,
+            beam_size=max(1, beam_size),
+            best_of=max(1, best_of),
+            patience=max(1.0, patience),
+            temperature=0.0,
             without_timestamps=True,
-            condition_on_previous_text=False,
+            condition_on_previous_text=condition_on_previous_text,
         )
         segments = [
             TranscriptSegment(
@@ -193,6 +187,34 @@ def _get_whisper_device_config() -> tuple[str, str]:
     except Exception:
         pass
     return "cpu", "int8"
+
+def _get_env_int(name: str, default: int) -> int:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+def _get_env_float(name: str, default: float) -> float:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+def _get_env_bool(name: str, default: bool) -> bool:
+    raw = str(os.getenv(name, "")).strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
 
 @lru_cache(maxsize=1)
 def _get_whisper_model() -> WhisperModel:

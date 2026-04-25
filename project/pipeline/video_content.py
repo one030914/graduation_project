@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from data.preprocess.cleaner import detect_language
 from data.youtube.api import API
 from data.youtube.transcript import TranscriptPayload, fetch_video_transcript
-from pipeline.schema import VideoContentResult
+from configs.schema import VideoContentResult, TranscriptChunkAnalysis, TranscriptVideoAnalysis
 
 SUMMARY_TOPK = 5
 KEYWORD_TOPK = 10
@@ -24,20 +24,6 @@ MAX_TRANSCRIPT_CHUNKS = 18
 DEFAULT_GEMINI_MODELS = ("gemini-2.5-flash", "gemini-2.5-flash-lite")
 
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+|[。！？]+\s*|\n+")
-
-
-class TranscriptChunkAnalysis(BaseModel):
-    summary: List[str] = Field(default_factory=list)
-    keywords: List[str] = Field(default_factory=list)
-    highlights: List[str] = Field(default_factory=list)
-
-
-class TranscriptVideoAnalysis(BaseModel):
-    language: str = "unknown"
-    summary: List[str] = Field(default_factory=list)
-    keywords: List[str] = Field(default_factory=list)
-    highlights: List[str] = Field(default_factory=list)
-
 
 def build_video_content(url: str) -> VideoContentResult:
     api = API()
@@ -83,7 +69,10 @@ def build_video_content(url: str) -> VideoContentResult:
     resolved_language = _normalize_language(analysis.language, fallback=language)
     summary = _dedup(analysis.summary, SUMMARY_TOPK)
     keywords = _dedup(analysis.keywords, KEYWORD_TOPK, fold_case=False)
-    highlights = _dedup(analysis.highlights, HIGHLIGHT_TOPK, fold_case=False)
+    normalized_highlights = [
+        _ensure_terminal_punctuation(item, language=resolved_language) for item in analysis.highlights
+    ]
+    highlights = _dedup(normalized_highlights, HIGHLIGHT_TOPK, fold_case=False)
 
     result = VideoContentResult(
         title=title,
@@ -102,7 +91,6 @@ def build_video_content(url: str) -> VideoContentResult:
 
     return result
 
-
 def _prepare_transcript_segments(transcript: TranscriptPayload) -> List[str]:
     output: List[str] = []
     for segment in transcript.segments:
@@ -118,7 +106,6 @@ def _prepare_transcript_segments(transcript: TranscriptPayload) -> List[str]:
             break
     return output
 
-
 def _resolve_main_language(transcript: TranscriptPayload, segments: Sequence[str]) -> str:
     raw_language = str(transcript.language or "").lower()
     if raw_language.startswith("zh"):
@@ -129,7 +116,6 @@ def _resolve_main_language(transcript: TranscriptPayload, segments: Sequence[str
     sample = " ".join(segments[:30]).strip()
     detected = detect_language(sample[:4000]) if sample else "unknown"
     return _normalize_language(detected, fallback="en")
-
 
 def _analyze_transcript_with_llm(
     *,
@@ -181,7 +167,6 @@ def _analyze_transcript_with_llm(
         schema=TranscriptVideoAnalysis,
     )
 
-
 def _chunk_transcript(segments: Sequence[str]) -> List[str]:
     if not segments:
         return []
@@ -213,7 +198,6 @@ def _chunk_transcript(segments: Sequence[str]) -> List[str]:
 
     return chunks
 
-
 def _split_long_text(text: str, char_limit: int) -> List[str]:
     normalized = _normalize_whitespace(text)
     if len(normalized) <= char_limit:
@@ -235,32 +219,36 @@ def _split_long_text(text: str, char_limit: int) -> List[str]:
         start = split_at
     return parts or [normalized]
 
-
 def _build_full_transcript_prompt(*, title: str, url: str, transcript_text: str, language: str) -> str:
     return (
         "You analyze YouTube video transcripts.\n"
         "Use only the transcript content provided below.\n"
         "The transcript may come from YouTube captions or Whisper speech recognition.\n"
         "Treat it as a noisy source: it may contain misheard words, missing words, repeated phrases, incorrect punctuation, awkward sentence boundaries, or caption segmentation issues.\n"
+        "Your job includes term normalization: when wording is clearly a transcription error, replace it with the correct or most commonly used wording.\n"
         "Infer the likely meaning only when the surrounding transcript clearly supports it.\n"
         "Do not turn uncertain, garbled, or unsupported text into factual claims.\n"
         "Pay special attention to proper nouns such as people, channels, brands, products, places, works, and organizations.\n"
         "Preserve proper nouns in their original or most commonly used form when possible; do not translate names literally.\n"
         "For example, keep 'Mr. Beast' as 'Mr. Beast' instead of translating it as '野獸先生'.\n"
         "If a proper noun appears misrecognized by Whisper or captions, use the video title and surrounding context to choose the most likely name only when the evidence is clear.\n"
-        "If the correct proper noun is uncertain, keep the transcript wording or omit that detail rather than guessing.\n"
+        "When multiple name variants appear, prefer the canonical terms provided below when context does not contradict them.\n"
+        "If a term has an obvious typo, homophone error, or ASR artifact and the intended meaning is clear, output only the corrected/common form.\n"
+        "Do not include both wrong and corrected variants in summary, keywords, or highlights.\n"
+        "If the correct term is uncertain, use safer generic wording or omit that detail rather than guessing a specific name.\n"
         "Do not invent facts, topics, speaker intent, or quotes that are not supported by the transcript.\n"
         "Return JSON that matches the schema.\n"
         "Keep the summary concise, factual, and focused on high-confidence points.\n"
         "Keywords must be short noun phrases grounded in the transcript, preserving proper nouns accurately.\n"
-        "Highlights must be representative excerpts from the transcript; you may lightly trim or fix obvious transcription artifacts, but do not change the meaning.\n"
+        "Highlights must be representative excerpts from the transcript; you may lightly trim and normalize obvious transcription artifacts, but do not change the meaning.\n"
+        "Each highlight must be a complete sentence and must end with proper terminal punctuation.\n"
+        "Use natural wording in the requested output language instead of literal, noisy transcript phrasing.\n"
         f"Video title: {title}\n"
         f"Video URL: {url}\n"
         f"Preferred output language: {_language_instruction(language)}\n\n"
         "Transcript:\n"
         f"{transcript_text}"
     )
-
 
 def _build_chunk_prompt(
     *,
@@ -275,24 +263,29 @@ def _build_chunk_prompt(
         "Use only this chunk.\n"
         "The transcript chunk may come from YouTube captions or Whisper speech recognition.\n"
         "Treat it as a noisy source: it may contain misheard words, missing words, repeated phrases, incorrect punctuation, awkward sentence boundaries, or caption segmentation issues.\n"
+        "Your job includes term normalization: when wording is clearly a transcription error, replace it with the correct or most commonly used wording.\n"
         "Infer the likely meaning only when this chunk clearly supports it.\n"
         "Do not turn uncertain, garbled, or unsupported text into factual claims.\n"
         "Pay special attention to proper nouns such as people, channels, brands, products, places, works, and organizations.\n"
         "Preserve proper nouns in their original or most commonly used form when possible; do not translate names literally.\n"
         "For example, keep 'Mr. Beast' as 'Mr. Beast' instead of translating it as '野獸先生'.\n"
         "If a proper noun appears misrecognized by Whisper or captions, use the video title and chunk context to choose the most likely name only when the evidence is clear.\n"
-        "If the correct proper noun is uncertain, keep the transcript wording or omit that detail rather than guessing.\n"
+        "When multiple name variants appear, prefer the canonical terms provided below when context does not contradict them.\n"
+        "If a term has an obvious typo, homophone error, or ASR artifact and the intended meaning is clear, output only the corrected/common form.\n"
+        "Do not include both wrong and corrected variants in summary, keywords, or highlights.\n"
+        "If the correct term is uncertain, use safer generic wording or omit that detail rather than guessing a specific name.\n"
         "Do not invent facts, topics, speaker intent, or quotes that are not supported by this chunk.\n"
         "Return JSON that matches the schema.\n"
         "Provide up to 3 high-confidence summary points, up to 8 grounded keywords, and up to 3 representative excerpts.\n"
-        "Highlights must come from the transcript chunk; you may lightly trim or fix obvious transcription artifacts, but do not change the meaning.\n"
+        "Highlights must come from the transcript chunk; you may lightly trim and normalize obvious transcription artifacts, but do not change the meaning.\n"
+        "Each highlight must be a complete sentence and must end with proper terminal punctuation.\n"
+        "Use natural wording in the requested output language instead of literal, noisy transcript phrasing.\n"
         f"Video title: {title}\n"
         f"Chunk: {chunk_index}/{total_chunks}\n"
         f"Preferred output language: {_language_instruction(language)}\n\n"
         "Transcript chunk:\n"
         f"{chunk_text}"
     )
-
 
 def _build_synthesis_prompt(
     *,
@@ -315,14 +308,21 @@ def _build_synthesis_prompt(
         "You are synthesizing structured notes from a full YouTube transcript.\n"
         "The notes below were extracted from every chunk of the transcript.\n"
         "The original transcript may have come from YouTube captions or Whisper speech recognition, so the chunk notes may reflect transcription noise or caption segmentation issues.\n"
+        "Your job includes term normalization across chunks: when wording is clearly a transcription error, replace it with the correct or most commonly used wording.\n"
         "Only keep high-confidence points that are clearly supported by the chunk notes.\n"
         "Do not turn uncertain, garbled, or weakly supported chunk notes into factual claims.\n"
         "Preserve proper nouns such as people, channels, brands, products, places, works, and organizations in their original or most commonly used form when possible.\n"
         "Do not translate proper nouns literally; for example, keep 'Mr. Beast' as 'Mr. Beast' instead of translating it as '野獸先生'.\n"
         "If a proper noun appears inconsistent across chunks, choose the most likely form only when the title and chunk notes clearly support it; otherwise keep the safer wording or omit that detail.\n"
+        "When multiple name variants appear, prefer the canonical terms provided below when context does not contradict them.\n"
+        "If a term has an obvious typo, homophone error, or ASR artifact and the intended meaning is clear, output only the corrected/common form.\n"
+        "Do not include both wrong and corrected variants in summary, keywords, or highlights.\n"
+        "If the correct term is uncertain, prefer safer generic wording or omit that detail.\n"
         "Return JSON that matches the schema.\n"
         "Provide up to 5 summary points, up to 10 keywords, and up to 5 representative excerpts.\n"
         "Do not invent facts that are not supported by the chunk notes.\n"
+        "Each highlight must be a complete sentence and must end with proper terminal punctuation.\n"
+        "Use natural wording in the requested output language instead of literal, noisy transcript phrasing.\n"
         f"Video title: {title}\n"
         f"Video URL: {url}\n"
         f"Preferred output language: {_language_instruction(language)}\n\n"
@@ -330,14 +330,12 @@ def _build_synthesis_prompt(
         f"{merged}"
     )
 
-
 def _language_instruction(language: str) -> str:
     if language == "zh":
         return "Traditional Chinese"
     if language == "en":
         return "English"
     return "Follow the transcript's dominant language"
-
 
 def _call_gemini_json(*, client: genai.Client, prompt: str, schema: type[BaseModel]) -> BaseModel:
     models = _get_gemini_models()
@@ -368,7 +366,6 @@ def _call_gemini_json(*, client: genai.Client, prompt: str, schema: type[BaseMod
 
     raise RuntimeError(_format_gemini_error(last_error, models))
 
-
 @lru_cache(maxsize=1)
 def _get_gemini_client() -> genai.Client:
     api_key = (
@@ -379,7 +376,6 @@ def _get_gemini_client() -> genai.Client:
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
     return genai.Client(api_key=api_key)
-
 
 def _get_gemini_models() -> List[str]:
     configured = (
@@ -393,7 +389,6 @@ def _get_gemini_models() -> List[str]:
             return models
     return list(DEFAULT_GEMINI_MODELS)
 
-
 def _parse_gemini_response(*, response, schema: type[BaseModel]) -> BaseModel:
     parsed = getattr(response, "parsed", None)
     if parsed is not None:
@@ -405,7 +400,6 @@ def _parse_gemini_response(*, response, schema: type[BaseModel]) -> BaseModel:
     if not text:
         raise RuntimeError("Gemini returned an empty response.")
     return schema.model_validate_json(text)
-
 
 def _is_retryable_gemini_error(exc: Exception) -> bool:
     message = str(exc or "").upper()
@@ -422,7 +416,6 @@ def _is_retryable_gemini_error(exc: Exception) -> bool:
     )
     return any(token in message for token in retryable_tokens)
 
-
 def _format_gemini_error(exc: Exception | None, models: Sequence[str]) -> str:
     if exc is None:
         return "Gemini analysis failed after retry attempts."
@@ -434,7 +427,6 @@ def _format_gemini_error(exc: Exception | None, models: Sequence[str]) -> str:
         )
     return message
 
-
 def _get_env_int(name: str, default: int) -> int:
     raw_value = str(os.getenv(name, "")).strip()
     if not raw_value:
@@ -443,7 +435,6 @@ def _get_env_int(name: str, default: int) -> int:
         return int(raw_value)
     except ValueError:
         return default
-
 
 def _normalize_language(value: str, *, fallback: str) -> str:
     normalized = str(value or "").strip().lower()
@@ -457,10 +448,29 @@ def _normalize_language(value: str, *, fallback: str) -> str:
         return fallback
     return "en"
 
-
 def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", str(text or "")).strip()
 
+def _ensure_terminal_punctuation(text: str, *, language: str) -> str:
+    value = _normalize_whitespace(text)
+    if not value:
+        return ""
+
+    # Keep if sentence-ending punctuation already exists (optionally before a closing quote/bracket).
+    if re.search(r"[。！？.!?…](?:[\"'”’」』）\)\]]+)?$", value):
+        return value
+
+    # If it ends with a closing quote/bracket, insert punctuation before the suffix.
+    suffix_match = re.search(r"([\"'”’」』）\)\]]+)$", value)
+    punct = "。" if language == "zh" else "."
+    if suffix_match:
+        suffix = suffix_match.group(1)
+        core = value[: -len(suffix)].rstrip()
+        if not core:
+            return value
+        return f"{core}{punct}{suffix}"
+
+    return f"{value}{punct}"
 
 def _dedup(items: Sequence[str], limit: int, *, fold_case: bool = True) -> List[str]:
     output: List[str] = []
