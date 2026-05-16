@@ -15,6 +15,9 @@ services:
         gpus: all
         environment:
             - NEXT_TELEMETRY_DISABLED=1
+            - OLLAMA_BASE_URL=http://host.docker.internal:11434
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         working_dir: /app
         ports:
             - "3000:3000"

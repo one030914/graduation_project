@@ -88,8 +88,7 @@ class Job:
     created_at: datetime
     mode: str = "full"
     
-@dataclass
-class Req:
+class Req(BaseModel):
     video_url: str
     job_mode: str = "full"
     pages: int = 5
@@ -186,3 +185,15 @@ class TranscriptPayload:
     language: str
     source: str
     segments: List[TranscriptSegment]
+    
+# Critisism
+    
+@dataclass(slots=True)
+class CommentCriticismResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+    main_criticisms: List[str] = field(default_factory=list)      # 留言中的主要批評與抱怨論點
+    discontent_reasons: List[str] = field(default_factory=list)    # 觀眾產生不滿、反彈或質疑的底層原因
+    suggestions: List[str] = field(default_factory=list)           # 觀眾給予影片/創作者的改進建議或期望
+    error: Optional[str] = None

@@ -1,16 +1,24 @@
 import discord
 from datetime import datetime
-from configs.schema import AnalysisResult, TopCommentsResult, TopicsResult, EmotionResult
+from configs.schema import (
+    AnalysisResult, 
+    TopCommentsResult, 
+    TopicsResult, 
+    EmotionResult,
+    CommentCriticismResult  # <-- 引入批評分析的資料結構
+)
 
 # -------------------------
-# Summary Embed
+# Helper Functions
 # -------------------------
 
 def _clip(text: str, limit: int = 1024) -> str:
+    """防止文字超過 Discord 欄位限制"""
     text = "" if text is None else str(text)
     return text if len(text) <= limit else text[: max(0, limit - 3)] + "..."
 
 def _fmt_list(lines, max_lines: int = 6) -> str:
+    """格式化清單內容"""
     if not lines:
         return "（無）"
     lines = [str(x).strip() for x in lines if str(x).strip()]
@@ -20,6 +28,7 @@ def _fmt_list(lines, max_lines: int = 6) -> str:
     return "\n".join(f"{i+1}. {s}" for i, s in enumerate(lines))
 
 def _fmt_keywords(words, max_items: int = 12) -> str:
+    """格式化關鍵字"""
     if not words:
         return "（無）"
     words = [str(w).strip() for w in words if str(w).strip()]
@@ -27,6 +36,21 @@ def _fmt_keywords(words, max_items: int = 12) -> str:
         return "（無）"
     words = words[:max_items]
     return " ".join(f"`{w}`" for w in words)
+
+def discord_time(iso_time: str | None) -> str:
+    """將 ISO 時間轉換為 Discord 的動態時間格式"""
+    if not iso_time:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
+        unix = int(dt.timestamp())
+        return f"<t:{unix}:R>"
+    except Exception:
+        return ""
+
+# -------------------------
+# Summary Embed
+# -------------------------
 
 def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.Embed:
     if result.error:
@@ -42,7 +66,6 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
         color=0x5865F2
     )
 
-    # 摘要
     if mode in ("full", "summary"):
         if result.summary_zh:
             embed.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
@@ -51,7 +74,6 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
         if not result.summary_zh and not result.summary_en:
             embed.add_field(name="📌 摘要", value="（無）", inline=False)
 
-    # 關鍵字
     if mode in ("full", "keywords"):
         if result.keywords_zh:
             embed.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
@@ -60,12 +82,9 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
         if not result.keywords_zh and not result.keywords_en:
             embed.add_field(name="🔑 關鍵字", value="（無）", inline=False)
 
-    # 語言比例
     lr = result.lang_ratio
     lang_text = f"🇹🇼 中文：{lr.zh:.1%}\n🇺🇸 英文：{lr.en:.1%}\n🌐 其他：{lr.other:.1%}"
     embed.add_field(name="🌍 語言佔比", value=_clip(lang_text), inline=False)
-
-    # footer
     embed.set_footer(text=f"總留言數：{result.stats.n_comments}")
 
     return embed
@@ -73,16 +92,6 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
 # -------------------------
 # Top Comments Embed
 # -------------------------
-
-def discord_time(iso_time: str | None) -> str:
-    if not iso_time:
-        return ""
-    try:
-        dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
-        unix = int(dt.timestamp())
-        return f"<t:{unix}:R>"
-    except Exception:
-        return ""
 
 def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
     if result.error:
@@ -100,20 +109,16 @@ def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
 
     lines = []
     for i, c in enumerate(result.top, start=1):
-        # show author and time if available
         author = time = ""
         if c.author:
             author = c.author
         if c.published_at:
             time = discord_time(c.published_at)
         meta_txt = f"{i}. **{author}** {time}\n" if author and time else ""
-        
         counts = f" 👍 {c.like_count} ｜ 💬 {c.reply_count}"
         comments = _clip(c.text, 160)
-        
         lines.append(f"{meta_txt}{comments}\n{counts}")
 
-    # limit the length of the embed field value
     chunk = "\n\n".join(lines)
     if len(chunk) > 3500:
         chunk = chunk[:3499] + "…"
@@ -141,7 +146,6 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
         )
 
     display_lang = LANG_MAP.get(result.language, result.language)
-    
     embed = discord.Embed(
         title="YT 留言主題分析",
         description=f"🧾 影片標題：**{result.title}**\n🌐 主要語言：{display_lang}",
@@ -151,21 +155,10 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
     for i, topic in enumerate(result.topics[:5], start=1):
         kw_text = "、".join(topic.keywords[:5]) if topic.keywords else "（無）"
         rep_text = "\n".join(f"- {_clip(x, 100)}" for x in topic.representative_comments[:2]) or "（無）"
-
-        value = (
-            f"**占比：** {topic.ratio:.1%}\n"
-            f"**關鍵詞：** {kw_text}\n"
-            f"**代表留言：**\n{rep_text}"
-        )
-
+        value = (f"**占比：** {topic.ratio:.1%}\n**關鍵詞：** {kw_text}\n**代表留言：**\n{rep_text}")
         if len(value) > 1000:
             value = value[:999] + "…"
-
-        embed.add_field(
-            name=f"Topic {i}（{topic.size} 則）",
-            value=value,
-            inline=False
-        )
+        embed.add_field(name=f"Topic {i}（{topic.size} 則）", value=value, inline=False)
 
     embed.set_footer(text=f"參與主題分析留言數：{result.total_comments}")
     return embed
@@ -176,26 +169,13 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
 
 from bot.utils.chart import build_emotion_radar_chart
 
-EMOTION_ORDER = [
-    "Joy",
-    "Angry",
-    "Sad",
-    "Surprised",
-    "Disgusted",
-    "Neutral",
-]
+EMOTION_ORDER = ["Joy", "Angry", "Sad", "Surprised", "Disgusted", "Neutral"]
 
 def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.File | None]:
     if result.error:
-        embed = discord.Embed(
-            title="⚠️ Emotion 分析失敗",
-            description=result.error,
-            color=0xED4245
-        )
-        return embed, None
+        return discord.Embed(title="⚠️ Emotion 分析失敗", description=result.error, color=0xED4245), None
 
     display_lang = LANG_MAP.get(result.language, result.language)
-
     embed = discord.Embed(
         title="YT 留言情緒分析",
         description=f"🧾 影片標題：**{result.title}**\n🌐 分析語言：{display_lang}",
@@ -204,23 +184,65 @@ def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.F
 
     stats = result.stats.emotions if result.stats else {}
     total = result.stats.total if result.stats else 0
-
     lines = []
     for emo in EMOTION_ORDER:
         count = stats.get(emo, 0)
         ratio = (count / total) if total else 0
         lines.append(f"**{emo}**：{count}（{ratio:.1%}）")
 
-    embed.add_field(
-        name="情緒分布",
-        value="\n".join(lines) if lines else "（無）",
-        inline=False
-    )
-
-    embed.set_footer(text=f"總留言數：{result.total_comments} ｜ 參與情緒分析留言數：{total}")
+    embed.add_field(name="情緒分布", value="\n".join(lines) if lines else "（無）", inline=False)
+    embed.set_footer(text=f"總留言數：{result.total_comments} ｜ 參與分析留言數：{total}")
 
     buf = build_emotion_radar_chart(result.stats.emotions)
     file = discord.File(buf, filename="emotion_radar.png")
     embed.set_image(url="attachment://emotion_radar.png")
-
     return embed, file
+
+# -------------------------
+# Criticism Embed (NEW)
+# -------------------------
+
+def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:
+    """
+    建構留言批評輿情分析的 Discord Embed。
+    使用 E67E22 (暗橘色) 作為警示色調。
+    """
+    if result.error:
+        return discord.Embed(
+            title="⚠️ 留言批評分析失敗",
+            description=_clip(result.error, 4096),
+            color=0xED4245
+        )
+
+    embed = discord.Embed(
+        title=_clip(f"💬 觀眾留言批評與輿情觀測：**{result.title}**", 256),
+        description=_clip(f"🔗 來源：{result.url}", 256),
+        color=0xE67E22
+    )
+
+    # 主要批評點
+    criticisms_text = "\n".join([f"• {item}" for item in result.main_criticisms]) if result.main_criticisms else "（留言區風向良好，未見明顯集體不滿）"
+    embed.add_field(
+        name="🤬 留言集中批評與抱怨痛點", 
+        value=_clip(criticisms_text), 
+        inline=False
+    )
+
+    # 不滿原因
+    reasons_text = "\n".join([f"• {item}" for item in result.discontent_reasons]) if result.discontent_reasons else "（無特殊導火線或潛在衝突原因）"
+    embed.add_field(
+        name="🔍 觀眾不滿/引發爭議的底層因素", 
+        value=_clip(reasons_text), 
+        inline=False
+    )
+
+    # 改進建議
+    suggestions_text = "\n".join([f"• {item}" for item in result.suggestions]) if result.suggestions else "（觀眾未在留言中提出具體改進期望）"
+    embed.add_field(
+        name="💡 觀眾敲碗或優化建議意向", 
+        value=_clip(suggestions_text), 
+        inline=False
+    )
+
+    embed.set_footer(text="Powered by Ollama (Llama3) 留言輿情分析模組")
+    return embed
