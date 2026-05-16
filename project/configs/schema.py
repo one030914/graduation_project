@@ -3,24 +3,46 @@ Integrate I/O
 """
 
 from __future__ import annotations
+import pandas as pd
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field
 
+# Preprocess
+
+@dataclass(slots=True)
+class ProcessedComment:
+    raw_text: str
+    clean_text: str
+    language: str
+    tokens: List[str]
+    timestamps: List[dict]
+    urls: List[str]
+
+# Collect
+
+@dataclass(slots=True)
+class CommentDataset:
+    video_id: str
+    title: str
+    url: str
+    df: pd.DataFrame
+    error: Optional[str] = None
+
 # Analysis
 
-@dataclass
+@dataclass(slots=True)
 class Stats:
     n_comments: int = 0
 
-@dataclass
+@dataclass(slots=True)
 class LangRatio:
     zh: float = 0.0
     en: float = 0.0
     other: float = 1.0
 
-@dataclass
+@dataclass(slots=True)
 class AnalysisResult:
     # video metadata
     video_id: str = ""

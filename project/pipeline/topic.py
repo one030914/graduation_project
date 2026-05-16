@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from data.youtube.api import API
-from data.preprocess.pipeline import batch_preprocess_comments
+from .collect import collect_comments
 from configs.schema import TopicsResult, TopicCluster
 from model.process.topic.zh import build_topics_zh
 from model.process.topic.en import build_topics_en
 
 def get_main_language(df) -> str:
-    counts = df["語言"].value_counts().to_dict()
+    counts = df["language"].value_counts().to_dict()
     zh = counts.get("zh", 0)
     en = counts.get("en", 0)
     unknown = counts.get("unknown", 0)
@@ -20,37 +19,20 @@ def build_topics(
     page_size: int = 100,
     min_likes: int = 1,
 ) -> TopicsResult:
-    api = API()
-    video_id = api.extract_video_id(url)
-    if not video_id:
-        return TopicsResult(url=url, error="Invalid YouTube URL")
+    comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
+    if comments.error:
+        return TopicsResult(url=url, error=comments.error)
 
-    info = api.get_video_info(video_id)
-    title = (info or {}).get("title", video_id)
-
-    comments = api.get_comments(
-        url=url,
-        page_size=page_size,
-        pages=pages,
-        min_likes=min_likes,
-        order="relevance"
-    )
-
-    if not comments:
-        return TopicsResult(url=url, title=title, error="No comments found")
-
-    df = batch_preprocess_comments(comments)
-    if df.empty:
-        return TopicsResult(url=url, title=title, error="No valid comments after preprocessing")
+    df = comments.df
 
     main_lang = get_main_language(df)
-    df_lang = df[df["語言"] == main_lang].copy()
+    df_lang = df[df["language"] == main_lang].copy()
         
     if len(df_lang) < 15:
         return TopicsResult(
             url=url,
-            title=title,
-            error="留言數不足以形成穩定主題群"
+            title=comments.title,
+            error="Not enough comments to form stable topics"
         )
 
     if main_lang == "zh":
@@ -60,20 +42,20 @@ def build_topics(
     else:
         return TopicsResult(
             url=url,
-            title=title,
-            error="無法分析此語言"
+            title=comments.title,
+            error="Cannot analyze this language"
         )
     
     if not topics:
         return TopicsResult(
             url=url,
-            title=title,
-            error="未形成明確主題群"
+            title=comments.title,
+            error="No clear topics formed"
         )
 
     return TopicsResult(
         url=url,
-        title=title,
+        title=comments.title,
         total_comments=len(df_lang),
         language=main_lang,
         topics=topics

@@ -13,8 +13,13 @@ def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
 
 def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
-    comments = df_lang["清理後留言"].tolist()
-    comments = [c for c in comments if len(c) >= 6]
+    comments = [
+        str(comment).strip()
+        for comment in df_lang["clean_text"].tolist()
+        if len(str(comment).strip()) >= 6
+    ]
+    if not comments:
+        return []
 
     st_model = get_en_embedder()
     device = get_device_str()

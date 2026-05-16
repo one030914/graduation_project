@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from data.youtube.api import API
+from .collect import collect_comments
 from configs.schema import TopCommentsResult, TopComment, Order, SortBy
 
 def get_top_comments(
@@ -15,81 +15,80 @@ def get_top_comments(
     order: Order = "relevance",
     sort_by: SortBy = "likes",
 ) -> TopCommentsResult:
-    api = API()
-    
-    video_id = api.extract_video_id(url)
-    if not video_id:
-        return TopCommentsResult(url=url, error="Invalid YouTube URL / video_id not found.")
-
-    video_info = api.get_video_info(video_id)
-    title = (video_info or {}).get("title") or video_id
-    
-    comments = api.get_comments(
+    comments = collect_comments(
         url=url,
-        page_size=page_size,
         pages=pages,
+        page_size=page_size,
         min_likes=min_likes,
         order=order,
     )
-    if not comments:
+
+    if comments.error:
         return TopCommentsResult(
-            video_id=video_id,
-            title=title,
+            video_id=comments.video_id,
+            title=comments.title,
             url=url,
             order=order,
             sort_by=sort_by,
-            error="No comments found"
+            error=comments.error,
         )
 
-    def _to_int(x) -> int:
-        try:
-            return int(x)
-        except Exception:
-            return 0
+    df = comments.df.copy()
+    if df.empty:
+        return TopCommentsResult(
+            video_id=comments.video_id,
+            title=comments.title,
+            url=url,
+            order=order,
+            sort_by=sort_by,
+            error="No valid comments after filtering",
+        )
 
+    sort_column = {
+        "replies": "reply_count",
+        "time": "published_at",
+    }.get(sort_by, "like_count")
+
+    if sort_column in df.columns:
+        df = df.sort_values(sort_column, ascending=False, na_position="last")
+
+    n = max(1, min(int(n), 10))
     items: List[TopComment] = []
-    for c in comments:
-        text = str(c.get("原留言", "")).strip()
+    for row in df.head(n).itertuples(index=False):
+        text = str(getattr(row, "clean_text", "")).strip()
+        if not text:
+            text = str(getattr(row, "raw_text", "")).strip()
         if not text:
             continue
+
         items.append(
             TopComment(
                 text=text,
-                like_count=_to_int(c.get("按讚數", 0)),
-                reply_count=_to_int(c.get("回覆數", 0)),
-                published_at=c.get("留言時間"),
-                author=c.get("author"),
-                comment_id=c.get("comment_id"),
+                like_count=int(getattr(row, "like_count", 0) or 0),
+                reply_count=int(getattr(row, "reply_count", 0) or 0),
+                published_at=getattr(row, "published_at", None),
+                author=getattr(row, "author", None),
+                comment_id=getattr(row, "comment_id", None),
             )
         )
 
-    if sort_by == "replies":
-        items.sort(key=lambda x: x.reply_count, reverse=True)
-    elif sort_by == "time":
-        items.sort(key=lambda x: (x.published_at or ""), reverse=True)
-    else:
-        items.sort(key=lambda x: x.like_count, reverse=True)
-
-    # limit the number of comments
-    n = max(1, min(int(n), 10))
-    top = items[:n]
-    if not top:
+    if not items:
         return TopCommentsResult(
-            video_id=video_id,
-            title=title,
+            video_id=comments.video_id,
+            title=comments.title,
             url=url,
-            total_fetched=len(items),
+            total_fetched=len(df),
             order=order,
             sort_by=sort_by,
-            error="No valid comments after filtering"
+            error="No valid comments after filtering",
         )
 
     return TopCommentsResult(
-        video_id=video_id,
-        title=title,
+        video_id=comments.video_id,
+        title=comments.title,
         url=url,
-        top=top,
-        total_fetched=len(items),
+        top=items,
+        total_fetched=len(df),
         order=order,
         sort_by=sort_by,
     )

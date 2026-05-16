@@ -1,7 +1,6 @@
 from collections import Counter
 
-from data.youtube.api import API
-from data.preprocess.pipeline import batch_preprocess_comments
+from .collect import collect_comments
 from configs.schema import EmotionResult, EmotionStats
 from model.process.emotion.zh import analyze_emotion_zh
 from model.process.emotion.en import analyze_emotion_en
@@ -16,7 +15,7 @@ EMOTION_CLASSES = [
 ]
 
 def get_main_language(df) -> str:
-    counts = df["語言"].value_counts().to_dict()
+    counts = df["language"].value_counts().to_dict()
     zh = counts.get("zh", 0)
     en = counts.get("en", 0)
     unknown = counts.get("unknown", 0)
@@ -29,42 +28,15 @@ def build_emotion(
     page_size: int = 100,
     min_likes: int = 1,
 ) -> EmotionResult:
-    api = API()
-    video_id = api.extract_video_id(url)
+    comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
+    if comments.error:
+        return EmotionResult(url=url, error=comments.error)
 
-    if not video_id:
-        return EmotionResult(url=url, error="Invalid YouTube URL")
-
-    info = api.get_video_info(video_id)
-    title = (info or {}).get("title", video_id)
-
-    comments = api.get_comments(
-        url=url,
-        page_size=page_size,
-        pages=pages,
-        min_likes=min_likes,
-        order="relevance"
-    )
-
-    if not comments:
-        return EmotionResult(url=url, title=title, error="No comments found")
-
-    df = batch_preprocess_comments(comments)
-    if df.empty:
-        return EmotionResult(url=url, title=title, error="No valid comments after preprocessing")
+    df = comments.df
 
     main_lang = get_main_language(df)
-    df_lang = df[df["語言"] == main_lang].copy()
-
-    texts = df_lang["清理後留言"].tolist()
-    if not texts:
-        return EmotionResult(
-            url=url,
-            title=title,
-            total_comments=len(df),
-            language=main_lang,
-            error="No comments for target language"
-        )
+    df_lang = df[df["language"] == main_lang].copy()
+    texts = df_lang["clean_text"].tolist()
 
     # 情緒分類前可先做簡單過濾，避免太短句干擾
     if main_lang == "zh":
@@ -76,19 +48,19 @@ def build_emotion(
     else:
         return EmotionResult(
             url=url,
-            title=title,
+            title=comments.title,
             total_comments=len(df),
             language=main_lang,
-            error="無法分析此語言"
+            error="Cannot analyze this language"
         )
 
     if not labels:
         return EmotionResult(
             url=url,
-            title=title,
+            title=comments.title,
             total_comments=len(df),
             language=main_lang,
-            error="No usable comments for emotion analysis"
+            error="No comments for emotion analysis"
         )
 
     counter = Counter(labels)
@@ -101,7 +73,7 @@ def build_emotion(
 
     return EmotionResult(
         url=url,
-        title=title,
+        title=comments.title,
         total_comments=len(df),
         language=main_lang,
         stats=stats,

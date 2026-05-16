@@ -13,9 +13,16 @@ def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
 
 def build_topics_zh(df_lang) -> List[TopicCluster]:
-    comments = df_lang["清理後留言"].tolist()
-    tokens_zh = df_lang["tokens"].tolist()
-    comments = [c for c in comments if len(c.split()) >= 3]
+    rows = [
+        (str(row.clean_text).strip(), row.tokens)
+        for row in df_lang.itertuples(index=False)
+        if len(str(row.clean_text).strip()) >= 2
+    ]
+    if not rows:
+        return []
+
+    comments = [comment for comment, _ in rows]
+    tokens_zh = [tokens for _, tokens in rows]
 
     st_model = get_zh_embedder()
     device = get_device_str()

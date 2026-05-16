@@ -1,5 +1,4 @@
-from data.youtube.api import API
-from data.preprocess.pipeline import batch_preprocess_comments
+from .collect import collect_comments
 from configs.schema import AnalysisResult, Stats, LangRatio
 from scripts.timestamp import Timer
 
@@ -7,51 +6,22 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
             summary_topk: int = 5, keyword_topk: int = 10, run_summary: bool = True, run_keywords: bool = True) -> AnalysisResult:
     timer = Timer()
     
-    api = API()
+    comments = collect_comments(url=video_url, pages=pages, page_size=page_size, min_likes=min_likes)
     
-    video_id = api.extract_video_id(video_url)
-    if not video_id:
-        return AnalysisResult(error="Invalid YouTube URL / video_id not found.")
-
-    video_info = api.get_video_info(video_id)
-    title = (video_info or {}).get("title") or video_id
-
-    comments = api.get_comments(url=video_url, page_size=page_size, pages=pages, min_likes=min_likes)
-    
-    if len(comments) < 100:
-        return AnalysisResult(
-            video_id=video_id,
-            title=title,
-            url=video_url,
-            stats=Stats(n_comments=0),
-            lang_ratio=LangRatio(zh=0.0, en=0.0, other=1.0),
-            error="留言數不足以分析"
-        )
+    if comments.error:
+        return AnalysisResult(error=comments.error)
     
     timer.mark("api fetch")
     
-    df = batch_preprocess_comments(comments)
-    
-    timer.mark("preprocess")
+    df = comments.df
 
-    if df.empty:
-        return AnalysisResult(
-            video_id=video_id,
-            title=title,
-            url=video_url,
-            stats=Stats(n_comments=0),
-            lang_ratio=LangRatio(zh=0.0, en=0.0, other=1.0),
-        )
-
-    lang_counts = df["語言"].value_counts(dropna=False).to_dict()
-    n = int(len(df))
-    zh = float(lang_counts.get("zh", 0) / n)
-    en = float(lang_counts.get("en", 0) / n)
+    comments_zh = df[df["language"] == "zh"]["clean_text"].tolist()
+    comments_en = df[df["language"] == "en"]["clean_text"].tolist()
+    tokens_zh = df[df["language"] == "zh"]["tokens"].tolist()
+    lang_counts = df["language"].value_counts(dropna=False).to_dict()
+    zh = float(lang_counts.get("zh", 0) / len(df))
+    en = float(lang_counts.get("en", 0) / len(df))
     other = max(0.0, 1.0 - zh - en)
-
-    comments_zh = df[df["語言"] == "zh"]["清理後留言"].tolist()
-    comments_en = df[df["語言"] == "en"]["清理後留言"].tolist()
-    tokens_zh = df[df["語言"] == "zh"]["tokens"].tolist()
 
     MAX_N = 600
     comments_zh = comments_zh[:MAX_N]
@@ -115,19 +85,17 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
         timer.mark("extract keywords en")
 
     result = AnalysisResult(
-        video_id=video_id,
-        title=title,
-        url=video_url,
-        stats=Stats(n_comments=n),
+        video_id=comments.video_id,
+        title=comments.title,
+        url=comments.url,
+        stats=Stats(n_comments=len(df)),
         lang_ratio=LangRatio(zh=zh, en=en, other=other),
-        comments_zh=comments_zh,
-        comments_en=comments_en,
-        tokens_zh=tokens_zh,
-        summary_zh=summary_zh,
-        summary_en=summary_en,
-        keywords_zh=keywords_zh,
-        keywords_en=keywords_en,
+        comments_zh=comments_zh[:MAX_N],
+        comments_en=comments_en[:MAX_N],
+        tokens_zh=tokens_zh[:MAX_N],
+        summary_zh=summary_zh[:summary_topk],
+        summary_en=summary_en[:summary_topk],
+        keywords_zh=keywords_zh[:keyword_topk],
+        keywords_en=keywords_en[:keyword_topk],
     )
-
-    print(timer.report())
     return result
