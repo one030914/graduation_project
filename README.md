@@ -44,19 +44,22 @@ docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --bui
 
 cd to project folder and use command: `python -m bot.bot`.
 
+### Run the website
+[This README](https://github.com/one030914/graduation_project/tree/work/project/frontend#readme) explains how to set up the website.
+
 ## Project Structure
 
 ```
 graduation_project/
 ├─ docker/                  # docker build and compose configuration
 ├─ project/
+│  ├─ backend/              # the frontend bridge
 │  ├─ bot/
 │  │  ├─ cogs/              # bot feature modules
 │  │  ├─ core/
 │  │  │  └─ classes.py      # importing bot cogs
 │  │  ├─ utils/             # components
-│  │  ├─ bot.py             # bot entry point
-│  │  └─ queue.py           # multi-task queue
+│  │  └─ bot.py             # bot entry point
 │  ├─ configs/
 │  │  ├─ schema.py          # defining custom constants
 │  │  └─ settings.py        # constants and settings
@@ -64,9 +67,10 @@ graduation_project/
 │  │  ├─ preprocess/        # comment preprocessing
 │  │  └─ youtube/
 │  │     └─ api.py          # youtube comment retrieval
+│  ├─ frontend/             # website interface
 │  ├─ model/
-│  │  ├─ keyword/           # keyword processing
-│  │  └─ summary/           # summary processing
+│  │  ├─ models/            # model list
+│  │  └─ process/           # model processing
 │  ├─ pipeline/             # workflow pipeline
 │  ├─ scripts/              # helper scripts
 │  ├─ .env                  # environment variables
@@ -94,5 +98,5 @@ graduation_project/
 -   [x] topics
 -   [x] emotion
 -   [ ] trend
--   [ ] video analysis
--   [ ] criticism
+-   [x] video analysis
+-   [x] criticism

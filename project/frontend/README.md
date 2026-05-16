@@ -1,4 +1,4 @@
-# Frontend + Backend Interface
+# Website Interface
 
 ## Startup
 
@@ -11,24 +11,12 @@ bun install
 bun run dev
 ```
 
-Default local URL:
-
-```text
-http://localhost:3000
-```
-
 ### Backend Interface
 
 Open a new terminal from the project root and start the FastAPI interface:
 
 ```bash
-uvicorn backend.interface:app --reload
-```
-
-Default local URL:
-
-```text
-http://127.0.0.1:8000
+uvicorn backend.interface:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## Backend Interface Usage
@@ -113,7 +101,7 @@ The current frontend uses the async queue flow:
 2. Poll the job status with `GET /jobs/{job_id}`
 3. Fetch the final result from `GET /jobs/{job_id}/result`
 
-## Project Structure
+## Frontend Structure
 
 ```text
 frontend/
