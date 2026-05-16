@@ -11,6 +11,7 @@ from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
 from pipeline.video_content import build_video_content
+from pipeline.criticism import analyze_comment_criticism  # <-- 1. 引入批評分析函數
 
 def _to_jsonable(obj: Any) -> Any:
     # 讓 FastAPI 之類的 JSON response 可以直接用
@@ -306,6 +307,10 @@ class AnalysisQueue:
                             return build_emotion(job.url)
                         elif job.mode == "video_content":
                             return build_video_content(job.url)
+                        # --- 新增的模式判斷 ---
+                        elif job.mode == "criticism":
+                            return analyze_comment_criticism(job.url)
+                        # ---------------------
                         
                         return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
 
