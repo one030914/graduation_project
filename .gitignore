@@ -1,9 +1,29 @@
+# virtual environments
 venv/
 .venv/
-test*.py
+
+# environment files
 .env
+**/.env
+
+# Python cache
 __pycache__/
+**/__pycache__/
+*.py[cod]
+
+# datasets
 datasets/
-models/
+**/datasets/
+
+# model files
+/project/model/models/**
+!/project/model/models/
+!/project/model/models/__init__.py
+
+# archives
 *.zip
+
+# logs
 runlogs/
+**/runlogs/
+*.log
