@@ -58,10 +58,10 @@ class API:
                     comments.append({
                         "comment_id": top.get("id"),
                         "author": s.get("authorDisplayName"),
-                        "原留言": s.get("textDisplay", ""),
-                        "按讚數": likes,
-                        "回覆數": item["snippet"].get("totalReplyCount", 0),
-                        "留言時間": s.get("publishedAt", None),
+                        "raw_text": s.get("textDisplay", ""),
+                        "like_count": likes,
+                        "reply_count": item["snippet"].get("totalReplyCount", 0),
+                        "published_at": s.get("publishedAt", None),
                     })
 
             next_page_token = response.get("nextPageToken")

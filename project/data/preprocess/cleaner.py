@@ -15,6 +15,7 @@ import jieba.posseg
 from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
 from opencc import OpenCC
 import contractions
+from configs.schema import ProcessedComment
 
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
@@ -86,6 +87,40 @@ def detect_language(s: str) -> str:
         return "en"
     return "unknown"
 
+def timestamp_to_seconds(ts: str) -> int:
+    parts = [int(p) for p in ts.split(":")]
+
+    if len(parts) == 2:
+        minutes, seconds = parts
+        return minutes * 60 + seconds
+
+    if len(parts) == 3:
+        hours, minutes, seconds = parts
+        return hours * 3600 + minutes * 60 + seconds
+
+    return 0
+
+def extract_timestamps(text: str) -> list[dict]:
+    if not isinstance(text, str):
+        return []
+
+    matches = PATTERNS["time"].findall(text)
+
+    results = []
+    for ts in matches:
+        results.append({
+            "text": ts,
+            "seconds": timestamp_to_seconds(ts)
+        })
+
+    return results
+
+def extract_urls(text: str) -> list[str]:
+    if not isinstance(text, str):
+        return []
+
+    return PATTERNS["url"].findall(text)
+
 class TextNormalizer:
     def __init__(self):
         for w in JIEBA_PROTECTED:
@@ -115,20 +150,11 @@ class TextNormalizer:
 
 _NORMALIZER = TextNormalizer()
 
-@dataclass
-class ProcessedComment:
-    raw_text: str
-    clean_text: str
-    language: str
-    tokens: List[str]
-
 def preprocess_comment(raw_comment: Any, *, min_len: int = 2) -> ProcessedComment:
     raw = raw_comment if isinstance(raw_comment, str) else ""
     cleaned = clean_text(raw)
-
     if len(cleaned.strip()) < min_len:
-        return ProcessedComment(raw_text=raw, clean_text="", language="unknown", tokens=[])
-
+        return ProcessedComment(raw_text=raw, clean_text="", language="unknown", tokens=[], timestamps=[], urls=[])
     lang = detect_language(cleaned)
     tokens: List[str] = []
 
@@ -137,4 +163,11 @@ def preprocess_comment(raw_comment: Any, *, min_len: int = 2) -> ProcessedCommen
     elif lang == "en":
         cleaned = _NORMALIZER.normalize_english(cleaned)
 
-    return ProcessedComment(raw_text=raw, clean_text=cleaned, language=lang, tokens=tokens)
+    return ProcessedComment(
+        raw_text=raw,
+        clean_text=cleaned,
+        language=lang,
+        tokens=tokens,
+        timestamps=extract_timestamps(cleaned),
+        urls=extract_urls(cleaned),
+    )
