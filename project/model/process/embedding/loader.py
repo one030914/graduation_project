@@ -5,7 +5,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 from sentence_transformers import SentenceTransformer
-from transformers import BertTokenizer, BertModel, pipeline
+from transformers import BertConfig, BertTokenizer, BertModel, pipeline
 
 from configs.settings import MODEL_DIR
 
@@ -19,6 +19,12 @@ def _resolve_model_source(model_folder_name: str, fallback_model_name: str) -> s
     if model_dir.exists() and any(model_dir.iterdir()):
         return str(model_dir)
     return fallback_model_name
+
+def _resolve_bert_source(pretrained_model: str) -> str:
+    model_dir = MODEL_DIR / pretrained_model
+    if model_dir.exists() and any(model_dir.iterdir()):
+        return str(model_dir)
+    return pretrained_model
 
 @lru_cache(maxsize=1)
 def get_zh_embedder(model_folder_name: str = "minilm_chinese_finetuned") -> SentenceTransformer:
@@ -55,6 +61,20 @@ class BERTSentenceClassifier(nn.Module):
         logits = self.classifier(cls_output)
         return logits.squeeze(-1)
 
+    @classmethod
+    def from_config(cls, config_source: str):
+        model = cls.__new__(cls)
+        nn.Module.__init__(model)
+        config = BertConfig.from_pretrained(config_source)
+        model.bert = BertModel(config)
+        model.classifier = nn.Linear(model.bert.config.hidden_size, 1)
+        return model
+
+def _build_summary_classifier(model_dir, pretrained_model: str) -> BERTSentenceClassifier:
+    if (model_dir / "config.json").exists():
+        return BERTSentenceClassifier.from_config(str(model_dir))
+    return BERTSentenceClassifier(pretrained_model=_resolve_bert_source(pretrained_model))
+
 @lru_cache(maxsize=1)
 def get_zh_summary_model(
     model_folder_name: str = "BERTSUM_chinese_finetuned",
@@ -64,7 +84,7 @@ def get_zh_summary_model(
     model_dir = MODEL_DIR / model_folder_name
 
     tokenizer = BertTokenizer.from_pretrained(model_dir)
-    model = BERTSentenceClassifier(pretrained_model=pretrained_model)
+    model = _build_summary_classifier(model_dir, pretrained_model)
 
     state = torch.load(model_dir / "pytorch_model.bin", map_location=device)
     model.load_state_dict(state)
@@ -82,7 +102,7 @@ def get_en_summary_model(
     model_dir = MODEL_DIR / model_folder_name
 
     tokenizer = BertTokenizer.from_pretrained(model_dir)
-    model = BERTSentenceClassifier(pretrained_model=pretrained_model)
+    model = _build_summary_classifier(model_dir, pretrained_model)
 
     state = torch.load(model_dir / "pytorch_model.bin", map_location=device)
     model.load_state_dict(state)
