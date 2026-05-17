@@ -9,6 +9,9 @@ from bot.utils.embed import (
     build_top_comments_embed,
     build_topics_embed,
     build_criticism_embed,
+    build_intent_embed,
+    build_timeline_embed,
+    build_main_insight_embed,
 )
 
 class Slash(Cog_Extension):
@@ -41,6 +44,15 @@ class Slash(Cog_Extension):
             elif mode == "criticism":
                 embed = build_criticism_embed(result)
                 await msg.edit(content=content, embed=embed)
+            elif mode == "intent":
+                embed = build_intent_embed(result)
+                await msg.edit(content=content, embed=embed)
+            elif mode == "timeline":
+                embed = build_timeline_embed(result)
+                await msg.edit(content=content, embed=embed)
+            elif mode == "main_insight":
+                embed = build_main_insight_embed(result)
+                await msg.edit(content=content, embed=embed)
             else:
                 embed = build_summary_embed(result, mode=mode)
                 await msg.edit(content=content, embed=embed)
@@ -51,20 +63,6 @@ class Slash(Cog_Extension):
             except Exception:
                 pass
 
-    @app_commands.command(name="criticism", description="分析 YT 留言中觀眾集體的批評、不滿輿情與改進建議。")
-    @app_commands.describe(url="YouTube 影片網址")
-    async def criticism(self, interaction: discord.Interaction, url: str):
-        await interaction.response.defer(thinking=True)
-
-        q = self.bot.analysis_queue
-        pos = q.queue_size() + 1
-        msg = await interaction.followup.send(
-            content=f"🧾 已加入留言批評分析隊列（#{pos}）。完成後會更新這則訊息。",
-            wait=True
-        )
-
-        job_id = await q.submit(url, mode="criticism")
-        asyncio.create_task(self._render_and_edit(msg, job_id, mode="criticism"))
 
     @app_commands.command(name='analyze', description='Analyze the video\'s comments and generate a summary and keywords.')
     @app_commands.describe(url="YouTube video URL")
@@ -116,5 +114,71 @@ class Slash(Cog_Extension):
         job_id = await q.submit(url, mode="emotion")
         asyncio.create_task(self._render_and_edit(msg, job_id, mode="emotion"))
 
+    @app_commands.command(name="criticism", description="分析 YT 留言中觀眾集體的批評、不滿輿情與改進建議。")
+    @app_commands.describe(url="YouTube video URL")
+    async def criticism(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+        msg = await interaction.followup.send(
+            content=f"🧾 已加入留言批評分析隊列（#{pos}）。完成後會更新這則訊息。",
+            wait=True
+        )
+
+        job_id = await q.submit(url, mode="criticism")
+        asyncio.create_task(self._render_and_edit(msg, job_id, mode="criticism"))
+
+    @app_commands.command(name="intent", description="分析 YT 留言中的提問、勘誤、許願與外部資源。")
+    @app_commands.describe(url="YouTube video URL")
+    async def intent(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+        msg = await interaction.followup.send(
+            content=f"🧾 已加入留言意圖分析隊列（#{pos}）。",
+            wait=True
+        )
+
+        job_id = await q.submit(url, mode="intent")
+        asyncio.create_task(self._render_and_edit(msg, job_id, mode="intent"))
+        
+    @app_commands.command(name="timeline", description="分析 YT 留言中被提及最多的影片時間點。")
+    @app_commands.describe(url="YouTube 影片網址")
+    async def timeline(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+
+        msg = await interaction.followup.send(
+            content=f"🧾 已加入時間軸熱點分析隊列（#{pos}）。",
+            wait=True
+        )
+
+        job_id = await q.submit(url, mode="timeline")
+        asyncio.create_task(
+            self._render_and_edit(msg, job_id, mode="timeline")
+        )
+        
+    @app_commands.command(name="insight", description="產生 YouTube 留言的綜合 AI 分析總覽。")
+    @app_commands.describe(url="YouTube video URL")
+    async def insight(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+
+        msg = await interaction.followup.send(
+            content=f"🧾 已加入綜合分析隊列（#{pos}）。",
+            wait=True
+        )
+
+        job_id = await q.submit(url, mode="main_insight")
+        asyncio.create_task(
+            self._render_and_edit(msg, job_id, mode="main_insight")
+        )
+        
 async def setup(bot):
     await bot.add_cog(Slash(bot))

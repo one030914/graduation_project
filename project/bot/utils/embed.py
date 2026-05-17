@@ -246,3 +246,385 @@ def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:
 
     embed.set_footer(text="Powered by Ollama (Llama3) 留言輿情分析模組")
     return embed
+
+# -------------------------
+# Intent Embed
+# -------------------------
+
+def _safe_get(obj, key: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+def _format_intent_comment(item, index: int) -> str:
+    text = _safe_get(item, "text", "")
+    like_count = _safe_get(item, "like_count", 0) or 0
+    reply_count = _safe_get(item, "reply_count", 0) or 0
+
+    return (
+        f"{index}. {_clip(text, 100)}\n"
+        f"   👍 `{like_count}`｜💬 `{reply_count}`"
+    )
+
+def _format_comment_list(items, limit: int = 3) -> str:
+    if not items:
+        return "暫無資料"
+
+    return "\n".join(
+        _format_intent_comment(item, i + 1)
+        for i, item in enumerate(items[:limit])
+    )
+
+def _format_distribution(counts: dict, total: int) -> str:
+    if not counts:
+        return "暫無資料"
+
+    labels = {
+        "question": "提問",
+        "correction": "勘誤",
+        "wishlist": "許願",
+        "complaint": "抱怨",
+        "resource": "資源",
+        "praise": "稱讚",
+        "meme": "玩梗",
+        "other": "其他",
+    }
+
+    parts = []
+    for key, label in labels.items():
+        value = int(counts.get(key, 0) or 0)
+        if value <= 0:
+            continue
+
+        ratio = value / max(1, total) * 100
+        parts.append(f"`{label}` {value} ({ratio:.1f}%)")
+
+    return "｜".join(parts) if parts else "暫無明顯意圖分類"
+
+def build_intent_embed(result) -> discord.Embed:
+    error = _safe_get(result, "error")
+    if error:
+        return discord.Embed(
+            title="⚠️ 留言意圖分析失敗",
+            description=str(error),
+            color=discord.Color.red(),
+        )
+
+    title = _safe_get(result, "title", "") or "YouTube 影片"
+    url = _safe_get(result, "url", "")
+    total_comments = int(_safe_get(result, "total_comments", 0) or 0)
+
+    counts = _safe_get(result, "intent_counts", {}) or {}
+
+    questions = _safe_get(result, "questions", []) or []
+    corrections = _safe_get(result, "corrections", []) or []
+    wishlist = _safe_get(result, "wishlist", []) or []
+    complaints = _safe_get(result, "complaints", []) or []
+    resources = _safe_get(result, "resources", []) or []
+
+    high_value_count = (
+        len(questions)
+        + len(corrections)
+        + len(wishlist)
+        + len(complaints)
+        + len(resources)
+    )
+
+    embed = discord.Embed(
+        title="🎯 留言意圖與行動分析",
+        description=(
+            f"**影片：** [{title}]({url})\n"
+            f"**分析留言數：** `{total_comments}` 則\n"
+            f"**高價值留言類型：** `{high_value_count}` 筆候選"
+        ),
+        color=discord.Color.blue(),
+    )
+
+    embed.add_field(
+        name="📊 意圖分布",
+        value=_format_distribution(counts, total_comments),
+        inline=False,
+    )
+
+    if questions:
+        embed.add_field(
+            name="❓ 高價值提問",
+            value=_format_comment_list(questions, limit=3),
+            inline=False,
+        )
+
+    if corrections:
+        embed.add_field(
+            name="🛠️ 重要勘誤",
+            value=_format_comment_list(corrections, limit=3),
+            inline=False,
+        )
+
+    if wishlist:
+        embed.add_field(
+            name="🌱 觀眾許願池",
+            value=_format_comment_list(wishlist, limit=3),
+            inline=False,
+        )
+
+    if complaints:
+        embed.add_field(
+            name="⚠️ 主要抱怨 / 批評",
+            value=_format_comment_list(complaints, limit=3),
+            inline=False,
+        )
+
+    if resources:
+        lines = []
+        for i, item in enumerate(resources[:3]):
+            text = _safe_get(item, "text", "")
+            urls = _safe_get(item, "urls", []) or []
+            url_text = urls[0] if urls else "未擷取到網址"
+            lines.append(
+                f"{i + 1}. {_clip(text, 80)}\n"
+                f"   🔗 {url_text}"
+            )
+
+        embed.add_field(
+            name="🔗 外部資源分享",
+            value="\n".join(lines) if lines else "暫無資料",
+            inline=False,
+        )
+
+    embed.set_footer(
+        text="Intent Analysis：依留言文字、讚數、回覆數與連結資訊排序"
+    )
+
+    return embed
+
+# -------------------------
+# Timeline Embed
+# -------------------------
+
+def _safe_get(obj, key: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+def _format_hotspot_line(hotspot, index: int) -> str:
+    time_label = _safe_get(hotspot, "time_label", "未知時間")
+    count = int(_safe_get(hotspot, "count", 0) or 0)
+    return f"{index}. `{time_label}`｜被提及 `{count}` 次"
+
+def build_timeline_embed(result) -> discord.Embed:
+    error = _safe_get(result, "error")
+    if error:
+        return discord.Embed(
+            title="⚠️ 留言時間軸分析失敗",
+            description=str(error),
+            color=discord.Color.red(),
+        )
+
+    title = _safe_get(result, "title", "") or "YouTube 影片"
+    url = _safe_get(result, "url", "")
+    total_comments = int(_safe_get(result, "total_comments", 0) or 0)
+    timestamp_comment_count = int(
+        _safe_get(result, "timestamp_comment_count", 0) or 0
+    )
+    hotspots = _safe_get(result, "hotspots", []) or []
+
+    embed = discord.Embed(
+        title="🔥 留言時間軸熱點分析",
+        description=(
+            f"**影片：** [{title}]({url})\n"
+            f"**分析留言數：** `{total_comments}` 則\n"
+            f"**含時間戳留言：** `{timestamp_comment_count}` 則"
+        ),
+        color=discord.Color.orange(),
+    )
+
+    if not hotspots:
+        embed.add_field(
+            name="📍 熱點結果",
+            value="目前沒有足夠的時間戳留言可形成熱點。",
+            inline=False,
+        )
+        embed.set_footer(text="Timeline Analysis：根據留言中的 05:10 / 1:02:30 等時間戳統計")
+        return embed
+
+    top_hotspot = hotspots[0]
+    top_time = _safe_get(top_hotspot, "time_label", "未知時間")
+    top_count = int(_safe_get(top_hotspot, "count", 0) or 0)
+    representative_comments = (
+        _safe_get(top_hotspot, "representative_comments", []) or []
+    )
+
+    top_value = f"**{top_time}** 附近｜被提及 `{top_count}` 次"
+
+    if representative_comments:
+        top_value += f"\n> {_clip(representative_comments[0], 140)}"
+
+    embed.add_field(
+        name="🏆 Top 1 高能片段",
+        value=top_value,
+        inline=False,
+    )
+
+    if len(hotspots) > 1:
+        other_lines = [
+            _format_hotspot_line(h, i + 1)
+            for i, h in enumerate(hotspots[1:6])
+        ]
+
+        embed.add_field(
+            name="📍 其他熱門片段",
+            value="\n".join(other_lines),
+            inline=False,
+        )
+
+    if representative_comments:
+        comments_text = "\n".join(
+            f"> {_clip(comment, 120)}"
+            for comment in representative_comments[:3]
+        )
+
+        embed.add_field(
+            name=f"💬 `{top_time}` 代表留言",
+            value=comments_text,
+            inline=False,
+        )
+
+    embed.add_field(
+        name="🧭 分析說明",
+        value=(
+            "此分析統計的是「留言中被觀眾主動提及的影片時間點」，"
+            "可用來觀察觀眾特別有反應、疑惑或想補充的片段。"
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(
+        text="Timeline Analysis：這不是實際重播率，而是留言時間戳提及熱點"
+    )
+
+    return embed
+
+# -------------------------
+# Main Insight Embed
+# -------------------------
+
+def _as_bullets(items: list[str], limit: int = 5) -> str:
+    if not items:
+        return "暫無資料"
+
+    return "\n".join(
+        f"{i + 1}. {str(item)}"
+        for i, item in enumerate(items[:limit])
+    )
+
+def _as_tags(tags: list[str], limit: int = 6) -> str:
+    if not tags:
+        return "`#暫無標籤`"
+
+    return " ".join(f"`#{tag}`" for tag in tags[:limit])
+
+def _opinion_icon(score: int) -> str:
+    if score >= 75:
+        return "🟢"
+    if score >= 50:
+        return "🟡"
+    return "🔴"
+
+def _opinion_label(score: int) -> str:
+    if score >= 75:
+        return "正向偏高"
+    if score >= 50:
+        return "中性偏穩"
+    return "負面偏高"
+
+def build_main_insight_embed(result) -> discord.Embed:
+    if getattr(result, "error", None):
+        return discord.Embed(
+            title="⚠️ 綜合分析失敗",
+            description=result.error,
+            color=discord.Color.red(),
+        )
+
+    score = int(getattr(result, "public_opinion_score", 0) or 0)
+    icon = _opinion_icon(score)
+    label = getattr(result, "opinion_label", "") or _opinion_label(score)
+
+    title = getattr(result, "title", "") or "YouTube 留言 AI 綜合分析"
+    url = getattr(result, "url", "")
+
+    embed = discord.Embed(
+        title="📊 YouTube 留言 AI 綜合分析",
+        description=(
+            f"**影片：** [{title}]({url})\n"
+            f"**整體風向：** {icon} **{label}** `{score}/100`"
+        ),
+        color=discord.Color.green() if score >= 75 else (
+            discord.Color.gold() if score >= 50 else discord.Color.red()
+        ),
+    )
+
+    total_comments = getattr(result, "total_comments", 0)
+    if total_comments:
+        embed.add_field(
+            name="📌 分析範圍",
+            value=f"本次共分析 `{total_comments}` 則留言。",
+            inline=False,
+        )
+
+    embed.add_field(
+        name="🧭 AI 智慧快報",
+        value=_as_bullets(getattr(result, "quick_summary", []), limit=3),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="🏷️ 留言區標籤",
+        value=_as_tags(getattr(result, "tags", []), limit=6),
+        inline=False,
+    )
+
+    top_topics = getattr(result, "top_topics", [])
+    if top_topics:
+        embed.add_field(
+            name="💬 熱門討論主題",
+            value="、".join(f"`{topic}`" for topic in top_topics[:5]),
+            inline=False,
+        )
+
+    top_hotspot = getattr(result, "top_hotspot", None)
+    if top_hotspot:
+        time_label = top_hotspot.get("time_label", "未知時間")
+        count = top_hotspot.get("count", 0)
+        comment = top_hotspot.get("representative_comment", "")
+
+        value = f"**{time_label}** 附近被留言提及 `{count}` 次"
+        if comment:
+            value += f"\n> {comment[:120]}"
+
+        embed.add_field(
+            name="🔥 最高討論片段",
+            value=value,
+            inline=False,
+        )
+
+    creator_actions = getattr(result, "creator_actions", [])
+    if creator_actions:
+        embed.add_field(
+            name="🎬 創作者行動建議",
+            value=_as_bullets(creator_actions, limit=3),
+            inline=False,
+        )
+
+    viewer_tips = getattr(result, "viewer_tips", [])
+    if viewer_tips:
+        embed.add_field(
+            name="👀 觀眾觀看提示",
+            value=_as_bullets(viewer_tips, limit=3),
+            inline=False,
+        )
+
+    embed.set_footer(
+        text="Main Insight 由情緒、主題、時間軸與意圖分析彙整產生"
+    )
+
+    return embed

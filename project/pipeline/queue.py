@@ -14,6 +14,9 @@ from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
 from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
+from pipeline.intent import build_intent
+from pipeline.timeline import build_timeline
+from pipeline.main_insight import build_main_insight
 
 _yt_api = API()
 
@@ -291,15 +294,7 @@ class AnalysisQueue:
                         elif job.mode == "keywords":
                             return analyze(job.url, run_summary=False, run_keywords=True)
                         elif job.mode == "top_comments":
-                            return get_top_comments(
-                                job.url,
-                                n=10,
-                                order="relevance",
-                                sort_by="likes",
-                                pages=5,
-                                page_size=100,
-                                min_likes=1,
-                            )
+                            return get_top_comments(job.url)
                         elif job.mode == "topics":
                             return build_topics(job.url)
                         elif job.mode == "emotion":
@@ -308,6 +303,12 @@ class AnalysisQueue:
                             return build_video_content(job.url)
                         elif job.mode == "criticism":
                             return analyze_comment_criticism(job.url)
+                        elif job.mode == "intent":
+                            return build_intent(job.url)
+                        elif job.mode == "timeline":
+                            return build_timeline(job.url)
+                        elif job.mode == "main_insight":
+                            return build_main_insight(job.url)
                         
                         return analyze(job.url, run_summary=True, run_keywords=True)
 

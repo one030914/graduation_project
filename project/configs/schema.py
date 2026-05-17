@@ -239,3 +239,84 @@ class CommentCriticismResult:
     discontent_reasons: List[str] = field(default_factory=list)    # 觀眾產生不滿、反彈或質疑的底層原因
     suggestions: List[str] = field(default_factory=list)           # 觀眾給予影片/創作者的改進建議或期望
     error: Optional[str] = None
+    
+# ========================================
+# Intent
+# ========================================
+
+@dataclass(slots=True)
+class IntentComment:
+    text: str
+    intent: str
+    like_count: int = 0
+    reply_count: int = 0
+    comment_id: str | None = None
+    author: str | None = None
+    reason: str | None = None
+    urls: list[str] = field(default_factory=list)
+    timestamps: list[dict] = field(default_factory=list)
+
+@dataclass(slots=True)
+class IntentResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+    total_comments: int = 0
+    intent_counts: dict[str, int] = field(default_factory=dict)
+    intent_ratios: dict[str, float] = field(default_factory=dict)
+
+    questions: list[IntentComment] = field(default_factory=list)
+    corrections: list[IntentComment] = field(default_factory=list)
+    wishlist: list[IntentComment] = field(default_factory=list)
+    complaints: list[IntentComment] = field(default_factory=list)
+    resources: list[IntentComment] = field(default_factory=list)
+    praise: list[IntentComment] = field(default_factory=list)
+    memes: list[IntentComment] = field(default_factory=list)
+
+    error: str | None = None
+
+# ========================================
+# Timeline
+# ========================================
+
+@dataclass(slots=True)
+class TimelineHotspot:
+    time_label: str
+    seconds: int
+    count: int
+    representative_comments: list[str] = field(default_factory=list)
+
+@dataclass(slots=True)
+class TimelineResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+    total_comments: int = 0
+    timestamp_comment_count: int = 0
+    hotspots: list[TimelineHotspot] = field(default_factory=list)
+    error: str | None = None
+
+# ========================================
+# Main Insight
+# ========================================
+
+@dataclass(slots=True)
+class MainInsightResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+
+    total_comments: int = 0
+    public_opinion_score: int = 0
+    opinion_label: str = ""
+
+    tags: list[str] = field(default_factory=list)
+    quick_summary: list[str] = field(default_factory=list)
+
+    top_topics: list[str] = field(default_factory=list)
+    top_hotspot: dict | None = None
+
+    creator_actions: list[str] = field(default_factory=list)
+    viewer_tips: list[str] = field(default_factory=list)
+
+    error: str | None = None

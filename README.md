@@ -97,6 +97,8 @@ graduation_project/
 -   [x] top
 -   [x] topics
 -   [x] emotion
--   [ ] trend
 -   [x] video analysis
 -   [x] criticism
+-   [x] timeline
+-   [x] intent
+-   [x] insight

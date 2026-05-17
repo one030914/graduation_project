@@ -87,33 +87,115 @@ def detect_language(s: str) -> str:
         return "en"
     return "unknown"
 
+# ========================================
+# Timestamp
+# ========================================
+
+TIME_PATTERNS = [
+    # 5:10 / 05:10 / 1:02:30 / 1：02：30
+    re.compile(r"(?<!\d)(?:\d{1,2}[:：])?\d{1,2}[:：]\d{2}(?!\d)"),
+
+    # 5分10秒 / 05分10秒
+    re.compile(r"(?<!\d)(\d{1,2})\s*分\s*(\d{1,2})\s*秒"),
+
+    # 1小時02分30秒
+    re.compile(r"(?<!\d)(\d{1,2})\s*小時\s*(\d{1,2})\s*分\s*(\d{1,2})\s*秒"),
+]
+
 def timestamp_to_seconds(ts: str) -> int:
+    ts = ts.replace("：", ":")
+
     parts = [int(p) for p in ts.split(":")]
 
     if len(parts) == 2:
-        minutes, seconds = parts
-        return minutes * 60 + seconds
+        m, s = parts
+        return m * 60 + s
 
     if len(parts) == 3:
-        hours, minutes, seconds = parts
-        return hours * 3600 + minutes * 60 + seconds
+        h, m, s = parts
+        return h * 3600 + m * 60 + s
 
     return 0
+
+def seconds_to_label(seconds: int) -> str:
+    seconds = int(seconds)
+
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+
+    return f"{m}:{s:02d}"
 
 def extract_timestamps(text: str) -> list[dict]:
     if not isinstance(text, str):
         return []
 
-    matches = PATTERNS["time"].findall(text)
-
     results = []
-    for ts in matches:
+    occupied_ranges = []
+
+    # 1小時02分30秒
+    for match in TIME_PATTERNS[2].finditer(text):
+        hours = int(match.group(1))
+        minutes = int(match.group(2))
+        seconds = int(match.group(3))
+        total = hours * 3600 + minutes * 60 + seconds
+
+        occupied_ranges.append(match.span())
         results.append({
-            "text": ts,
-            "seconds": timestamp_to_seconds(ts)
+            "text": match.group(0),
+            "seconds": total,
+            "label": seconds_to_label(total),
         })
 
-    return results
+    def overlaps_existing(span: tuple[int, int]) -> bool:
+        start, end = span
+        return any(start < used_end and used_start < end for used_start, used_end in occupied_ranges)
+
+    # 5:10 / 1:02:30
+    for match in TIME_PATTERNS[0].finditer(text):
+        if overlaps_existing(match.span()):
+            continue
+
+        raw = match.group(0)
+        seconds = timestamp_to_seconds(raw)
+
+        occupied_ranges.append(match.span())
+        results.append({
+            "text": raw,
+            "seconds": seconds,
+            "label": seconds_to_label(seconds),
+        })
+
+    # 5分10秒
+    for match in TIME_PATTERNS[1].finditer(text):
+        if overlaps_existing(match.span()):
+            continue
+
+        minutes = int(match.group(1))
+        seconds = int(match.group(2))
+        total = minutes * 60 + seconds
+
+        occupied_ranges.append(match.span())
+        results.append({
+            "text": match.group(0),
+            "seconds": total,
+            "label": seconds_to_label(total),
+        })
+
+    # 去重：同一留言可能同一秒被重複抓到
+    seen = set()
+    unique = []
+
+    for item in results:
+        sec = item["seconds"]
+        if sec not in seen:
+            seen.add(sec)
+            unique.append(item)
+
+    return unique
 
 def extract_urls(text: str) -> list[str]:
     if not isinstance(text, str):
@@ -168,6 +250,6 @@ def preprocess_comment(raw_comment: Any, *, min_len: int = 2) -> ProcessedCommen
         clean_text=cleaned,
         language=lang,
         tokens=tokens,
-        timestamps=extract_timestamps(cleaned),
-        urls=extract_urls(cleaned),
+        timestamps=extract_timestamps(raw),
+        urls=extract_urls(raw),
     )
