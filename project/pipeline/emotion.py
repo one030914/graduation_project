@@ -32,7 +32,7 @@ def build_emotion(
     if comments.error:
         return EmotionResult(url=url, error=comments.error)
 
-    df = comments.df
+    df = comments.df.copy()
 
     main_lang = get_main_language(df)
     df_lang = df[df["language"] == main_lang].copy()

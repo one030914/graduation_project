@@ -45,6 +45,8 @@ def collect_comments(
             df=pd.DataFrame(),
             error="No comments found.",
         )
+        
+    print("total comments:", len(comments))
 
     df = batch_preprocess_comments(comments)
 

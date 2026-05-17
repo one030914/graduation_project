@@ -15,7 +15,7 @@ def get_main_language(df) -> str:
 def build_topics(
     url: str,
     *,
-    pages: int = 5,
+    pages: int = 100,
     page_size: int = 100,
     min_likes: int = 1,
 ) -> TopicsResult:
@@ -23,7 +23,7 @@ def build_topics(
     if comments.error:
         return TopicsResult(url=url, error=comments.error)
 
-    df = comments.df
+    df = comments.df.copy()
 
     main_lang = get_main_language(df)
     df_lang = df[df["language"] == main_lang].copy()

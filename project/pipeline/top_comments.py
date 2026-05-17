@@ -9,7 +9,7 @@ def get_top_comments(
     url: str,
     *,
     n: int = 10,
-    pages: int = 5,
+    pages: int = 100,
     page_size: int = 100,
     min_likes: int = 1,
     order: Order = "relevance",

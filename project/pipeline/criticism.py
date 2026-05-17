@@ -6,7 +6,7 @@ from configs.schema import CommentCriticismResult
 
 def analyze_comment_criticism(
     video_url: str, 
-    pages: int = 5, 
+    pages: int = 100, 
     page_size: int = 100, 
     min_likes: int = 0, 
     model_name: str = "llama3.2"
@@ -18,7 +18,7 @@ def analyze_comment_criticism(
     if comments.error:
         return CommentCriticismResult(url=video_url, error=comments.error)
 
-    df = comments.df
+    df = comments.df.copy()
 
     if len(df) < 5:
         return CommentCriticismResult(url=video_url, error="Not enough comments to analyze")

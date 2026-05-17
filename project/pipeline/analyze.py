@@ -2,7 +2,7 @@ from .collect import collect_comments
 from configs.schema import AnalysisResult, Stats, LangRatio
 from scripts.timestamp import Timer
 
-def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: int = 0,
+def analyze(video_url: str, *, pages: int = 100, page_size: int = 100, min_likes: int = 0,
             summary_topk: int = 5, keyword_topk: int = 10, run_summary: bool = True, run_keywords: bool = True) -> AnalysisResult:
     timer = Timer()
     
@@ -13,7 +13,7 @@ def analyze(video_url: str, *, pages: int = 5, page_size: int = 100, min_likes: 
     
     timer.mark("api fetch")
     
-    df = comments.df
+    df = comments.df.copy()
 
     comments_zh = df[df["language"] == "zh"]["clean_text"].tolist()
     comments_en = df[df["language"] == "en"]["clean_text"].tolist()
