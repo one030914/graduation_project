@@ -5,7 +5,7 @@ from configs.schema import (
     TopCommentsResult, 
     TopicsResult, 
     EmotionResult,
-    CommentCriticismResult  # <-- 引入批評分析的資料結構
+    CommentCriticismResult
 )
 
 # -------------------------
@@ -199,7 +199,7 @@ def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.F
     return embed, file
 
 # -------------------------
-# Criticism Embed (NEW)
+# Criticism Embed
 # -------------------------
 
 def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:

@@ -9,7 +9,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field
 
+# ========================================
 # Preprocess
+# ========================================
 
 @dataclass(slots=True)
 class ProcessedComment:
@@ -20,7 +22,9 @@ class ProcessedComment:
     timestamps: List[dict]
     urls: List[str]
 
+# ========================================
 # Collect
+# ========================================
 
 @dataclass(slots=True)
 class CommentDataset:
@@ -30,7 +34,9 @@ class CommentDataset:
     df: pd.DataFrame
     error: Optional[str] = None
 
+# ========================================
 # Analysis
+# ========================================
 
 @dataclass(slots=True)
 class Stats:
@@ -67,7 +73,9 @@ class AnalysisResult:
     # error handling
     error: Optional[str] = None
 
+# ========================================
 # Video Content
+# ========================================
 
 TranscriptSource = Literal["caption", "whisper"]
 
@@ -84,7 +92,9 @@ class VideoContentResult:
     transcript_source: Optional[TranscriptSource] = None
     error: Optional[str] = None
 
+# ========================================
 # Queue
+# ========================================
 
 @dataclass(slots=True)
 class JobStatus:
@@ -121,7 +131,9 @@ class Req(BaseModel):
     run_summary: bool = True
     run_keywords: bool = True
 
+# ========================================
 # Top Comments
+# ========================================
 
 Order = Literal["relevance", "time"]
 SortBy = Literal["likes", "replies", "time"]
@@ -146,7 +158,9 @@ class TopCommentsResult:
     sort_by: SortBy = "likes"
     error: Optional[str] = None
 
+# ========================================
 # Topics
+# ========================================
 
 @dataclass(slots=True)
 class TopicCluster:
@@ -165,8 +179,10 @@ class TopicsResult:
     language: str = ""
     topics: List[TopicCluster] = field(default_factory=list)
     error: Optional[str] = None
-    
+
+# ========================================   
 # Emotion
+# ========================================
 
 @dataclass(slots=True)
 class EmotionStats:
@@ -182,7 +198,9 @@ class EmotionResult:
     stats: EmotionStats | None = None
     error: Optional[str] = None
 
+# ========================================
 # Video Analysis
+# ========================================
 
 class TranscriptChunkAnalysis(BaseModel):
     summary: List[str] = Field(default_factory=list)
@@ -207,8 +225,10 @@ class TranscriptPayload:
     language: str
     source: str
     segments: List[TranscriptSegment]
-    
+
+# ========================================
 # Critisism
+# ========================================
     
 @dataclass(slots=True)
 class CommentCriticismResult:

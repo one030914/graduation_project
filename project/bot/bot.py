@@ -7,10 +7,6 @@ from configs.settings import ROOT, BOT_DIR
 
 from pipeline.queue import AnalysisQueue
 
-from pipeline.analyze import analyze
-
-from data.youtube.api import API
-
 load_dotenv(verbose=True)
 
 with open(f"{ROOT}/data.json", "r", encoding="utf8") as jfile:
@@ -18,11 +14,6 @@ with open(f"{ROOT}/data.json", "r", encoding="utf8") as jfile:
 
 intents = discord.Intents.default()
 intents.message_content = True
-
-api = API()
-
-def extract_video_id_only(url: str):
-    return api.extract_video_id(url)
 
 class MyBot(commands.Bot):
     async def setup_hook(self):
@@ -37,8 +28,6 @@ class MyBot(commands.Bot):
 
         # 3) analysis queue
         self.analysis_queue = AnalysisQueue(
-            analyze_fn=analyze,
-            extract_video_id_fn=extract_video_id_only,
             workers=4,
             cache_ttl_minutes=10,
             max_queue_size=50,

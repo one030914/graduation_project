@@ -1,19 +1,11 @@
-import base64
 from contextlib import asynccontextmanager
-from io import BytesIO
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.encoders import jsonable_encoder
 
-from pipeline.analyze import analyze
-from pipeline.emotion import build_emotion
 from configs.schema import Req
-from pipeline.topic import build_topics
-from data.youtube.api import API
-from bot.utils.chart import build_emotion_radar_chart
 from pipeline.queue import AnalysisQueue
 
 load_dotenv(verbose=True)
@@ -21,13 +13,9 @@ load_dotenv(verbose=True)
 # ----------------------
 # FastAPI App 初始化
 # ----------------------
-_yt_api = API()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     wq = AnalysisQueue(
-        analyze_fn=analyze,
-        extract_video_id_fn=_yt_api.extract_video_id,
         workers=2,
         cache_ttl_minutes=10,
         max_queue_size=50,

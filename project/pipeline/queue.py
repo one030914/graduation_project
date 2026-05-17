@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import dataclass, asdict, is_dataclass
+from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from configs.schema import Job, JobStatus
+from data.youtube.api import API
+from pipeline.analyze import analyze
 from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
 from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
+
+_yt_api = API()
 
 def _to_jsonable(obj: Any) -> Any:
     # 讓 FastAPI 之類的 JSON response 可以直接用
@@ -36,16 +40,11 @@ class AnalysisQueue:
     def __init__(
         self,
         *,
-        analyze_fn: Callable[[str], object],                 # analyze(url, ...) -> pipeline result
-        extract_video_id_fn: Callable[[str], Optional[str]],  # extract_video_id(url) -> video_id
         workers: int = 2,
         cache_ttl_minutes: int = 10,
         max_queue_size: int = 50,
         job_ttl_minutes: int = 60,
     ):
-        self.analyze_fn = analyze_fn
-        self.extract_video_id_fn = extract_video_id_fn
-
         self.queue: asyncio.Queue[Job] = asyncio.Queue(maxsize=max_queue_size)
         self.workers = workers
         self.cache_ttl = timedelta(minutes=cache_ttl_minutes)
@@ -113,7 +112,7 @@ class AnalysisQueue:
         """
         新增一個分析工作並回傳 job_id（web/discord 都用同一套）。
         """
-        video_id = self.extract_video_id_fn(url) or "unknown"
+        video_id = _yt_api.extract_video_id(url) or "unknown"
         job_id = uuid.uuid4().hex
         created_at = datetime.utcnow()
 
@@ -288,9 +287,9 @@ class AnalysisQueue:
 
                     def _run():
                         if job.mode == "summary":
-                            return self.analyze_fn(job.url, run_summary=True, run_keywords=False)
+                            return analyze(job.url, run_summary=True, run_keywords=False)
                         elif job.mode == "keywords":
-                            return self.analyze_fn(job.url, run_summary=False, run_keywords=True)
+                            return analyze(job.url, run_summary=False, run_keywords=True)
                         elif job.mode == "top_comments":
                             return get_top_comments(
                                 job.url,
@@ -310,7 +309,7 @@ class AnalysisQueue:
                         elif job.mode == "criticism":
                             return analyze_comment_criticism(job.url)
                         
-                        return self.analyze_fn(job.url, run_summary=True, run_keywords=True)
+                        return analyze(job.url, run_summary=True, run_keywords=True)
 
                     executor_future = loop.run_in_executor(None, _run)
                     self._running_executor_futures[job.job_id] = executor_future
