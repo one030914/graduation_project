@@ -13,6 +13,7 @@ def collect_comments(
     page_size: int = 100,
     min_likes: int = 0,
     order: str = "relevance",
+    duplicate: bool = False,
 ) -> CommentDataset:
     api = API()
 
@@ -48,7 +49,7 @@ def collect_comments(
         
     print("total comments:", len(comments))
 
-    df = batch_preprocess_comments(comments)
+    df = batch_preprocess_comments(comments, duplicate=duplicate)
 
     if df.empty:
         return CommentDataset(

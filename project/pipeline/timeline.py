@@ -34,6 +34,7 @@ def build_timeline(
         page_size=page_size,
         min_likes=min_likes,
         order="relevance",
+        duplicate=True,
     )
 
     if comments.error:
@@ -41,7 +42,8 @@ def build_timeline(
             video_id=comments.video_id,
             title=comments.title,
             url=url,
-            error=comments.error,
+            status="error",
+            message=comments.error
         )
 
     df = comments.df.copy()
@@ -67,7 +69,8 @@ def build_timeline(
             url=url,
             total_comments=len(df),
             timestamp_comment_count=0,
-            error="沒有留言提及影片時間戳，無法產生時間軸熱點。",
+            status="insufficient_data",
+            message="此影片留言較少提及具體時間點，無法形成穩定時間軸熱點。"
         )
 
     hotspots = []

@@ -7,7 +7,7 @@ import pandas as pd
 
 from .cleaner import preprocess_comment
 
-def batch_preprocess_comments(json_data: List[Dict[str, Any]]) -> pd.DataFrame:
+def batch_preprocess_comments(json_data: List[Dict[str, Any]], duplicate: bool = False) -> pd.DataFrame:
     rows = []
     langs = {"zh": 0, "en": 0, "unknown": 0}
 
@@ -35,7 +35,7 @@ def batch_preprocess_comments(json_data: List[Dict[str, Any]]) -> pd.DataFrame:
         langs[proc.language] += 1
 
     df = pd.DataFrame(rows)
-    if not df.empty:
+    if not df.empty and not duplicate:
         df = df.drop_duplicates(subset=["clean_text"])
 
     n = sum(langs.values())
