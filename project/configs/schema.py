@@ -294,7 +294,8 @@ class TimelineResult:
     total_comments: int = 0
     timestamp_comment_count: int = 0
     hotspots: list[TimelineHotspot] = field(default_factory=list)
-    error: str | None = None
+    status: str = "ok"  # ok | insufficient_data | error
+    message: str | None = None
 
 # ========================================
 # Main Insight
