@@ -36,12 +36,21 @@ def build_timeline(
         order="relevance",
         duplicate=True,
     )
+    
+    return build_timeline_from_dataset(
+        comments,
+        bucket_size=bucket_size,
+    )
 
+def build_timeline_from_dataset(
+    comments,
+    bucket_size: int = 30,
+) -> TimelineResult:
     if comments.error:
         return TimelineResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             status="error",
             message=comments.error
         )
@@ -66,7 +75,7 @@ def build_timeline(
         return TimelineResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             total_comments=len(df),
             timestamp_comment_count=0,
             status="insufficient_data",
@@ -91,7 +100,7 @@ def build_timeline(
     return TimelineResult(
         video_id=comments.video_id,
         title=comments.title,
-        url=url,
+        url=comments.url,
         total_comments=len(df),
         timestamp_comment_count=timestamp_comment_count,
         hotspots=hotspots[:10],

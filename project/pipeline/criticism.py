@@ -15,13 +15,36 @@ def analyze_comment_criticism(
     抓取 YouTube 影片留言，經過預處理後，使用 Ollama 模型分析觀眾集體的批評、不滿與改進建議。
     """
     comments = collect_comments(url=video_url, pages=pages, page_size=page_size, min_likes=min_likes)
+    return analyze_comment_criticism_from_dataset(
+        comments,
+        model_name=model_name,
+    )
+
+def analyze_comment_criticism_from_dataset(
+    comments,
+    *,
+    model_name: str = "llama3.2",
+) -> CommentCriticismResult:
+    """
+    使用已收集與預處理的 YouTube 留言資料，分析觀眾集體的批評、不滿與改進建議。
+    """
     if comments.error:
-        return CommentCriticismResult(url=video_url, error=comments.error)
+        return CommentCriticismResult(
+            video_id=comments.video_id,
+            title=comments.title,
+            url=comments.url,
+            error=comments.error,
+        )
 
     df = comments.df.copy()
 
     if len(df) < 5:
-        return CommentCriticismResult(url=video_url, error="Not enough comments to analyze")
+        return CommentCriticismResult(
+            video_id=comments.video_id,
+            title=comments.title,
+            url=comments.url,
+            error="Not enough comments to analyze",
+        )
     
     comments_block = "\n".join([f"- {c}" for c in df["clean_text"].dropna().tolist()])
 
@@ -60,7 +83,8 @@ def analyze_comment_criticism(
         data = json.loads(raw_content)
         
         return CommentCriticismResult(
-            url=video_url,
+            video_id=comments.video_id,
+            url=comments.url,
             title=comments.title,
             main_criticisms=data.get("main_criticisms", []),
             discontent_reasons=data.get("discontent_reasons", []),
@@ -69,7 +93,8 @@ def analyze_comment_criticism(
         
     except Exception as e:
         return CommentCriticismResult(
-            url=video_url,
+            video_id=comments.video_id,
+            url=comments.url,
             title=comments.title,
             error=f"Ollama 輿情分析解析失敗: {str(e)}"
         )

@@ -67,12 +67,15 @@ def build_intent(
         min_likes=min_likes,
         order="relevance",
     )
-
+    
+    return build_intent_from_dataset(comments)
+    
+def build_intent_from_dataset(comments) -> IntentResult:
     if comments.error:
         return IntentResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             error=comments.error,
         )
 
@@ -124,7 +127,7 @@ def build_intent(
     return IntentResult(
         video_id=comments.video_id,
         title=comments.title,
-        url=url,
+        url=comments.url,
         total_comments=len(df),
         intent_counts=counts,
         intent_ratios=ratios,

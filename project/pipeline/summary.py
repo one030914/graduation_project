@@ -4,33 +4,6 @@ from scripts.timestamp import Timer
 from .collect import collect_comments
 
 
-def _language_payload(video_url: str, *, pages: int, page_size: int, min_likes: int):
-    comments = collect_comments(
-        url=video_url,
-        pages=pages,
-        page_size=page_size,
-        min_likes=min_likes,
-    )
-
-    if comments.error:
-        return comments, None, LangRatio()
-
-    df = comments.df.copy()
-    lang_counts = df["language"].value_counts(dropna=False).to_dict()
-    total = max(1, len(df))
-    zh = float(lang_counts.get("zh", 0) / total)
-    en = float(lang_counts.get("en", 0) / total)
-    other = max(0.0, 1.0 - zh - en)
-
-    payload = {
-        "df": df,
-        "comments_zh": df[df["language"] == "zh"]["clean_text"].tolist(),
-        "comments_en": df[df["language"] == "en"]["clean_text"].tolist(),
-        "tokens_zh": df[df["language"] == "zh"]["tokens"].tolist(),
-    }
-    return comments, payload, LangRatio(zh=zh, en=en, other=other)
-
-
 def build_summary(
     video_url: str,
     *,
@@ -39,19 +12,35 @@ def build_summary(
     min_likes: int = 0,
     summary_topk: int = 5,
 ) -> AnalysisResult:
-    timer = Timer()
-    comments, payload, lang_ratio = _language_payload(
-        video_url,
+    comments = collect_comments(
+        url=video_url,
         pages=pages,
         page_size=page_size,
         min_likes=min_likes,
     )
+    return build_summary_from_dataset(
+        comments,
+        summary_topk=summary_topk,
+    )
+
+def build_summary_from_dataset(
+    comments,
+    *,
+    summary_topk: int = 5,
+) -> AnalysisResult:
+    timer = Timer()
 
     if comments.error:
-        return AnalysisResult(error=comments.error)
+        return AnalysisResult(
+            video_id=comments.video_id,
+            title=comments.title,
+            url=comments.url,
+            error=comments.error,
+        )
 
     timer.mark("api fetch")
 
+    payload, lang_ratio = _language_payload_from_dataset(comments)
     df = payload["df"]
     max_n = 600
     comments_zh = payload["comments_zh"][:max_n]
@@ -93,3 +82,20 @@ def build_summary(
         summary_zh=summary_zh[:summary_topk],
         summary_en=summary_en[:summary_topk],
     )
+
+
+def _language_payload_from_dataset(comments):
+    df = comments.df.copy()
+    lang_counts = df["language"].value_counts(dropna=False).to_dict()
+    total = max(1, len(df))
+    zh = float(lang_counts.get("zh", 0) / total)
+    en = float(lang_counts.get("en", 0) / total)
+    other = max(0.0, 1.0 - zh - en)
+
+    payload = {
+        "df": df,
+        "comments_zh": df[df["language"] == "zh"]["clean_text"].tolist(),
+        "comments_en": df[df["language"] == "en"]["clean_text"].tolist(),
+        "tokens_zh": df[df["language"] == "zh"]["tokens"].tolist(),
+    }
+    return payload, LangRatio(zh=zh, en=en, other=other)

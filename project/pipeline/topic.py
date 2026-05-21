@@ -20,8 +20,15 @@ def build_topics(
     min_likes: int = 1,
 ) -> TopicsResult:
     comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
+    return build_topics_from_dataset(comments)
+
+def build_topics_from_dataset(comments) -> TopicsResult:
     if comments.error:
-        return TopicsResult(url=url, error=comments.error)
+        return TopicsResult(
+            url=comments.url,
+            title=comments.title,
+            error=comments.error,
+        )
 
     df = comments.df.copy()
 
@@ -30,7 +37,7 @@ def build_topics(
         
     if len(df_lang) < 15:
         return TopicsResult(
-            url=url,
+            url=comments.url,
             title=comments.title,
             error="Not enough comments to form stable topics"
         )
@@ -41,20 +48,20 @@ def build_topics(
         topics = build_topics_en(df_lang)
     else:
         return TopicsResult(
-            url=url,
+            url=comments.url,
             title=comments.title,
             error="Cannot analyze this language"
         )
     
     if not topics:
         return TopicsResult(
-            url=url,
+            url=comments.url,
             title=comments.title,
             error="No clear topics formed"
         )
 
     return TopicsResult(
-        url=url,
+        url=comments.url,
         title=comments.title,
         total_comments=len(df_lang),
         language=main_lang,

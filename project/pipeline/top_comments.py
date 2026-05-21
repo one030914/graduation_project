@@ -22,12 +22,25 @@ def get_top_comments(
         min_likes=min_likes,
         order=order,
     )
+    return get_top_comments_from_dataset(
+        comments,
+        n=n,
+        order=order,
+        sort_by=sort_by,
+    )
 
+def get_top_comments_from_dataset(
+    comments,
+    *,
+    n: int = 10,
+    order: Order = "relevance",
+    sort_by: SortBy = "likes",
+) -> TopCommentsResult:
     if comments.error:
         return TopCommentsResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             order=order,
             sort_by=sort_by,
             error=comments.error,
@@ -38,7 +51,7 @@ def get_top_comments(
         return TopCommentsResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             order=order,
             sort_by=sort_by,
             error="No valid comments after filtering",
@@ -76,7 +89,7 @@ def get_top_comments(
         return TopCommentsResult(
             video_id=comments.video_id,
             title=comments.title,
-            url=url,
+            url=comments.url,
             total_fetched=len(df),
             order=order,
             sort_by=sort_by,
@@ -86,7 +99,7 @@ def get_top_comments(
     return TopCommentsResult(
         video_id=comments.video_id,
         title=comments.title,
-        url=url,
+        url=comments.url,
         top=items,
         total_fetched=len(df),
         order=order,

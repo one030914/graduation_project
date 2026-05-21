@@ -29,8 +29,15 @@ def build_emotion(
     min_likes: int = 1,
 ) -> EmotionResult:
     comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
+    return build_emotion_from_dataset(comments)
+
+def build_emotion_from_dataset(comments) -> EmotionResult:
     if comments.error:
-        return EmotionResult(url=url, error=comments.error)
+        return EmotionResult(
+            url=comments.url,
+            title=comments.title,
+            error=comments.error,
+        )
 
     df = comments.df.copy()
 
@@ -47,7 +54,7 @@ def build_emotion(
         labels = analyze_emotion_en(texts)
     else:
         return EmotionResult(
-            url=url,
+            url=comments.url,
             title=comments.title,
             total_comments=len(df),
             language=main_lang,
@@ -56,7 +63,7 @@ def build_emotion(
 
     if not labels:
         return EmotionResult(
-            url=url,
+            url=comments.url,
             title=comments.title,
             total_comments=len(df),
             language=main_lang,
@@ -72,7 +79,7 @@ def build_emotion(
     )
 
     return EmotionResult(
-        url=url,
+        url=comments.url,
         title=comments.title,
         total_comments=len(df),
         language=main_lang,

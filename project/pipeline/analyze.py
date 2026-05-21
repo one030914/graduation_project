@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from configs.schema import AnalyzeResult
-from pipeline.emotion import build_emotion
-from pipeline.intent import build_intent
-from pipeline.timeline import build_timeline
-from pipeline.topic import build_topics
+from pipeline.collect import collect_comments
+from pipeline.emotion import build_emotion_from_dataset
+from pipeline.topic import build_topics_from_dataset
+from pipeline.intent import build_intent_from_dataset
+from pipeline.timeline import build_timeline_from_dataset
 
 
 def _calc_opinion_score(emotion_result) -> int:
@@ -15,45 +16,56 @@ def _calc_opinion_score(emotion_result) -> int:
     total = max(1, emotion_result.stats.total)
 
     positive = emotions.get("Joy", 0) + emotions.get("Surprised", 0)
-    negative = emotions.get("Angry", 0) + emotions.get("Sad", 0) + emotions.get("Disgusted", 0)
+    negative = (
+        emotions.get("Angry", 0)
+        + emotions.get("Sad", 0)
+        + emotions.get("Disgusted", 0)
+    )
 
     score = 50 + int((positive - negative) / total * 50)
     return max(0, min(100, score))
 
 
-def _opinion_label(score: int) -> str:
-    if score >= 75:
-        return "正向偏高"
-    if score >= 50:
-        return "中性偏穩"
-    return "負面偏高"
-
-
 def build_analyze(url: str) -> AnalyzeResult:
-    emotion = build_emotion(url)
-    topics = build_topics(url)
-    intent = build_intent(url)
-    timeline = build_timeline(url)
+    dataset = collect_comments(
+        url,
+        pages=100,
+        page_size=100,
+        min_likes=0,
+        order="relevance",
+    )
+
+    if dataset.error:
+        return AnalyzeResult(
+            video_id=dataset.video_id,
+            title=dataset.title,
+            url=url,
+            error=dataset.error,
+        )
+
+    timeline_dataset = collect_comments(
+        url,
+        pages=100,
+        page_size=100,
+        min_likes=0,
+        order="relevance",
+        duplicate=True,
+    )
+
+    emotion = build_emotion_from_dataset(dataset)
+    topics = build_topics_from_dataset(dataset)
+    intent = build_intent_from_dataset(dataset)
+    timeline = build_timeline_from_dataset(timeline_dataset)
 
     title = (
-        getattr(emotion, "title", "")
+        dataset.title
+        or getattr(emotion, "title", "")
         or getattr(topics, "title", "")
         or getattr(intent, "title", "")
         or getattr(timeline, "title", "")
     )
 
-    video_id = (
-        getattr(intent, "video_id", "")
-        or getattr(timeline, "video_id", "")
-        or ""
-    )
-
-    total_comments = max(
-        int(getattr(emotion, "total_comments", 0) or 0),
-        int(getattr(topics, "total_comments", 0) or 0),
-        int(getattr(intent, "total_comments", 0) or 0),
-        int(getattr(timeline, "total_comments", 0) or 0),
-    )
+    video_id = dataset.video_id
 
     score = _calc_opinion_score(emotion)
 
@@ -97,7 +109,9 @@ def build_analyze(url: str) -> AnalyzeResult:
         if intent.resources:
             viewer_tips.append("留言中包含外部資源連結，可作為補充資料參考。")
 
-    if not getattr(timeline, "error", None) and timeline.hotspots:
+    timeline_status = getattr(timeline, "status", "ok")
+
+    if timeline_status == "ok" and timeline.hotspots:
         hotspot = timeline.hotspots[0]
         top_hotspot = {
             "time_label": hotspot.time_label,
@@ -105,17 +119,24 @@ def build_analyze(url: str) -> AnalyzeResult:
             "count": hotspot.count,
             "representative_comment": (hotspot.representative_comments or [""])[0],
         }
-        quick_summary.append(f"留言最常提及的影片片段約在 {hotspot.time_label} 附近。")
-        viewer_tips.append(f"可以優先查看 {hotspot.time_label} 附近，該片段討論度最高。")
+        quick_summary.append(
+            f"留言最常提及的影片片段約在 {hotspot.time_label} 附近。"
+        )
+        viewer_tips.append(
+            f"可以優先查看 {hotspot.time_label} 附近，該片段討論度最高。"
+        )
         tags.append("有時間軸熱點")
+    elif timeline_status == "insufficient_data":
+        quick_summary.append(
+            "本影片留言較少提及具體時間點，因此未納入時間軸熱點判斷。"
+        )
 
     return AnalyzeResult(
         video_id=video_id,
         title=title,
         url=url,
-        total_comments=total_comments,
+        total_comments=len(dataset.df),
         public_opinion_score=score,
-        opinion_label=_opinion_label(score),
         tags=list(dict.fromkeys(tags))[:6],
         quick_summary=quick_summary[:5],
         top_topics=top_topic_keywords,

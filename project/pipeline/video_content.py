@@ -39,6 +39,18 @@ def build_video_content(url: str) -> VideoContentResult:
     except Exception as exc:
         return VideoContentResult(title=title, url=url, error=str(exc))
 
+    return build_video_content_from_transcript(
+        transcript,
+        title=title,
+        url=url,
+    )
+
+def build_video_content_from_transcript(
+    transcript: TranscriptPayload,
+    *,
+    title: str = "",
+    url: str = "",
+) -> VideoContentResult:
     segments = _prepare_transcript_segments(transcript)
     if not segments:
         return VideoContentResult(

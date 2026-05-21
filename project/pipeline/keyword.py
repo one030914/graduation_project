@@ -1,7 +1,8 @@
 from configs.schema import AnalysisResult, Stats
 from scripts.timestamp import Timer
 
-from .summary import _language_payload
+from .collect import collect_comments
+from .summary import _language_payload_from_dataset
 
 
 def _fallback_keywords_zh(tokens_zh: list[list[str]], topk: int) -> list[str]:
@@ -28,19 +29,35 @@ def build_keyword(
     min_likes: int = 0,
     keyword_topk: int = 10,
 ) -> AnalysisResult:
-    timer = Timer()
-    comments, payload, lang_ratio = _language_payload(
-        video_url,
+    comments = collect_comments(
+        url=video_url,
         pages=pages,
         page_size=page_size,
         min_likes=min_likes,
     )
+    return build_keyword_from_dataset(
+        comments,
+        keyword_topk=keyword_topk,
+    )
+
+def build_keyword_from_dataset(
+    comments,
+    *,
+    keyword_topk: int = 10,
+) -> AnalysisResult:
+    timer = Timer()
 
     if comments.error:
-        return AnalysisResult(error=comments.error)
+        return AnalysisResult(
+            video_id=comments.video_id,
+            title=comments.title,
+            url=comments.url,
+            error=comments.error,
+        )
 
     timer.mark("api fetch")
 
+    payload, lang_ratio = _language_payload_from_dataset(comments)
     df = payload["df"]
     max_n = 600
     comments_zh = payload["comments_zh"][:max_n]
