@@ -7,15 +7,15 @@ import { EmotionRecordView } from "@/components/results/EmotionRecordView";
 export function HistoryRecordBody({ category, payload, youtubeUrl }) {
   const data = payload ?? {};
 
-  if (category === "分析") {
+  if (category === "分析" || category === "摘要" || category === "關鍵詞") {
     return <AnalysisResultView result={data} />;
   }
 
-  if (category === "主題分析") {
+  if (category === "主題" || category === "主題分析") {
     return <TopicsResultView result={data} />;
   }
 
-  if (category === "情緒分析") {
+  if (category === "情緒" || category === "情緒分析") {
     return <EmotionRecordView youtubeUrl={youtubeUrl} payload={data} />;
   }
 

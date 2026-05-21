@@ -3,15 +3,20 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 const MODE_TO_CATEGORY = {
-  full: "分析",
-  analysis: "分析",
+  analyze: "分析",
+  summary: "摘要",
+  keyword: "關鍵詞",
   topics: "主題",
   emotion: "情緒",
 };
 
 const CATEGORY_TO_MODE = {
-  分析: ["full", "analysis"],
+  分析: ["analyze"],
+  摘要: ["summary"],
+  關鍵詞: ["keyword"],
+  主題: ["topics"],
   主題分析: ["topics"],
+  情緒: ["emotion"],
   情緒分析: ["emotion"],
 };
 

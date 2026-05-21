@@ -24,7 +24,7 @@ export function Input({
         <div className="flex flex-wrap gap-2 lg:shrink-0">
           <button
             type="button"
-            onClick={createClickHandler("analysis")}
+            onClick={createClickHandler("analyze")}
             disabled={loading}
             className="min-h-[48px] rounded-xl bg-indigo-500 px-5 font-medium transition hover:bg-indigo-400 disabled:opacity-50"
           >

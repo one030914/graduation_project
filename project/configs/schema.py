@@ -118,18 +118,16 @@ class Job:
     video_id: str
     url: str
     created_at: datetime
-    mode: str = "full"
+    mode: str = "analyze"
     
 class Req(BaseModel):
     video_url: str
-    job_mode: str = "full"
+    job_mode: str = "analyze"
     pages: int = 5
     page_size: int = 100
     min_likes: int = 0
     summary_topk: int = 5
     keyword_topk: int = 10
-    run_summary: bool = True
-    run_keywords: bool = True
 
 # ========================================
 # Top Comments
@@ -298,11 +296,11 @@ class TimelineResult:
     message: str | None = None
 
 # ========================================
-# Main Insight
+# Analyze
 # ========================================
 
 @dataclass(slots=True)
-class MainInsightResult:
+class AnalyzeResult:
     video_id: str = ""
     title: str = ""
     url: str = ""

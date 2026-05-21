@@ -8,13 +8,13 @@ import { Header } from "@/components/Header";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
 
 const MODE = {
-  analysis: "analysis",
+  analyze: "analyze",
   topics: "topics",
   videoContent: "videoContent",
 };
 
 const JOB_MODE = {
-  analysis: "full",
+  analyze: "analyze",
   topics: "topics",
   videoContent: "video_content",
 };
@@ -38,7 +38,7 @@ export default function Page() {
   const activeJobRef = useRef(null);
 
   const updateResult = (action, result) => {
-    if (action === MODE.analysis) {
+    if (action === MODE.analyze) {
       setAnalysisResult(result);
       return;
     }
@@ -226,7 +226,7 @@ export default function Page() {
 
           {jobState && <JobStatusPanel jobState={jobState} onCancel={handleCancelJob} />}
 
-          {visiblePanel === MODE.analysis && analysisResult && (
+          {visiblePanel === MODE.analyze && analysisResult && (
             <AnalysisResultView result={analysisResult} />
           )}
 

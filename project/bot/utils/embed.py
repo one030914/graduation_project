@@ -52,7 +52,7 @@ def discord_time(iso_time: str | None) -> str:
 # Summary Embed
 # -------------------------
 
-def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.Embed:
+def build_summary_embed(result: AnalysisResult, mode: str = "summary") -> discord.Embed:
     if result.error:
         return discord.Embed(
             title="⚠️ 分析失敗",
@@ -66,7 +66,7 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
         color=0x5865F2
     )
 
-    if mode in ("full", "summary"):
+    if mode == "summary":
         if result.summary_zh:
             embed.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
         if result.summary_en:
@@ -74,7 +74,7 @@ def build_summary_embed(result: AnalysisResult, mode: str = "full") -> discord.E
         if not result.summary_zh and not result.summary_en:
             embed.add_field(name="📌 摘要", value="（無）", inline=False)
 
-    if mode in ("full", "keywords"):
+    if mode == "keyword":
         if result.keywords_zh:
             embed.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
         if result.keywords_en:
@@ -556,10 +556,10 @@ def _opinion_label(score: int) -> str:
         return "中性偏穩"
     return "負面偏高"
 
-def build_main_insight_embed(result) -> discord.Embed:
+def build_analyze_embed(result) -> discord.Embed:
     if getattr(result, "error", None):
         return discord.Embed(
-            title="⚠️ 綜合分析失敗",
+            title="⚠️ 留言分析失敗",
             description=result.error,
             color=discord.Color.red(),
         )
@@ -568,11 +568,11 @@ def build_main_insight_embed(result) -> discord.Embed:
     icon = _opinion_icon(score)
     label = getattr(result, "opinion_label", "") or _opinion_label(score)
 
-    title = getattr(result, "title", "") or "YouTube 留言 AI 綜合分析"
+    title = getattr(result, "title", "") or "YouTube 留言 AI 分析"
     url = getattr(result, "url", "")
 
     embed = discord.Embed(
-        title="📊 YouTube 留言 AI 綜合分析",
+        title="📊 YouTube 留言 AI 分析",
         description=(
             f"**影片：** [{title}]({url})\n"
             f"**整體風向：** {icon} **{label}** `{score}/100`"
@@ -643,7 +643,7 @@ def build_main_insight_embed(result) -> discord.Embed:
         )
 
     embed.set_footer(
-        text="Main Insight 由情緒、主題、時間軸與意圖分析彙整產生"
+        text="Analyze 由情緒、主題、時間軸與意圖分析彙整產生"
     )
 
     return embed

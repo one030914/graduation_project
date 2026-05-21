@@ -11,7 +11,7 @@ from bot.utils.embed import (
     build_criticism_embed,
     build_intent_embed,
     build_timeline_embed,
-    build_main_insight_embed,
+    build_analyze_embed,
 )
 
 class Slash(Cog_Extension):
@@ -50,8 +50,8 @@ class Slash(Cog_Extension):
             elif mode == "timeline":
                 embed = build_timeline_embed(result)
                 await msg.edit(content=content, embed=embed)
-            elif mode == "main_insight":
-                embed = build_main_insight_embed(result)
+            elif mode == "analyze":
+                embed = build_analyze_embed(result)
                 await msg.edit(content=content, embed=embed)
             else:
                 embed = build_summary_embed(result, mode=mode)
@@ -64,15 +64,15 @@ class Slash(Cog_Extension):
                 pass
 
 
-    @app_commands.command(name='analyze', description='Analyze the video\'s comments and generate a summary and keywords.')
+    @app_commands.command(name='analyze', description='Generate a full AI insight report for the video comments.')
     @app_commands.describe(url="YouTube video URL")
     async def analyze(self, interaction: discord.Interaction, url: str):
         await interaction.response.defer(thinking=True)
         q = self.bot.analysis_queue
         pos = q.queue_size() + 1
         msg = await interaction.followup.send(content=f"🧾 已加入分析隊列（#{pos}）。", wait=True)
-        job_id = await q.submit(url, mode="full")
-        asyncio.create_task(self._render_and_edit(msg, job_id, mode="full"))
+        job_id = await q.submit(url, mode="analyze")
+        asyncio.create_task(self._render_and_edit(msg, job_id, mode="analyze"))
         
     @app_commands.command(name='summary', description='Analyze the video\'s comments and generate a summary.')
     @app_commands.describe(url="YouTube video URL")
@@ -83,6 +83,16 @@ class Slash(Cog_Extension):
         msg = await interaction.followup.send(f"🧾 已加入摘要隊列（#{pos}）。", wait=True)
         job_id = await q.submit(url, mode="summary")
         asyncio.create_task(self._render_and_edit(msg, job_id, mode="summary"))
+
+    @app_commands.command(name='keyword', description='Analyze the video comments and extract keywords.')
+    @app_commands.describe(url="YouTube video URL")
+    async def keyword(self, interaction: discord.Interaction, url: str):
+        await interaction.response.defer(thinking=True)
+        q = self.bot.analysis_queue
+        pos = q.queue_size() + 1
+        msg = await interaction.followup.send(f"🧾 已加入關鍵詞隊列（#{pos}）。", wait=True)
+        job_id = await q.submit(url, mode="keyword")
+        asyncio.create_task(self._render_and_edit(msg, job_id, mode="keyword"))
 
     @app_commands.command(name="top_comments", description="Show top 15 comments of the video.")
     @app_commands.describe(url="YouTube video URL")
@@ -160,24 +170,6 @@ class Slash(Cog_Extension):
         job_id = await q.submit(url, mode="timeline")
         asyncio.create_task(
             self._render_and_edit(msg, job_id, mode="timeline")
-        )
-        
-    @app_commands.command(name="insight", description="產生 YouTube 留言的綜合 AI 分析總覽。")
-    @app_commands.describe(url="YouTube video URL")
-    async def insight(self, interaction: discord.Interaction, url: str):
-        await interaction.response.defer(thinking=True)
-
-        q = self.bot.analysis_queue
-        pos = q.queue_size() + 1
-
-        msg = await interaction.followup.send(
-            content=f"🧾 已加入綜合分析隊列（#{pos}）。",
-            wait=True
-        )
-
-        job_id = await q.submit(url, mode="main_insight")
-        asyncio.create_task(
-            self._render_and_edit(msg, job_id, mode="main_insight")
         )
         
 async def setup(bot):

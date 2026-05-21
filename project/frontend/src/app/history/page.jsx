@@ -6,6 +6,8 @@ import { Header } from "@/components/Header";
 
 const CATEGORIES = [
   { value: "分析", label: "分析" },
+  { value: "摘要", label: "摘要" },
+  { value: "關鍵詞", label: "關鍵詞" },
   { value: "主題", label: "主題" },
   { value: "情緒", label: "情緒" },
 ];

@@ -26,12 +26,16 @@ The frontend communicates with `project/backend/interface.py`, which exposes a q
 ### Available job modes
 
 ```text
-full
+analyze
 summary
-keywords
+keyword
 top_comments
 topics
 emotion
+video_content
+criticism
+intent
+timeline
 ```
 
 ### Main endpoints
@@ -45,7 +49,7 @@ Example request body:
 ```json
 {
   "video_url": "https://www.youtube.com/watch?v=example",
-  "job_mode": "full"
+  "job_mode": "analyze"
 }
 ```
 

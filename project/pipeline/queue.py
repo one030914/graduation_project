@@ -8,7 +8,9 @@ from typing import Any, Dict, Optional, Tuple
 
 from configs.schema import Job, JobStatus
 from data.youtube.api import API
-from pipeline.analyze import analyze
+from pipeline.analyze import build_analyze
+from pipeline.summary import build_summary
+from pipeline.keyword import build_keyword
 from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
@@ -16,7 +18,6 @@ from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
 from pipeline.intent import build_intent
 from pipeline.timeline import build_timeline
-from pipeline.main_insight import build_main_insight
 
 _yt_api = API()
 
@@ -111,7 +112,7 @@ class AnalysisQueue:
     def queue_size(self) -> int:
         return self.queue.qsize()
 
-    async def submit(self, url: str, mode: str = "full") -> str:
+    async def submit(self, url: str, mode: str = "analyze") -> str:
         """
         新增一個分析工作並回傳 job_id（web/discord 都用同一套）。
         """
@@ -290,9 +291,9 @@ class AnalysisQueue:
 
                     def _run():
                         if job.mode == "summary":
-                            return analyze(job.url, run_summary=True, run_keywords=False)
-                        elif job.mode == "keywords":
-                            return analyze(job.url, run_summary=False, run_keywords=True)
+                            return build_summary(job.url)
+                        elif job.mode == "keyword":
+                            return build_keyword(job.url)
                         elif job.mode == "top_comments":
                             return get_top_comments(job.url)
                         elif job.mode == "topics":
@@ -307,10 +308,10 @@ class AnalysisQueue:
                             return build_intent(job.url)
                         elif job.mode == "timeline":
                             return build_timeline(job.url)
-                        elif job.mode == "main_insight":
-                            return build_main_insight(job.url)
+                        elif job.mode == "analyze":
+                            return build_analyze(job.url)
                         
-                        return analyze(job.url, run_summary=True, run_keywords=True)
+                        return build_analyze(job.url)
 
                     executor_future = loop.run_in_executor(None, _run)
                     self._running_executor_futures[job.job_id] = executor_future
