@@ -270,6 +270,12 @@ class IntentResult:
     resources: list[IntentComment] = field(default_factory=list)
     praise: list[IntentComment] = field(default_factory=list)
     memes: list[IntentComment] = field(default_factory=list)
+    
+    agent_summary: list[str] = field(default_factory=list)
+    priority_questions: list[str] = field(default_factory=list)
+    priority_corrections: list[str] = field(default_factory=list)
+    content_ideas: list[str] = field(default_factory=list)
+    action_suggestions: list[str] = field(default_factory=list)
 
     error: str | None = None
 

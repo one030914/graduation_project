@@ -4,7 +4,7 @@ from collections import Counter
 
 from configs.schema import IntentResult, IntentComment
 from pipeline.collect import collect_comments
-
+from agents.intent_agent import IntentAgent
 
 INTENT_RULES = {
     "question": [
@@ -123,6 +123,72 @@ def build_intent_from_dataset(comments) -> IntentResult:
     counts = {key: len(value) for key, value in buckets.items()}
     total = max(1, sum(counts.values()))
     ratios = {key: value / total for key, value in counts.items()}
+    
+    # ========================================
+    # AI agent
+    # ========================================
+    
+    agent_summary = []
+    priority_questions = []
+    priority_corrections = []
+    content_ideas = []
+    action_suggestions = []
+
+    agent_payload = {
+        "intent_counts": counts,
+        "questions": [
+            {
+                "text": x.text,
+                "like_count": x.like_count,
+                "reply_count": x.reply_count,
+            }
+            for x in buckets["question"][:10]
+        ],
+        "corrections": [
+            {
+                "text": x.text,
+                "like_count": x.like_count,
+                "reply_count": x.reply_count,
+            }
+            for x in buckets["correction"][:10]
+        ],
+        "wishlist": [
+            {
+                "text": x.text,
+                "like_count": x.like_count,
+                "reply_count": x.reply_count,
+            }
+            for x in buckets["wishlist"][:10]
+        ],
+        "complaints": [
+            {
+                "text": x.text,
+                "like_count": x.like_count,
+                "reply_count": x.reply_count,
+            }
+            for x in buckets["complaint"][:10]
+        ],
+        "resources": [
+            {
+                "text": x.text,
+                "urls": x.urls,
+                "like_count": x.like_count,
+            }
+            for x in buckets["resource"][:10]
+        ],
+    }
+
+    try:
+        agent_result = IntentAgent().analyze(agent_payload)
+
+        agent_summary = agent_result.get("summary", [])
+        priority_questions = agent_result.get("priority_questions", [])
+        priority_corrections = agent_result.get("priority_corrections", [])
+        content_ideas = agent_result.get("content_ideas", [])
+        action_suggestions = agent_result.get("action_suggestions", [])
+
+    except Exception as e:
+        print(f"IntentAgent failed, fallback to rule-based result: {e}")
 
     return IntentResult(
         video_id=comments.video_id,
@@ -138,4 +204,9 @@ def build_intent_from_dataset(comments) -> IntentResult:
         resources=buckets["resource"][:10],
         praise=buckets["praise"][:10],
         memes=buckets["meme"][:10],
+        agent_summary=agent_summary,
+        priority_questions=priority_questions,
+        priority_corrections=priority_corrections,
+        content_ideas=content_ideas,
+        action_suggestions=action_suggestions,
     )

@@ -6,7 +6,7 @@ from pipeline.emotion import build_emotion_from_dataset
 from pipeline.topic import build_topics_from_dataset
 from pipeline.intent import build_intent_from_dataset
 from pipeline.timeline import build_timeline_from_dataset
-
+from agents.analyze_agent import AnalyzeAgent
 
 def _calc_opinion_score(emotion_result) -> int:
     if not emotion_result or not emotion_result.stats:
@@ -130,6 +130,56 @@ def build_analyze(url: str) -> AnalyzeResult:
         quick_summary.append(
             "本影片留言較少提及具體時間點，因此未納入時間軸熱點判斷。"
         )
+        
+    # ========================================
+    # AI agent
+    # ========================================
+    
+    agent_payload = {
+        "emotion": {
+            "score": score,
+            "emotions": emotion.stats.emotions if emotion.stats else {},
+        },
+        "topics": [
+            {
+                "keywords": t.keywords[:5],
+                "ratio": t.ratio,
+                "representative_comments": t.representative_comments[:2],
+            }
+            for t in topics.topics[:3]
+        ] if not getattr(topics, "error", None) else [],
+        "intent": {
+            "counts": intent.intent_counts,
+            "questions": [x.text for x in intent.questions[:3]],
+            "corrections": [x.text for x in intent.corrections[:3]],
+            "wishlist": [x.text for x in intent.wishlist[:3]],
+            "complaints": [x.text for x in intent.complaints[:3]],
+            "resources": [x.text for x in intent.resources[:3]],
+        } if not getattr(intent, "error", None) else {},
+        "timeline": {
+            "status": timeline.status,
+            "message": timeline.message,
+            "hotspots": [
+                {
+                    "time_label": h.time_label,
+                    "count": h.count,
+                    "representative_comments": h.representative_comments[:2],
+                }
+                for h in timeline.hotspots[:3]
+            ],
+        },
+    }
+
+    try:
+        agent_result = AnalyzeAgent().analyze(agent_payload)
+
+        quick_summary = agent_result.get("quick_summary") or quick_summary
+        tags = agent_result.get("tags") or tags
+        creator_actions = agent_result.get("creator_actions") or creator_actions
+        viewer_tips = agent_result.get("viewer_tips") or viewer_tips
+
+    except Exception as e:
+        print(f"AnalyzeAgent failed, fallback to rule-based result: {e}")
 
     return AnalyzeResult(
         video_id=video_id,

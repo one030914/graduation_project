@@ -345,6 +345,31 @@ def build_intent_embed(result) -> discord.Embed:
         value=_format_distribution(counts, total_comments),
         inline=False,
     )
+    
+    agent_summary = _safe_get(result, "agent_summary", []) or []
+    action_suggestions = _safe_get(result, "action_suggestions", []) or []
+    content_ideas = _safe_get(result, "content_ideas", []) or []
+
+    if agent_summary:
+        embed.add_field(
+            name="🧠 AI 意圖洞察",
+            value=_fmt_list(agent_summary, max_lines=3),
+            inline=False,
+        )
+
+    if action_suggestions:
+        embed.add_field(
+            name="🎬 創作者優先行動",
+            value=_fmt_list(action_suggestions, max_lines=3),
+            inline=False,
+        )
+
+    if content_ideas:
+        embed.add_field(
+            name="🌱 可延伸題材",
+            value=_fmt_list(content_ideas, max_lines=3),
+            inline=False,
+        )
 
     if questions:
         embed.add_field(
@@ -421,8 +446,8 @@ def build_timeline_embed(result) -> discord.Embed:
     hotspots = getattr(result, "hotspots", []) or []
 
     if status == "insufficient_data" or not hotspots:
-        message or (
-            "此影片留言中較少出現 05:10 這類時間戳，"
+        message = message or (
+            "此影片留言中較少出現時間戳，"
             "因此無法形成穩定的影片片段熱點。"
         )
 
