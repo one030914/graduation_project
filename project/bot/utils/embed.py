@@ -47,6 +47,12 @@ def discord_time(iso_time: str | None) -> str:
         return f"<t:{unix}:R>"
     except Exception:
         return ""
+    
+def _one_line(text: str, limit: int = 120) -> str:
+    text = "" if text is None else str(text)
+    text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    text = " ".join(text.split())
+    return _clip(text, limit)
 
 # -------------------------
 # Summary Embed
@@ -171,32 +177,196 @@ from bot.utils.chart import build_emotion_radar_chart
 
 EMOTION_ORDER = ["Joy", "Angry", "Sad", "Surprised", "Disgusted", "Neutral"]
 
-def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.File | None]:
-    if result.error:
-        return discord.Embed(title="⚠️ Emotion 分析失敗", description=result.error, color=0xED4245), None
+EMOTION_DISPLAY_NAMES = {
+    "Joy": "喜悅/稱讚",
+    "Angry": "憤怒",
+    "Sad": "悲傷",
+    "Surprised": "驚訝",
+    "Disgusted": "厭惡/反感",
+    "Neutral": "中性",
+}
 
-    display_lang = LANG_MAP.get(result.language, result.language)
-    embed = discord.Embed(
-        title="YT 留言情緒分析",
-        description=f"🧾 影片標題：**{result.title}**\n🌐 分析語言：{display_lang}",
-        color=0x5865F2
+def _fmt_percent(value, digits: int = 1) -> str:
+    try:
+        return f"{float(value):.{digits}%}"
+    except Exception:
+        return "0.0%"
+
+def _emotion_color(score: int) -> int:
+    if score >= 80:
+        return 0x57F287  # green
+    if score >= 65:
+        return 0x2ECC71
+    if score >= 45:
+        return 0xFEE75C  # yellow
+    if score >= 30:
+        return 0xE67E22  # orange
+    return 0xED4245      # red
+
+def _format_emotion_distribution(result: EmotionResult) -> str:
+    stats = result.stats.emotions if result.stats else {}
+    ratios = getattr(result, "emotion_ratios", None) or (
+        result.stats.ratios if result.stats and hasattr(result.stats, "ratios") else {}
     )
 
-    stats = result.stats.emotions if result.stats else {}
-    total = result.stats.total if result.stats else 0
+    if not stats:
+        return "（無）"
+
     lines = []
     for emo in EMOTION_ORDER:
         count = stats.get(emo, 0)
-        ratio = (count / total) if total else 0
-        lines.append(f"**{emo}**：{count}（{ratio:.1%}）")
+        ratio = ratios.get(emo, 0.0)
+        display = EMOTION_DISPLAY_NAMES.get(emo, emo)
+        lines.append(f"**{display}**：`{count}`（{_fmt_percent(ratio)}）")
 
-    embed.add_field(name="情緒分布", value="\n".join(lines) if lines else "（無）", inline=False)
-    embed.set_footer(text=f"總留言數：{result.total_comments} ｜ 參與分析留言數：{total}")
+    return "\n".join(lines)
 
-    buf = build_emotion_radar_chart(result.stats.emotions)
-    file = discord.File(buf, filename="emotion_radar.png")
-    embed.set_image(url="attachment://emotion_radar.png")
-    return embed, file
+def _format_radar_text(result: EmotionResult) -> str:
+    radar_data = getattr(result, "radar_data", []) or []
+
+    if not radar_data:
+        return "（尚無雷達資料）"
+
+    lines = []
+    for item in radar_data[:6]:
+        label = item.get("label", "未知")
+        value = item.get("value", 0.0)
+        lines.append(f"**{label}**：{_fmt_percent(value)}")
+
+    return "\n".join(lines)
+
+def _format_representative_comments(result: EmotionResult, limit_per_emotion: int = 1) -> str:
+    reps = getattr(result, "representative_comments", {}) or {}
+
+    if not reps:
+        return "（尚無代表留言）"
+
+    lines = []
+
+    for emo in EMOTION_ORDER:
+        comments = reps.get(emo, []) or []
+        if not comments:
+            continue
+
+        display = EMOTION_DISPLAY_NAMES.get(emo, emo)
+
+        for item in comments[:limit_per_emotion]:
+            if isinstance(item, dict):
+                text = item.get("text", "")
+                like_count = item.get("like_count", 0)
+                reply_count = item.get("reply_count", 0)
+            else:
+                text = getattr(item, "text", "")
+                like_count = getattr(item, "like_count", 0)
+                reply_count = getattr(item, "reply_count", 0)
+
+            if not text:
+                continue
+
+            lines.append(
+                f"**{display}**｜👍 `{like_count}` 💬 `{reply_count}`\n"
+                f"> {_one_line(text, 120)}"
+            )
+
+    if not lines:
+        return "（尚無代表留言）"
+
+    return "\n\n".join(lines[:5])
+
+def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.File | None]:
+    status = getattr(result, "status", "ok")
+    error = getattr(result, "error", None)
+    message = getattr(result, "message", None)
+
+    if status == "error" or error:
+        return (
+            discord.Embed(
+                title="⚠️ Emotion 分析失敗",
+                description=_clip(error or message or "情緒分析發生未知錯誤。", 4096),
+                color=0xED4245,
+            ),
+            None,
+        )
+
+    score = int(getattr(result, "opinion_score", 50) or 50)
+    opinion_label = getattr(result, "opinion_label", "中性 / 意見分歧")
+    display_lang = LANG_MAP.get(result.language, result.language)
+
+    embed = discord.Embed(
+        title="🎭 YouTube 留言情緒分析",
+        description=(
+            f"🧾 影片標題：**[{_clip(result.title, 180)}]({result.url})**\n"
+            f"🌐 分析語言：{display_lang}\n"
+            f"📌 分析狀態：`{status}`"
+        ),
+        color=_emotion_color(score),
+    )
+
+    if status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(message or "可分析留言數偏少，情緒分布僅供參考。"),
+            inline=False,
+        )
+
+    embed.add_field(
+        name="🌡️ 輿情溫度",
+        value=(
+            f"**{opinion_label}** ｜ `{score}/100`\n"
+            f"正向：{_fmt_percent(getattr(result, 'positive_ratio', 0.0))}｜"
+            f"負面：{_fmt_percent(getattr(result, 'negative_ratio', 0.0))}｜"
+            f"中性：{_fmt_percent(getattr(result, 'neutral_ratio', 0.0))}"
+        ),
+        inline=False,
+    )
+
+    dominant = getattr(result, "dominant_emotion", {}) or {}
+    if dominant:
+        embed.add_field(
+            name="👑 主導情緒",
+            value=(
+                f"**{dominant.get('display_name', dominant.get('label', '未知'))}**\n"
+                f"數量：`{dominant.get('count', 0)}` ｜ "
+                f"占比：{_fmt_percent(dominant.get('ratio', 0.0))}"
+            ),
+            inline=False,
+        )
+
+    embed.add_field(
+        name="📊 情緒分布",
+        value=_clip(_format_emotion_distribution(result), 1024),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="🕸️ 雷達圖文字版",
+        value=_clip(_format_radar_text(result), 1024),
+        inline=False,
+    )
+
+    reps_text = _format_representative_comments(result, limit_per_emotion=1)
+    if reps_text != "（尚無代表留言）":
+        embed.add_field(
+            name="💬 各情緒代表留言",
+            value=_clip(reps_text, 1024),
+            inline=False,
+        )
+
+    analyzed = getattr(result, "analyzed_comments", 0) or (
+        result.stats.total if result.stats else 0
+    )
+    skipped = getattr(result, "skipped_comments", 0) or max(0, result.total_comments - analyzed)
+
+    embed.set_footer(
+        text=(
+            f"總留言數：{result.total_comments} ｜ "
+            f"參與情緒分析：{analyzed} ｜ "
+            f"略過：{skipped}"
+            "\n情緒分類代表語氣，不等同於對影片立場"
+        )
+    )
+
+    return embed, None
 
 # -------------------------
 # Criticism Embed

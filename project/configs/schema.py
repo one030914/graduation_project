@@ -200,6 +200,7 @@ class TopicsResult:
 @dataclass(slots=True)
 class EmotionStats:
     emotions: Dict[str, int] = field(default_factory=dict)
+    ratios: Dict[str, float] = field(default_factory=dict)
     total: int = 0
 
 @dataclass(slots=True)
@@ -207,8 +208,30 @@ class EmotionResult:
     url: str
     title: str = ""
     total_comments: int = 0
+    analyzed_comments: int = 0
+    skipped_comments: int = 0
     language: str = ""
+
+    status: str = "ok"
+    message: Optional[str] = None
+
     stats: EmotionStats | None = None
+
+    emotion_ratios: Dict[str, float] = field(default_factory=dict)
+
+    opinion_score: int = 50
+    opinion_label: str = "中性 / 意見分歧"
+    positive_ratio: float = 0.0
+    negative_ratio: float = 0.0
+    neutral_ratio: float = 0.0
+
+    dominant_emotion: Dict[str, Any] = field(default_factory=dict)
+
+    chart_data: List[Dict[str, Any]] = field(default_factory=list)
+    radar_data: List[Dict[str, Any]] = field(default_factory=list)
+
+    representative_comments: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+
     error: Optional[str] = None
 
 # ========================================
@@ -219,7 +242,6 @@ class TranscriptChunkAnalysis(BaseModel):
     summary: List[str] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
     highlights: List[str] = Field(default_factory=list)
-
 
 class TranscriptVideoAnalysis(BaseModel):
     language: str = "unknown"
