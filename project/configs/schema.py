@@ -80,10 +80,25 @@ class AnalysisResult:
 TranscriptSource = Literal["caption", "whisper"]
 
 @dataclass(slots=True)
+class VideoChapterSegment:
+    start_seconds: int = 0
+    end_seconds: int = 0
+    title: str = ""
+    summary: str = ""
+    keywords: List[str] = field(default_factory=list)
+    importance: str = "medium"
+
+@dataclass(slots=True)
 class VideoContentResult:
     title: str = ""
     url: str = ""
     language: str = ""
+    summary_text: str = ""
+    final_conclusion: str = ""
+    recommended_audience: str = ""
+    action_suggestions: List[str] = field(default_factory=list)
+    transcript_word_count: int = 0
+    chapter_timeline: List[VideoChapterSegment] = field(default_factory=list)
     summary_zh: List[str] = field(default_factory=list)
     summary_en: List[str] = field(default_factory=list)
     keywords_zh: List[str] = field(default_factory=list)
