@@ -70,7 +70,7 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
             if text not in seen:
                 seen.add(text)
                 representatives.append(text)
-            if len(representatives) >= 2:
+            if len(representatives) >= 5:
                 break
 
         topics.append(

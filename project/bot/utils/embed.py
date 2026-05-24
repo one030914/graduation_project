@@ -143,30 +143,129 @@ LANG_MAP = {
     "unknown": "其他"
 }
 
+def _fmt_topic_keywords(words, max_items: int = 6) -> str:
+    if not words:
+        return "（無）"
+
+    words = [str(w).strip() for w in words if str(w).strip()]
+    if not words:
+        return "（無）"
+
+    return " ".join(f"`{w}`" for w in words[:max_items])
+
+def _fmt_topic_representatives(comments, max_items: int = 2) -> str:
+    if not comments:
+        return "（無）"
+
+    lines = []
+    for comment in comments[:max_items]:
+        text = _one_line(comment, 120)
+        if text:
+            lines.append(f"> {text}")
+
+    return "\n".join(lines) if lines else "（無）"
+
+def _topic_status_color(status: str) -> int:
+    if status == "error":
+        return 0xED4245
+    if status == "insufficient_data":
+        return 0xFEE75C
+    return 0x5865F2
+
 def build_topics_embed(result: TopicsResult) -> discord.Embed:
-    if result.error:
+    status = getattr(result, "status", "ok")
+    error = getattr(result, "error", None)
+    message = getattr(result, "message", None)
+
+    if status == "error" or error:
         return discord.Embed(
             title="⚠️ Topic 分析失敗",
-            description=result.error,
-            color=0xED4245
+            description=_clip(error or message or "主題分析發生未知錯誤。", 4096),
+            color=0xED4245,
         )
 
     display_lang = LANG_MAP.get(result.language, result.language)
+
     embed = discord.Embed(
-        title="YT 留言主題分析",
-        description=f"🧾 影片標題：**{result.title}**\n🌐 主要語言：{display_lang}",
-        color=0x5865F2
+        title="💬 YouTube 留言主題分析",
+        description=(
+            f"🧾 影片標題：**[{_clip(result.title, 180)}]({result.url})**\n"
+            f"🌐 主要語言：{display_lang}\n"
+            f"📌 分析狀態：`{status}`"
+        ),
+        color=_topic_status_color(status),
     )
 
-    for i, topic in enumerate(result.topics[:5], start=1):
-        kw_text = "、".join(topic.keywords[:5]) if topic.keywords else "（無）"
-        rep_text = "\n".join(f"- {_clip(x, 100)}" for x in topic.representative_comments[:2]) or "（無）"
-        value = (f"**占比：** {topic.ratio:.1%}\n**關鍵詞：** {kw_text}\n**代表留言：**\n{rep_text}")
-        if len(value) > 1000:
-            value = value[:999] + "…"
-        embed.add_field(name=f"Topic {i}（{topic.size} 則）", value=value, inline=False)
+    if status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(message or "留言內容不足或過於分散，主題分布僅供參考。"),
+            inline=False,
+        )
 
-    embed.set_footer(text=f"參與主題分析留言數：{result.total_comments}")
+    analyzed = getattr(result, "analyzed_comments", 0) or result.total_comments
+    clustered = getattr(result, "clustered_comments", 0) or sum(t.size for t in result.topics)
+    noise_count = getattr(result, "noise_count", 0)
+    noise_ratio = getattr(result, "noise_ratio", 0.0)
+    coverage_ratio = getattr(result, "coverage_ratio", 0.0)
+
+    embed.add_field(
+        name="📊 主題分析概況",
+        value=(
+            f"可分析留言：`{analyzed}` 則\n"
+            f"成功分群：`{clustered}` 則（{_fmt_percent(coverage_ratio)}）\n"
+            f"未歸入明確主題：`{noise_count}` 則（{_fmt_percent(noise_ratio)}）"
+        ),
+        inline=False,
+    )
+
+    top_keywords = getattr(result, "top_keywords", []) or []
+    if top_keywords:
+        embed.add_field(
+            name="🏷️ 熱門關鍵詞",
+            value=_clip(_fmt_topic_keywords(top_keywords, max_items=12), 1024),
+            inline=False,
+        )
+
+    if not result.topics:
+        embed.add_field(
+            name="📌 主題結果",
+            value="目前沒有形成穩定主題。",
+            inline=False,
+        )
+        embed.set_footer(text=f"總留言數：{result.total_comments}")
+        return embed
+
+    for i, topic in enumerate(result.topics[:5], start=1):
+        topic_name = (
+            getattr(topic, "topic_name", "")
+            or getattr(topic, "chart_label", "")
+            or f"Topic {i}"
+        )
+
+        kw_text = _fmt_topic_keywords(topic.keywords, max_items=6)
+        rep_text = _fmt_topic_representatives(topic.representative_comments, max_items=2)
+
+        value = (
+            f"**占比：** {_fmt_percent(topic.ratio)} ｜ **留言數：** `{topic.size}`\n"
+            f"**關鍵詞：** {kw_text}\n"
+            f"**代表留言：**\n{rep_text}"
+        )
+
+        embed.add_field(
+            name=f"#{i} {topic_name}",
+            value=_clip(value, 1024),
+            inline=False,
+        )
+
+    embed.set_footer(
+        text=(
+            f"總留言數：{result.total_comments} ｜ "
+            f"分析語言：{display_lang} ｜ "
+            "主題占比以成功分群留言為基準"
+        )
+    )
+
     return embed
 
 # -------------------------

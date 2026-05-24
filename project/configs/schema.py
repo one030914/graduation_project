@@ -184,13 +184,28 @@ class TopicCluster:
     representative_comments: List[str]
     language: Optional[str] = None
 
+    topic_name: str = ""
+    chart_label: str = ""
+
 @dataclass(slots=True)
 class TopicsResult:
     url: str
     title: str = ""
     total_comments: int = 0
+    analyzed_comments: int = 0
+    clustered_comments: int = 0
+    noise_count: int = 0
+    noise_ratio: float = 0.0
+    coverage_ratio: float = 0.0
+
     language: str = ""
     topics: List[TopicCluster] = field(default_factory=list)
+
+    chart_data: List[Dict[str, Any]] = field(default_factory=list)
+    top_keywords: List[str] = field(default_factory=list)
+
+    status: str = "ok"  # ok | insufficient_data | error
+    message: Optional[str] = None
     error: Optional[str] = None
 
 # ========================================   
