@@ -57,6 +57,12 @@ def _one_line(text: str, limit: int = 120) -> str:
     text = " ".join(text.split())
     return _clip(text, limit)
 
+def _safe_get(obj, key: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+
+    return getattr(obj, key, default)
+
 # -------------------------
 # Summary Embed
 # -------------------------
@@ -592,49 +598,169 @@ def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.F
 # Criticism Embed
 # -------------------------
 
+def _criticism_status_color(status: str, severity_level: str = "low") -> int:
+    if status == "error":
+        return 0xED4245
+
+    if status == "insufficient_data":
+        return 0xFEE75C
+
+    if severity_level == "high":
+        return 0xED4245
+
+    if severity_level == "medium":
+        return 0xE67E22
+
+    return 0x5865F2
+
+def _severity_display(severity_level: str) -> str:
+    mapping = {
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+    }
+    return mapping.get(severity_level, severity_level or "未知")
+
+def _format_criticism_chart_data(chart_data) -> str:
+    if not chart_data:
+        return "（無）"
+
+    lines = []
+
+    for item in chart_data:
+        label = _safe_get(item, "label", "")
+        count = int(_safe_get(item, "count", 0) or 0)
+        value = float(_safe_get(item, "value", 0.0) or 0.0)
+
+        if not label:
+            continue
+
+        lines.append(f"`{label}` {count}（{_fmt_percent(value)}）")
+
+    return "｜".join(lines) if lines else "（無）"
+
+def _fmt_bullets(items, limit: int = 5) -> str:
+    if not items:
+        return "（無）"
+
+    lines = []
+    for item in items[:limit]:
+        text = _one_line(item, 160)
+        if text:
+            lines.append(f"• {text}")
+
+    return "\n".join(lines) if lines else "（無）"
+
 def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:
-    """
-    建構留言批評輿情分析的 Discord Embed。
-    使用 E67E22 (暗橘色) 作為警示色調。
-    """
-    if result.error:
+    status = getattr(result, "status", "ok")
+    error = getattr(result, "error", None)
+    message = getattr(result, "message", None)
+
+    if status == "error" or error:
         return discord.Embed(
             title="⚠️ 留言批評分析失敗",
-            description=_clip(result.error, 4096),
-            color=0xED4245
+            description=_clip(error or message or "批評分析發生未知錯誤。", 4096),
+            color=0xED4245,
         )
 
+    title = getattr(result, "title", "") or "YouTube 影片"
+    url = getattr(result, "url", "")
+
+    total_comments = int(getattr(result, "total_comments", 0) or 0)
+    analyzed_comments = int(getattr(result, "analyzed_comments", 0) or 0)
+
+    severity_level = getattr(result, "severity_level", "low") or "low"
+
+    criticism_count = int(getattr(result, "criticism_count", 0) or 0)
+    reason_count = int(getattr(result, "reason_count", 0) or 0)
+    suggestion_count = int(getattr(result, "suggestion_count", 0) or 0)
+
+    main_criticisms = getattr(result, "main_criticisms", []) or []
+    discontent_reasons = getattr(result, "discontent_reasons", []) or []
+    suggestions = getattr(result, "suggestions", []) or []
+    action_items = getattr(result, "action_items", []) or []
+    chart_data = getattr(result, "chart_data", []) or []
+
     embed = discord.Embed(
-        title=_clip(f"💬 觀眾留言批評與輿情觀測：**{result.title}**", 256),
-        description=_clip(f"🔗 來源：{result.url}", 256),
-        color=0xE67E22
+        title="💬 留言批評與改善訊號分析",
+        description=(
+            f"**影片：** [{_clip(title, 180)}]({url})\n"
+            f"**分析狀態：** `{status}`\n"
+            f"**分析留言數：** `{analyzed_comments}` / `{total_comments}` 則"
+        ),
+        color=_criticism_status_color(status, severity_level),
     )
 
-    # 主要批評點
-    criticisms_text = "\n".join([f"• {item}" for item in result.main_criticisms]) if result.main_criticisms else "（留言區風向良好，未見明顯集體不滿）"
+    if status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(
+                message or "可分析留言不足，無法形成穩定批評趨勢。",
+                1024,
+            ),
+            inline=False,
+        )
+
     embed.add_field(
-        name="🤬 留言集中批評與抱怨痛點", 
-        value=_clip(criticisms_text), 
-        inline=False
+        name="🧭 批評訊號概況",
+        value=(
+            f"批評強度：**{_severity_display(severity_level)}**\n"
+            f"主要批評：`{criticism_count}` 項｜"
+            f"不滿原因：`{reason_count}` 項｜"
+            f"改進建議：`{suggestion_count}` 項"
+        ),
+        inline=False,
     )
 
-    # 不滿原因
-    reasons_text = "\n".join([f"• {item}" for item in result.discontent_reasons]) if result.discontent_reasons else "（無特殊導火線或潛在衝突原因）"
-    embed.add_field(
-        name="🔍 觀眾不滿/引發爭議的底層因素", 
-        value=_clip(reasons_text), 
-        inline=False
+    if chart_data:
+        embed.add_field(
+            name="📊 批評類型分布",
+            value=_clip(_format_criticism_chart_data(chart_data), 1024),
+            inline=False,
+        )
+
+    if main_criticisms:
+        embed.add_field(
+            name="🤬 主要批評與抱怨痛點",
+            value=_clip(_fmt_bullets(main_criticisms, limit=5), 1024),
+            inline=False,
+        )
+
+    if discontent_reasons:
+        embed.add_field(
+            name="🔍 觀眾不滿原因",
+            value=_clip(_fmt_bullets(discontent_reasons, limit=5), 1024),
+            inline=False,
+        )
+
+    if suggestions:
+        embed.add_field(
+            name="💡 觀眾提出的改進建議",
+            value=_clip(_fmt_bullets(suggestions, limit=5), 1024),
+            inline=False,
+        )
+
+    if action_items:
+        embed.add_field(
+            name="🎬 可轉換為創作者行動",
+            value=_clip(_fmt_bullets(action_items, limit=5), 1024),
+            inline=False,
+        )
+
+    if not main_criticisms and not discontent_reasons and not suggestions:
+        embed.add_field(
+            name="📌 批評結果",
+            value="目前沒有形成明確批評、抱怨或改進建議。",
+            inline=False,
+        )
+
+    embed.set_footer(
+        text=(
+            "Criticism Analysis：整理留言中的批評、不滿原因與可改善方向；"
+            "資料不足時不代表風向良好。"
+        )
     )
 
-    # 改進建議
-    suggestions_text = "\n".join([f"• {item}" for item in result.suggestions]) if result.suggestions else "（觀眾未在留言中提出具體改進期望）"
-    embed.add_field(
-        name="💡 觀眾敲碗或優化建議意向", 
-        value=_clip(suggestions_text), 
-        inline=False
-    )
-
-    embed.set_footer(text="Powered by Ollama (Llama3) 留言輿情分析模組")
     return embed
 
 # -------------------------
@@ -653,12 +779,6 @@ INTENT_DISPLAY_NAMES = {
     "meme": "玩梗/幽默",
     "other": "其他",
 }
-
-def _safe_get(obj, key: str, default=None):
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-
-    return getattr(obj, key, default)
 
 def _format_intent_comment(item, index: int) -> str:
     text = _safe_get(item, "text", "")

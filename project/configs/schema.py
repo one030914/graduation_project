@@ -356,9 +356,26 @@ class CommentCriticismResult:
     video_id: str = ""
     title: str = ""
     url: str = ""
-    main_criticisms: List[str] = field(default_factory=list)      # 留言中的主要批評與抱怨論點
-    discontent_reasons: List[str] = field(default_factory=list)    # 觀眾產生不滿、反彈或質疑的底層原因
-    suggestions: List[str] = field(default_factory=list)           # 觀眾給予影片/創作者的改進建議或期望
+
+    total_comments: int = 0
+    analyzed_comments: int = 0
+
+    status: str = "ok"  # ok | insufficient_data | error
+    message: Optional[str] = None
+
+    main_criticisms: List[str] = field(default_factory=list)
+    discontent_reasons: List[str] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+
+    criticism_count: int = 0
+    reason_count: int = 0
+    suggestion_count: int = 0
+
+    severity_level: str = "low"  # low | medium | high
+
+    chart_data: List[Dict[str, Any]] = field(default_factory=list)
+    action_items: List[str] = field(default_factory=list)
+
     error: Optional[str] = None
     
 # ========================================
