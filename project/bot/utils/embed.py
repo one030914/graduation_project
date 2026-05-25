@@ -1,7 +1,6 @@
 import discord
 from datetime import datetime
 from configs.schema import (
-    AnalysisResult,
     KeywordResult,
     SummaryResult,
     TopicsResult,
@@ -725,60 +724,8 @@ def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:
     return embed
 
 # -------------------------
-# Intent Embed
+# Timeline Embed
 # -------------------------
-
-INTENT_DISPLAY_NAMES = {
-    "question": "提問",
-    "correction": "勘誤",
-    "wishlist": "許願",
-    "complaint": "抱怨/批評",
-    "advice": "建議/提醒",
-    "resource": "外部資源",
-    "praise": "稱讚/支持",
-    "support": "稱讚/支持",
-    "meme": "玩梗/幽默",
-    "other": "其他",
-}
-
-def _format_intent_comment(item, index: int) -> str:
-    text = _safe_get(item, "text", "")
-    like_count = _safe_get(item, "like_count", 0) or 0
-    reply_count = _safe_get(item, "reply_count", 0) or 0
-
-    reason = _safe_get(item, "reason", "") or ""
-    final_intent = _safe_get(item, "final_intent", "") or ""
-    rule_intent = _safe_get(item, "rule_intent", "") or ""
-
-    meta_parts = [
-        f"👍 `{like_count}`",
-        f"💬 `{reply_count}`",
-    ]
-
-    if final_intent:
-        display_intent = INTENT_DISPLAY_NAMES.get(final_intent, final_intent)
-        meta_parts.append(f"🧠 `{display_intent}`")
-
-    if rule_intent and final_intent and rule_intent != final_intent:
-        rule_display = INTENT_DISPLAY_NAMES.get(rule_intent, rule_intent)
-        meta_parts.append(f"原規則：`{rule_display}`")
-
-    reason_text = f"\n   🧩 {_one_line(reason, 80)}" if reason else ""
-
-    return (
-        f"{index}. {_one_line(text, 130)}\n"
-        f"   {'｜'.join(meta_parts)}"
-        f"{reason_text}"
-    )
-
-def _format_comment_list(items, limit: int = 3) -> str:
-    if not items:
-        return "暫無資料"
-
-    return "\n".join(
-        _format_intent_comment(item, i + 1)
-        for i, item in enumerate(items[:limit])
-    )
 
 def _timeline_status_color(status: str) -> int:
     if status == "error":
@@ -924,8 +871,8 @@ def build_timeline_embed(result: TimelineResult) -> discord.Embed:
         embed.add_field(
             name="建議查看",
             value=(
+                "`/analyze` 查看綜合分析\n"
                 "`/topics` 觀察熱門討論主題\n"
-                "`/intent` 查看提問、勘誤與許願內容\n"
                 "`/emotion` 判斷留言整體風向"
             ),
             inline=False,
@@ -1224,7 +1171,7 @@ def build_analyze_embed(result) -> discord.Embed:
 
     embed.set_footer(
         text=(
-            "Analyze：整合摘要、情緒、主題、行動訊號、批評、關鍵詞與時間軸分析產生。"
+            "Analyze：整合摘要、情緒、主題、批評、關鍵詞與時間軸分析產生。"
         )
     )
 
