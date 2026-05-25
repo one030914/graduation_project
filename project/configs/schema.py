@@ -349,6 +349,13 @@ class IntentResult:
 # ========================================
 
 @dataclass(slots=True)
+class TimelinePoint:
+    time_label: str
+    seconds: int
+    count: int
+    ratio: float = 0.0
+
+@dataclass(slots=True)
 class TimelineHotspot:
     time_label: str
     seconds: int
@@ -360,9 +367,27 @@ class TimelineResult:
     video_id: str = ""
     title: str = ""
     url: str = ""
+
     total_comments: int = 0
+
+    # 有提及時間戳的「留言數」
     timestamp_comment_count: int = 0
+    timestamp_comment_ratio: float = 0.0
+
+    # 時間戳總提及次數，若一則留言提到 2 個時間點，這裡會算 2
+    total_timestamp_mentions: int = 0
+
+    bucket_size: int = 30
+    peak_count: int = 0
+
+    # 給前端畫完整時間軸曲線
+    series: list[TimelinePoint] = field(default_factory=list)
+
+    # 如果前端比較喜歡 dict，也可以直接吃這個
+    chart_data: list[dict[str, Any]] = field(default_factory=list)
+
     hotspots: list[TimelineHotspot] = field(default_factory=list)
+
     status: str = "ok"  # ok | insufficient_data | error
     message: str | None = None
 

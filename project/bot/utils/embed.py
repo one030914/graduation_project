@@ -5,7 +5,8 @@ from configs.schema import (
     TopCommentsResult, 
     TopicsResult, 
     EmotionResult,
-    CommentCriticismResult
+    CommentCriticismResult,
+    TimelineResult,
 )
 
 # -------------------------
@@ -712,40 +713,145 @@ def build_intent_embed(result) -> discord.Embed:
 # Timeline Embed
 # -------------------------
 
-def build_timeline_embed(result) -> discord.Embed:
+def _timeline_status_color(status: str) -> int:
+    if status == "error":
+        return 0xED4245
+    if status == "insufficient_data":
+        return 0xFEE75C
+    return 0x57F287
+
+def _format_timeline_hotspot(hotspot, index: int) -> str:
+    time_label = getattr(hotspot, "time_label", "未知時間")
+    count = int(getattr(hotspot, "count", 0) or 0)
+
+    return f"{index}. `{time_label}`｜被提及 `{count}` 次"
+
+def _format_timeline_representatives(comments, limit: int = 3) -> str:
+    if not comments:
+        return "（無）"
+
+    lines = []
+
+    for comment in comments[:limit]:
+        text = _one_line(comment, 140)
+        if text:
+            lines.append(f"> {text}")
+
+    return "\n".join(lines) if lines else "（無）"
+
+def _format_timeline_series_preview(series, limit: int = 8) -> str:
+    """
+    用文字方式預覽曲線高點。
+    Discord 不畫圖，所以只顯示 count > 0 的前幾個時間點。
+    """
+    if not series:
+        return "（無曲線資料）"
+
+    active_points = [
+        point for point in series
+        if int(getattr(point, "count", 0) or 0) > 0
+    ]
+
+    if not active_points:
+        return "（沒有明顯時間點提及）"
+
+    active_points.sort(
+        key=lambda x: int(getattr(x, "count", 0) or 0),
+        reverse=True,
+    )
+
+    lines = []
+    for point in active_points[:limit]:
+        time_label = getattr(point, "time_label", "未知時間")
+        count = int(getattr(point, "count", 0) or 0)
+        ratio = float(getattr(point, "ratio", 0.0) or 0.0)
+
+        lines.append(
+            f"`{time_label}`：{count} 次（{_fmt_percent(ratio)}）"
+        )
+
+    return "\n".join(lines)
+
+def build_timeline_embed(result: TimelineResult) -> discord.Embed:
     status = getattr(result, "status", "ok")
     message = getattr(result, "message", None)
 
     if status == "error":
         return discord.Embed(
             title="⚠️ 時間軸分析失敗",
-            description=str(message or "分析過程發生未知錯誤。"),
-            color=discord.Color.red(),
+            description=_clip(str(message or "分析過程發生未知錯誤。"), 4096),
+            color=0xED4245,
         )
 
     title = getattr(result, "title", "") or "YouTube 影片"
     url = getattr(result, "url", "")
+
     total_comments = int(getattr(result, "total_comments", 0) or 0)
     timestamp_comment_count = int(
         getattr(result, "timestamp_comment_count", 0) or 0
     )
-    hotspots = getattr(result, "hotspots", []) or []
+    timestamp_comment_ratio = float(
+        getattr(result, "timestamp_comment_ratio", 0.0) or 0.0
+    )
 
-    if status == "insufficient_data" or not hotspots:
-        message = message or (
-            "此影片留言中較少出現時間戳，"
-            "因此無法形成穩定的影片片段熱點。"
+    total_timestamp_mentions = int(
+        getattr(result, "total_timestamp_mentions", 0) or 0
+    )
+    bucket_size = int(getattr(result, "bucket_size", 30) or 30)
+    peak_count = int(getattr(result, "peak_count", 0) or 0)
+
+    hotspots = getattr(result, "hotspots", []) or []
+    series = getattr(result, "series", []) or []
+
+    embed = discord.Embed(
+        title=(
+            "📍 時間軸資料不足"
+            if status == "insufficient_data"
+            else "🔥 留言時間軸熱點分析"
+        ),
+        description=(
+            f"**影片：** [{_clip(title, 180)}]({url})\n"
+            f"**分析狀態：** `{status}`\n"
+            f"**分析留言數：** `{total_comments}` 則"
+        ),
+        color=_timeline_status_color(status),
+    )
+
+    if status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(
+                message
+                or "此影片留言中較少出現時間戳，因此無法形成穩定的影片片段熱點。",
+                1024,
+            ),
+            inline=False,
         )
 
-        embed = discord.Embed(
-            title="📍 時間軸資料不足",
-            description=(
-                f"**影片：** [{title}]({url})\n"
-                f"**分析留言數：** `{total_comments}` 則\n"
-                f"**含時間戳留言：** `{timestamp_comment_count}` 則\n\n"
-                f"{message}"
-            ),
-            color=discord.Color.orange(),
+    embed.add_field(
+        name="📊 時間軸資料概況",
+        value=(
+            f"含時間戳留言：`{timestamp_comment_count}` 則"
+            f"（{_fmt_percent(timestamp_comment_ratio)}）\n"
+            f"時間戳總提及次數：`{total_timestamp_mentions}` 次\n"
+            f"時間桶大小：`{bucket_size}` 秒\n"
+            f"最高峰值：`{peak_count}` 次 / bucket"
+        ),
+        inline=False,
+    )
+
+    if series:
+        embed.add_field(
+            name="📈 曲線高點預覽",
+            value=_clip(_format_timeline_series_preview(series, limit=8), 1024),
+            inline=False,
+        )
+
+    if not hotspots:
+        embed.add_field(
+            name="📌 熱點結果",
+            value="目前沒有形成明確時間軸熱點。",
+            inline=False,
         )
 
         embed.add_field(
@@ -759,20 +865,13 @@ def build_timeline_embed(result) -> discord.Embed:
         )
 
         embed.set_footer(
-            text="Timeline Analysis：資料不足時不強行產生熱點，避免誤導判讀"
+            text=(
+                "Timeline Analysis：統計留言中被觀眾主動提及的影片時間點；"
+                "資料不足時不強行產生熱點。"
+            )
         )
 
         return embed
-
-    embed = discord.Embed(
-        title="🔥 留言時間軸熱點分析",
-        description=(
-            f"**影片：** [{title}]({url})\n"
-            f"**分析留言數：** `{total_comments}` 則\n"
-            f"**含時間戳留言：** `{timestamp_comment_count}` 則"
-        ),
-        color=discord.Color.green(),
-    )
 
     top_hotspot = hotspots[0]
     top_time = getattr(top_hotspot, "time_label", "未知時間")
@@ -784,38 +883,42 @@ def build_timeline_embed(result) -> discord.Embed:
     top_value = f"**{top_time}** 附近｜被提及 `{top_count}` 次"
 
     if representative_comments:
-        top_value += f"\n> {_clip(representative_comments[0], 140)}"
+        top_value += (
+            "\n"
+            + _format_timeline_representatives(
+                representative_comments,
+                limit=1,
+            )
+        )
 
     embed.add_field(
         name="🏆 Top 1 高能片段",
-        value=top_value,
+        value=_clip(top_value, 1024),
         inline=False,
     )
 
     if len(hotspots) > 1:
-        other_lines = []
-        for i, h in enumerate(hotspots[1:6], start=1):
-            time_label = getattr(h, "time_label", "未知時間")
-            count = int(getattr(h, "count", 0) or 0)
-            other_lines.append(
-                f"{i}. `{time_label}`｜被提及 `{count}` 次"
-            )
+        other_lines = [
+            _format_timeline_hotspot(hotspot, i)
+            for i, hotspot in enumerate(hotspots[1:6], start=2)
+        ]
 
         embed.add_field(
             name="📍 其他熱門片段",
-            value="\n".join(other_lines),
+            value=_clip("\n".join(other_lines), 1024),
             inline=False,
         )
 
     if representative_comments:
-        comments_text = "\n".join(
-            f"> {_clip(comment, 120)}"
-            for comment in representative_comments[:3]
-        )
-
         embed.add_field(
             name=f"💬 `{top_time}` 代表留言",
-            value=comments_text,
+            value=_clip(
+                _format_timeline_representatives(
+                    representative_comments,
+                    limit=3,
+                ),
+                1024,
+            ),
             inline=False,
         )
 
@@ -823,13 +926,15 @@ def build_timeline_embed(result) -> discord.Embed:
         name="🧭 分析說明",
         value=(
             "此分析統計的是「留言中被觀眾主動提及的影片時間點」，"
-            "不是 YouTube 實際重播率。"
+            "不是 YouTube 官方觀看重播率。"
         ),
         inline=False,
     )
 
     embed.set_footer(
-        text="Timeline Analysis：根據留言中的時間戳統計"
+        text=(
+            "Timeline Analysis：series / chart_data 可供 Web 前端繪製時間軸曲線。"
+        )
     )
 
     return embed
