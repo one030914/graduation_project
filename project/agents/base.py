@@ -1,5 +1,23 @@
 from __future__ import annotations
 from .ollama_service import LocalLLMService
+from opencc import OpenCC
+
+_cc = OpenCC("s2tw")
+
+def to_traditional_zh(value):
+    if isinstance(value, str):
+        return _cc.convert(value)
+
+    if isinstance(value, list):
+        return [to_traditional_zh(item) for item in value]
+
+    if isinstance(value, dict):
+        return {
+            key: to_traditional_zh(item)
+            for key, item in value.items()
+        }
+
+    return value
 
 class BaseAgent:
     name: str = "base_agent"
@@ -16,7 +34,7 @@ class BaseAgent:
         {self.role}
 
         請嚴格遵守以下規則：
-        1. 使用繁體中文。
+        1. 所有輸出文字必須使用台灣繁體中文，不得使用簡體中文。
         2. 只能輸出 JSON object。
         3. 輸出的第一個字元必須是 {{，最後一個字元必須是 }}。
         4. 不要輸出 Markdown。
@@ -38,10 +56,12 @@ class BaseAgent:
         num_predict: int = 1024,
         num_ctx: int = 8192,
     ) -> dict:
-        return self.llm.generate_json(
+        data = self.llm.generate_json(
             system_prompt=self.build_system_prompt(),
             user_prompt=user_prompt,
             temperature=temperature,
             num_predict=num_predict,
             num_ctx=num_ctx,
         )
+
+        return to_traditional_zh(data)
