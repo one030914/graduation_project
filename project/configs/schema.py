@@ -489,9 +489,16 @@ class AnalyzeResult:
     title: str = ""
     url: str = ""
 
+    status: str = "ok"
+    message: str | None = None
+
     total_comments: int = 0
     public_opinion_score: int = 0
     opinion_label: str = ""
+
+    main_emotion: str = ""
+    actionable_count: int = 0
+    timeline_status: str = ""
 
     tags: list[str] = field(default_factory=list)
     quick_summary: list[str] = field(default_factory=list)
@@ -501,5 +508,8 @@ class AnalyzeResult:
 
     creator_actions: list[str] = field(default_factory=list)
     viewer_tips: list[str] = field(default_factory=list)
+
+    data_sources: dict[str, str] = field(default_factory=dict)
+    data_quality: list[str] = field(default_factory=list)
 
     error: str | None = None
