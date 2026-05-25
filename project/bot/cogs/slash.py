@@ -7,10 +7,8 @@ from bot.utils.embed import (
     build_emotion_embed,
     build_summary_embed,
     build_keyword_embed,
-    build_top_comments_embed,
     build_topics_embed,
     build_criticism_embed,
-    build_intent_embed,
     build_timeline_embed,
     build_analyze_embed,
 )
@@ -30,10 +28,7 @@ class Slash(Cog_Extension):
             from_cache = bool(st.get("from_cache"))
             content = "✅（快取）分析完成" if from_cache else "✅ 分析完成"
 
-            if mode == "top_comments":
-                embed = build_top_comments_embed(result)
-                await msg.edit(content=content, embed=embed)
-            elif mode == "topics":
+            if mode == "topics":
                 embed = build_topics_embed(result)
                 await msg.edit(content=content, embed=embed)
             elif mode == "emotion":
@@ -44,9 +39,6 @@ class Slash(Cog_Extension):
                     await msg.edit(content=content, embed=embed)
             elif mode == "criticism":
                 embed = build_criticism_embed(result)
-                await msg.edit(content=content, embed=embed)
-            elif mode == "intent":
-                embed = build_intent_embed(result)
                 await msg.edit(content=content, embed=embed)
             elif mode == "timeline":
                 embed = build_timeline_embed(result)
@@ -98,16 +90,6 @@ class Slash(Cog_Extension):
         job_id = await q.submit(url, mode="keyword")
         asyncio.create_task(self._render_and_edit(msg, job_id, mode="keyword"))
 
-    @app_commands.command(name="top_comments", description="Show top 15 comments of the video.")
-    @app_commands.describe(url="YouTube video URL")
-    async def top_comments(self, interaction: discord.Interaction, url: str):
-        await interaction.response.defer(thinking=True)
-        q = self.bot.analysis_queue
-        pos = q.queue_size() + 1
-        msg = await interaction.followup.send(content=f"🧾 已加入熱門留言隊列（#{pos}）。", wait=True)
-        job_id = await q.submit(url, mode="top_comments")
-        asyncio.create_task(self._render_and_edit(msg, job_id, mode="top_comments"))
-        
     @app_commands.command(name="topics", description="Analyzing the main topics of the video comments.")
     @app_commands.describe(url="YouTube video URL")
     async def topics(self, interaction: discord.Interaction, url: str):
@@ -143,21 +125,6 @@ class Slash(Cog_Extension):
         job_id = await q.submit(url, mode="criticism")
         asyncio.create_task(self._render_and_edit(msg, job_id, mode="criticism"))
 
-    @app_commands.command(name="intent", description="分析 YT 留言中的提問、勘誤、許願與外部資源。")
-    @app_commands.describe(url="YouTube video URL")
-    async def intent(self, interaction: discord.Interaction, url: str):
-        await interaction.response.defer(thinking=True)
-
-        q = self.bot.analysis_queue
-        pos = q.queue_size() + 1
-        msg = await interaction.followup.send(
-            content=f"🧾 已加入留言意圖分析隊列（#{pos}）。",
-            wait=True
-        )
-
-        job_id = await q.submit(url, mode="intent")
-        asyncio.create_task(self._render_and_edit(msg, job_id, mode="intent"))
-        
     @app_commands.command(name="timeline", description="分析 YT 留言中被提及最多的影片時間點。")
     @app_commands.describe(url="YouTube 影片網址")
     async def timeline(self, interaction: discord.Interaction, url: str):

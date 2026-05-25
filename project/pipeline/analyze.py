@@ -5,7 +5,6 @@ from pipeline.collect import collect_comments
 
 from pipeline.emotion import build_emotion_from_dataset
 from pipeline.topic import build_topics_from_dataset
-from pipeline.intent import build_intent_from_dataset
 from pipeline.timeline import build_timeline_from_dataset
 from pipeline.summary import build_summary_from_dataset
 from pipeline.keyword import build_keyword_from_dataset
@@ -59,7 +58,6 @@ def _collect_data_quality(data_sources: dict[str, str]) -> list[str]:
         "keyword": "關鍵詞",
         "emotion": "情緒",
         "topics": "主題",
-        "intent": "行動訊號",
         "criticism": "批評",
         "timeline": "時間軸",
     }
@@ -158,7 +156,6 @@ def _build_rule_based_fallback(
     score: int,
     emotion,
     topics,
-    intent,
     timeline,
     summary,
     keyword,
@@ -194,33 +191,6 @@ def _build_rule_based_fallback(
 
     keyword_tags = getattr(keyword, "top_tags", []) or []
     tags.extend(keyword_tags[:5])
-
-    high_value_actions = getattr(intent, "high_value_actions", {}) or {}
-
-    questions = high_value_actions.get("questions", []) or []
-    corrections = high_value_actions.get("corrections", []) or []
-    advice = high_value_actions.get("advice", []) or []
-    wishlist = high_value_actions.get("wishlist", []) or []
-    resources = high_value_actions.get("resources", []) or []
-
-    if questions:
-        tags.append("有待回覆問題")
-        creator_actions.append("優先回覆觀眾提出的高價值問題，降低資訊落差。")
-
-    if corrections:
-        tags.append("可能有勘誤")
-        creator_actions.append("檢查重要勘誤留言，必要時置頂補充或修正說明。")
-
-    if advice:
-        tags.append("有改進建議")
-        creator_actions.append("整理觀眾建議與提醒，評估是否補充說明或調整後續內容。")
-
-    if wishlist:
-        tags.append("有續集需求")
-        creator_actions.append("將觀眾許願內容整理為後續影片題材。")
-
-    if resources:
-        viewer_tips.append("留言中包含外部資源，可作為補充資料參考。")
 
     criticism_actions = getattr(criticism, "action_items", []) or []
     creator_actions.extend(criticism_actions[:3])
@@ -295,10 +265,6 @@ def build_analyze(url: str) -> AnalyzeResult:
     topics = build_topics_from_dataset(dataset)
     
     timer.mark("build_topics")
-    
-    intent = build_intent_from_dataset(dataset)
-
-    timer.mark("build_intent")
 
     summary = build_summary_from_dataset(dataset)
 
@@ -320,7 +286,6 @@ def build_analyze(url: str) -> AnalyzeResult:
         dataset.title
         or getattr(emotion, "title", "")
         or getattr(topics, "title", "")
-        or getattr(intent, "title", "")
         or getattr(summary, "title", "")
         or getattr(keyword, "title", "")
         or getattr(criticism, "title", "")
@@ -339,7 +304,6 @@ def build_analyze(url: str) -> AnalyzeResult:
         keyword=keyword,
         emotion=emotion,
         topics=topics,
-        intent=intent,
         criticism=criticism,
         timeline=timeline,
     )
@@ -349,14 +313,11 @@ def build_analyze(url: str) -> AnalyzeResult:
         score=score,
         emotion=emotion,
         topics=topics,
-        intent=intent,
         timeline=timeline,
         summary=summary,
         keyword=keyword,
         criticism=criticism,
     )
-
-    high_value_actions = getattr(intent, "high_value_actions", {}) or {}
 
     agent_payload = {
         "task": "main_insight_integration",
@@ -409,19 +370,7 @@ def build_analyze(url: str) -> AnalyzeResult:
                 for t in getattr(topics, "topics", [])[:3]
             ] if not getattr(topics, "error", None) else [],
         },
-        "intent_context": {
-            "label": "創作者可行動訊號",
-            "purpose": "找出創作者需要回覆、修正、採納或參考的留言。",
-            "status": _result_status(intent),
-            "actionable_count": getattr(intent, "actionable_count", 0),
-            "high_value_actions": {
-                "questions": _action_texts(high_value_actions.get("questions", []), limit=3),
-                "corrections": _action_texts(high_value_actions.get("corrections", []), limit=3),
-                "advice": _action_texts(high_value_actions.get("advice", []), limit=3),
-                "wishlist": _action_texts(high_value_actions.get("wishlist", []), limit=3),
-                "resources": _action_texts(high_value_actions.get("resources", []), limit=3),
-            },
-        },
+
         "criticism_context": {
             "label": "批評與改善訊號",
             "purpose": "整理留言中的批評、不滿原因與可改善方向。",
@@ -494,7 +443,6 @@ def build_analyze(url: str) -> AnalyzeResult:
         opinion_label=opinion_label,
 
         main_emotion=main_emotion,
-        actionable_count=getattr(intent, "actionable_count", 0),
         timeline_status=getattr(timeline, "status", ""),
 
         tags=_dedup(tags + getattr(keyword, "top_tags", [])[:5], limit=8),

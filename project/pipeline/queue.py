@@ -11,12 +11,10 @@ from data.youtube.api import API
 from pipeline.analyze import build_analyze
 from pipeline.summary import build_summary
 from pipeline.keyword import build_keyword
-from pipeline.top_comments import get_top_comments
 from pipeline.topic import build_topics
 from pipeline.emotion import build_emotion
 from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
-from pipeline.intent import build_intent
 from pipeline.timeline import build_timeline
 
 _yt_api = API()
@@ -294,8 +292,6 @@ class AnalysisQueue:
                             return build_summary(job.url)
                         elif job.mode == "keyword":
                             return build_keyword(job.url)
-                        elif job.mode == "top_comments":
-                            return get_top_comments(job.url)
                         elif job.mode == "topics":
                             return build_topics(job.url)
                         elif job.mode == "emotion":
@@ -304,8 +300,6 @@ class AnalysisQueue:
                             return build_video_content(job.url)
                         elif job.mode == "criticism":
                             return analyze_comment_criticism(job.url)
-                        elif job.mode == "intent":
-                            return build_intent(job.url)
                         elif job.mode == "timeline":
                             return build_timeline(job.url)
                         elif job.mode == "analyze":

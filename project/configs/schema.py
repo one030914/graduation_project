@@ -216,33 +216,6 @@ class Req(BaseModel):
     keyword_topk: int = 10
 
 # ========================================
-# Top Comments
-# ========================================
-
-Order = Literal["relevance", "time"]
-SortBy = Literal["likes", "replies", "time"]
-
-@dataclass(slots=True)
-class TopComment:
-    text: str
-    like_count: int
-    reply_count: int
-    published_at: Optional[str] = None
-    author: Optional[str] = None
-    comment_id: Optional[str] = None
-
-@dataclass(slots=True)
-class TopCommentsResult:
-    video_id: str = ""
-    title: str = ""
-    url: str = ""
-    top: List[TopComment] = field(default_factory=list)
-    total_fetched: int = 0
-    order: Order = "relevance"
-    sort_by: SortBy = "likes"
-    error: Optional[str] = None
-
-# ========================================
 # Topics
 # ========================================
 
@@ -377,60 +350,6 @@ class CommentCriticismResult:
     action_items: List[str] = field(default_factory=list)
 
     error: Optional[str] = None
-    
-# ========================================
-# Intent
-# ========================================
-
-@dataclass(slots=True)
-class IntentComment:
-    text: str
-    intent: str
-    like_count: int = 0
-    reply_count: int = 0
-    comment_id: str | None = None
-    author: str | None = None
-    reason: str | None = None
-    urls: list[str] = field(default_factory=list)
-    timestamps: list[dict] = field(default_factory=list)
-
-@dataclass(slots=True)
-class IntentResult:
-    video_id: str = ""
-    title: str = ""
-    url: str = ""
-
-    total_comments: int = 0
-    analyzed_comments: int = 0
-
-    status: str = "ok"
-    message: str | None = None
-
-    intent_counts: dict[str, int] = field(default_factory=dict)
-    intent_ratios: dict[str, float] = field(default_factory=dict)
-
-    actionable_count: int = 0
-    actionable_ratio: float = 0.0
-
-    chart_data: list[dict[str, Any]] = field(default_factory=list)
-
-    # 最終給 Discord / analyze 使用
-    high_value_actions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-
-    # LLM 原始分類結果，方便 debug
-    classified_actions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-
-    llm_classified_count: int = 0
-    llm_batch_count: int = 0
-    llm_ignored_count: int = 0
-
-    questions: list[IntentComment] = field(default_factory=list)
-    corrections: list[IntentComment] = field(default_factory=list)
-    advice: list[IntentComment] = field(default_factory=list)
-    wishlist: list[IntentComment] = field(default_factory=list)
-    resources: list[IntentComment] = field(default_factory=list)
-
-    error: str | None = None
 
 # ========================================
 # Timeline
@@ -497,7 +416,6 @@ class AnalyzeResult:
     opinion_label: str = ""
 
     main_emotion: str = ""
-    actionable_count: int = 0
     timeline_status: str = ""
 
     tags: list[str] = field(default_factory=list)

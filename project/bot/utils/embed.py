@@ -4,7 +4,6 @@ from configs.schema import (
     AnalysisResult,
     KeywordResult,
     SummaryResult,
-    TopCommentsResult,
     TopicsResult,
     EmotionResult,
     CommentCriticismResult,
@@ -130,44 +129,6 @@ def build_summary_embed(result: SummaryResult) -> discord.Embed:
         text="Summary Analysis：根據留言內容抽取代表性摘要"
     )
 
-    return embed
-
-# -------------------------
-# Top Comments Embed
-# -------------------------
-
-def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
-    if result.error:
-        return discord.Embed(
-            title="⚠️ Top comments 分析失敗",
-            description=_clip(result.error, 4096),
-            color=0xED4245
-        )
-
-    embed = discord.Embed(
-        title=_clip(f"🧾 影片標題：**{result.title}**", 256),
-        description=_clip(f"🔗 來源：{result.url}", 256),
-        color=0x5865F2
-    )
-
-    lines = []
-    for i, c in enumerate(result.top, start=1):
-        author = time = ""
-        if c.author:
-            author = c.author
-        if c.published_at:
-            time = discord_time(c.published_at)
-        meta_txt = f"{i}. **{author}** {time}\n" if author and time else ""
-        counts = f" 👍 {c.like_count} ｜ 💬 {c.reply_count}"
-        comments = _clip(c.text, 160)
-        lines.append(f"{meta_txt}{comments}\n{counts}")
-
-    chunk = "\n\n".join(lines)
-    if len(chunk) > 3500:
-        chunk = chunk[:3499] + "…"
-
-    embed.add_field(name=f"Top {len(result.top)} comments", value=_clip(chunk), inline=False)
-    embed.set_footer(text=f"共抓到可用留言：{result.total_fetched}")
     return embed
 
 # -------------------------
@@ -819,140 +780,6 @@ def _format_comment_list(items, limit: int = 3) -> str:
         for i, item in enumerate(items[:limit])
     )
 
-def _get_action_items(result, key: str):
-    high_value_actions = _safe_get(result, "high_value_actions", {}) or {}
-
-    if isinstance(high_value_actions, dict):
-        return high_value_actions.get(key, []) or []
-
-    return []
-
-def build_intent_embed(result) -> discord.Embed:
-    status = _safe_get(result, "status", "ok")
-    error = _safe_get(result, "error")
-    message = _safe_get(result, "message")
-
-    if status == "error" or error:
-        return discord.Embed(
-            title="⚠️ 留言行動訊號分析失敗",
-            description=_clip(error or message or "意圖分析發生未知錯誤。", 4096),
-            color=0xED4245,
-        )
-
-    title = _safe_get(result, "title", "") or "YouTube 影片"
-    url = _safe_get(result, "url", "")
-
-    total_comments = int(_safe_get(result, "total_comments", 0) or 0)
-    analyzed_comments = int(_safe_get(result, "analyzed_comments", 0) or 0)
-
-    actionable_count = int(_safe_get(result, "actionable_count", 0) or 0)
-    actionable_ratio = float(_safe_get(result, "actionable_ratio", 0.0) or 0.0)
-
-    llm_classified_count = int(_safe_get(result, "llm_classified_count", 0) or 0)
-    llm_batch_count = int(_safe_get(result, "llm_batch_count", 0) or 0)
-    llm_ignored_count = int(_safe_get(result, "llm_ignored_count", 0) or 0)
-
-    embed = discord.Embed(
-        title="🎯 留言行動訊號分析",
-        description=(
-            f"**影片：** [{_clip(title, 180)}]({url})\n"
-            f"**分析狀態：** `{status}`\n"
-            f"**候選留言：** `{analyzed_comments}` / `{total_comments}` 則\n"
-            f"**LLM 語意分類：** `{llm_classified_count}` 則 / `{llm_batch_count}` 批"
-        ),
-        color=0x5865F2 if status == "ok" else 0xFEE75C,
-    )
-
-    if status == "insufficient_data":
-        embed.add_field(
-            name="⚠️ 資料提醒",
-            value=_clip(message or "未找到明確可行動訊號。", 1024),
-            inline=False,
-        )
-
-    embed.add_field(
-        name="🧭 行動訊號概況",
-        value=(
-            f"可行動留言：`{actionable_count}` 則（{_fmt_percent(actionable_ratio)}）\n"
-            f"已忽略無需處理留言：`{llm_ignored_count}` 則"
-        ),
-        inline=False,
-    )
-
-    chart_data = _safe_get(result, "chart_data", []) or []
-    if chart_data:
-        parts = []
-        for item in chart_data:
-            label = _safe_get(item, "label", "")
-            count = int(_safe_get(item, "count", 0) or 0)
-            value = float(_safe_get(item, "value", 0.0) or 0.0)
-
-            if count <= 0:
-                continue
-
-            parts.append(f"`{label}` {count}（{_fmt_percent(value)}）")
-
-        if parts:
-            embed.add_field(
-                name="📊 行動類型分布",
-                value=_clip("｜".join(parts), 1024),
-                inline=False,
-            )
-
-    questions = _get_action_items(result, "questions")
-    corrections = _get_action_items(result, "corrections")
-    advice = _get_action_items(result, "advice")
-    wishlist = _get_action_items(result, "wishlist")
-    resources = _get_action_items(result, "resources")
-
-    if questions:
-        embed.add_field(
-            name="❓ 可能需要回覆的問題",
-            value=_clip(_format_comment_list(questions, limit=3), 1024),
-            inline=False,
-        )
-
-    if corrections:
-        embed.add_field(
-            name="🛠️ 重要勘誤",
-            value=_clip(_format_comment_list(corrections, limit=3), 1024),
-            inline=False,
-        )
-
-    if advice:
-        embed.add_field(
-            name="💡 建議 / 提醒",
-            value=_clip(_format_comment_list(advice, limit=3), 1024),
-            inline=False,
-        )
-
-    if wishlist:
-        embed.add_field(
-            name="🌱 觀眾許願池",
-            value=_clip(_format_comment_list(wishlist, limit=3), 1024),
-            inline=False,
-        )
-
-    if resources:
-        embed.add_field(
-            name="🔗 外部資源分享",
-            value=_clip(_format_comment_list(resources, limit=3), 1024),
-            inline=False,
-        )
-
-    embed.set_footer(
-        text=(
-            "Intent Analysis：規則先抽取候選留言，"
-            "再由本地 LLM 分類為問題、勘誤、建議、許願、資源或忽略。"
-        )
-    )
-
-    return embed
-
-# -------------------------
-# Timeline Embed
-# -------------------------
-
 def _timeline_status_color(status: str) -> int:
     if status == "error":
         return 0xED4245
@@ -1250,7 +1077,6 @@ def _format_data_sources(data_sources: dict[str, str]) -> str:
         "keyword": "關鍵詞",
         "emotion": "情緒",
         "topics": "主題",
-        "intent": "行動訊號",
         "criticism": "批評",
         "timeline": "時間軸",
         "video_content": "影片內容",
@@ -1311,7 +1137,6 @@ def build_analyze_embed(result) -> discord.Embed:
 
     total_comments = int(getattr(result, "total_comments", 0) or 0)
     main_emotion = getattr(result, "main_emotion", "") or "未知"
-    actionable_count = int(getattr(result, "actionable_count", 0) or 0)
     timeline_status = getattr(result, "timeline_status", "") or "unknown"
 
     embed = discord.Embed(
@@ -1330,7 +1155,6 @@ def build_analyze_embed(result) -> discord.Embed:
             value=(
                 f"本次共分析 `{total_comments}` 則留言。\n"
                 f"主導情緒：**{main_emotion}**\n"
-                f"可行動訊號：`{actionable_count}` 項\n"
                 f"時間軸狀態：`{timeline_status}`"
             ),
             inline=False,
