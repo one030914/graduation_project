@@ -311,23 +311,36 @@ class IntentResult:
     video_id: str = ""
     title: str = ""
     url: str = ""
+
     total_comments: int = 0
+    analyzed_comments: int = 0
+
+    status: str = "ok"
+    message: str | None = None
+
     intent_counts: dict[str, int] = field(default_factory=dict)
     intent_ratios: dict[str, float] = field(default_factory=dict)
 
+    actionable_count: int = 0
+    actionable_ratio: float = 0.0
+
+    chart_data: list[dict[str, Any]] = field(default_factory=list)
+
+    # 最終給 Discord / analyze 使用
+    high_value_actions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+
+    # LLM 原始分類結果，方便 debug
+    classified_actions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+
+    llm_classified_count: int = 0
+    llm_batch_count: int = 0
+    llm_ignored_count: int = 0
+
     questions: list[IntentComment] = field(default_factory=list)
     corrections: list[IntentComment] = field(default_factory=list)
+    advice: list[IntentComment] = field(default_factory=list)
     wishlist: list[IntentComment] = field(default_factory=list)
-    complaints: list[IntentComment] = field(default_factory=list)
     resources: list[IntentComment] = field(default_factory=list)
-    praise: list[IntentComment] = field(default_factory=list)
-    memes: list[IntentComment] = field(default_factory=list)
-    
-    agent_summary: list[str] = field(default_factory=list)
-    priority_questions: list[str] = field(default_factory=list)
-    priority_corrections: list[str] = field(default_factory=list)
-    content_ideas: list[str] = field(default_factory=list)
-    action_suggestions: list[str] = field(default_factory=list)
 
     error: str | None = None
 

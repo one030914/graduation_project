@@ -520,9 +520,23 @@ def build_criticism_embed(result: CommentCriticismResult) -> discord.Embed:
 # Intent Embed
 # -------------------------
 
+INTENT_DISPLAY_NAMES = {
+    "question": "提問",
+    "correction": "勘誤",
+    "wishlist": "許願",
+    "complaint": "抱怨/批評",
+    "advice": "建議/提醒",
+    "resource": "外部資源",
+    "praise": "稱讚/支持",
+    "support": "稱讚/支持",
+    "meme": "玩梗/幽默",
+    "other": "其他",
+}
+
 def _safe_get(obj, key: str, default=None):
     if isinstance(obj, dict):
         return obj.get(key, default)
+
     return getattr(obj, key, default)
 
 def _format_intent_comment(item, index: int) -> str:
@@ -530,9 +544,29 @@ def _format_intent_comment(item, index: int) -> str:
     like_count = _safe_get(item, "like_count", 0) or 0
     reply_count = _safe_get(item, "reply_count", 0) or 0
 
+    reason = _safe_get(item, "reason", "") or ""
+    final_intent = _safe_get(item, "final_intent", "") or ""
+    rule_intent = _safe_get(item, "rule_intent", "") or ""
+
+    meta_parts = [
+        f"👍 `{like_count}`",
+        f"💬 `{reply_count}`",
+    ]
+
+    if final_intent:
+        display_intent = INTENT_DISPLAY_NAMES.get(final_intent, final_intent)
+        meta_parts.append(f"🧠 `{display_intent}`")
+
+    if rule_intent and final_intent and rule_intent != final_intent:
+        rule_display = INTENT_DISPLAY_NAMES.get(rule_intent, rule_intent)
+        meta_parts.append(f"原規則：`{rule_display}`")
+
+    reason_text = f"\n   🧩 {_one_line(reason, 80)}" if reason else ""
+
     return (
-        f"{index}. {_clip(text, 100)}\n"
-        f"   👍 `{like_count}`｜💬 `{reply_count}`"
+        f"{index}. {_one_line(text, 130)}\n"
+        f"   {'｜'.join(meta_parts)}"
+        f"{reason_text}"
     )
 
 def _format_comment_list(items, limit: int = 3) -> str:
@@ -544,149 +578,132 @@ def _format_comment_list(items, limit: int = 3) -> str:
         for i, item in enumerate(items[:limit])
     )
 
-def _format_distribution(counts: dict, total: int) -> str:
-    if not counts:
-        return "暫無資料"
+def _get_action_items(result, key: str):
+    high_value_actions = _safe_get(result, "high_value_actions", {}) or {}
 
-    labels = {
-        "question": "提問",
-        "correction": "勘誤",
-        "wishlist": "許願",
-        "complaint": "抱怨",
-        "resource": "資源",
-        "praise": "稱讚",
-        "meme": "玩梗",
-        "other": "其他",
-    }
+    if isinstance(high_value_actions, dict):
+        return high_value_actions.get(key, []) or []
 
-    parts = []
-    for key, label in labels.items():
-        value = int(counts.get(key, 0) or 0)
-        if value <= 0:
-            continue
-
-        ratio = value / max(1, total) * 100
-        parts.append(f"`{label}` {value} ({ratio:.1f}%)")
-
-    return "｜".join(parts) if parts else "暫無明顯意圖分類"
+    return []
 
 def build_intent_embed(result) -> discord.Embed:
+    status = _safe_get(result, "status", "ok")
     error = _safe_get(result, "error")
-    if error:
+    message = _safe_get(result, "message")
+
+    if status == "error" or error:
         return discord.Embed(
-            title="⚠️ 留言意圖分析失敗",
-            description=str(error),
-            color=discord.Color.red(),
+            title="⚠️ 留言行動訊號分析失敗",
+            description=_clip(error or message or "意圖分析發生未知錯誤。", 4096),
+            color=0xED4245,
         )
 
     title = _safe_get(result, "title", "") or "YouTube 影片"
     url = _safe_get(result, "url", "")
+
     total_comments = int(_safe_get(result, "total_comments", 0) or 0)
+    analyzed_comments = int(_safe_get(result, "analyzed_comments", 0) or 0)
 
-    counts = _safe_get(result, "intent_counts", {}) or {}
+    actionable_count = int(_safe_get(result, "actionable_count", 0) or 0)
+    actionable_ratio = float(_safe_get(result, "actionable_ratio", 0.0) or 0.0)
 
-    questions = _safe_get(result, "questions", []) or []
-    corrections = _safe_get(result, "corrections", []) or []
-    wishlist = _safe_get(result, "wishlist", []) or []
-    complaints = _safe_get(result, "complaints", []) or []
-    resources = _safe_get(result, "resources", []) or []
-
-    high_value_count = (
-        len(questions)
-        + len(corrections)
-        + len(wishlist)
-        + len(complaints)
-        + len(resources)
-    )
+    llm_classified_count = int(_safe_get(result, "llm_classified_count", 0) or 0)
+    llm_batch_count = int(_safe_get(result, "llm_batch_count", 0) or 0)
+    llm_ignored_count = int(_safe_get(result, "llm_ignored_count", 0) or 0)
 
     embed = discord.Embed(
-        title="🎯 留言意圖與行動分析",
+        title="🎯 留言行動訊號分析",
         description=(
-            f"**影片：** [{title}]({url})\n"
-            f"**分析留言數：** `{total_comments}` 則\n"
-            f"**高價值留言類型：** `{high_value_count}` 筆候選"
+            f"**影片：** [{_clip(title, 180)}]({url})\n"
+            f"**分析狀態：** `{status}`\n"
+            f"**候選留言：** `{analyzed_comments}` / `{total_comments}` 則\n"
+            f"**LLM 語意分類：** `{llm_classified_count}` 則 / `{llm_batch_count}` 批"
         ),
-        color=discord.Color.blue(),
+        color=0x5865F2 if status == "ok" else 0xFEE75C,
     )
+
+    if status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(message or "未找到明確可行動訊號。", 1024),
+            inline=False,
+        )
 
     embed.add_field(
-        name="📊 意圖分布",
-        value=_format_distribution(counts, total_comments),
+        name="🧭 行動訊號概況",
+        value=(
+            f"可行動留言：`{actionable_count}` 則（{_fmt_percent(actionable_ratio)}）\n"
+            f"已忽略無需處理留言：`{llm_ignored_count}` 則"
+        ),
         inline=False,
     )
-    
-    agent_summary = _safe_get(result, "agent_summary", []) or []
-    action_suggestions = _safe_get(result, "action_suggestions", []) or []
-    content_ideas = _safe_get(result, "content_ideas", []) or []
 
-    if agent_summary:
-        embed.add_field(
-            name="🧠 AI 意圖洞察",
-            value=_fmt_list(agent_summary, max_lines=3),
-            inline=False,
-        )
+    chart_data = _safe_get(result, "chart_data", []) or []
+    if chart_data:
+        parts = []
+        for item in chart_data:
+            label = _safe_get(item, "label", "")
+            count = int(_safe_get(item, "count", 0) or 0)
+            value = float(_safe_get(item, "value", 0.0) or 0.0)
 
-    if action_suggestions:
-        embed.add_field(
-            name="🎬 創作者優先行動",
-            value=_fmt_list(action_suggestions, max_lines=3),
-            inline=False,
-        )
+            if count <= 0:
+                continue
 
-    if content_ideas:
-        embed.add_field(
-            name="🌱 可延伸題材",
-            value=_fmt_list(content_ideas, max_lines=3),
-            inline=False,
-        )
+            parts.append(f"`{label}` {count}（{_fmt_percent(value)}）")
+
+        if parts:
+            embed.add_field(
+                name="📊 行動類型分布",
+                value=_clip("｜".join(parts), 1024),
+                inline=False,
+            )
+
+    questions = _get_action_items(result, "questions")
+    corrections = _get_action_items(result, "corrections")
+    advice = _get_action_items(result, "advice")
+    wishlist = _get_action_items(result, "wishlist")
+    resources = _get_action_items(result, "resources")
 
     if questions:
         embed.add_field(
-            name="❓ 高價值提問",
-            value=_format_comment_list(questions, limit=3),
+            name="❓ 可能需要回覆的問題",
+            value=_clip(_format_comment_list(questions, limit=3), 1024),
             inline=False,
         )
 
     if corrections:
         embed.add_field(
             name="🛠️ 重要勘誤",
-            value=_format_comment_list(corrections, limit=3),
+            value=_clip(_format_comment_list(corrections, limit=3), 1024),
+            inline=False,
+        )
+
+    if advice:
+        embed.add_field(
+            name="💡 建議 / 提醒",
+            value=_clip(_format_comment_list(advice, limit=3), 1024),
             inline=False,
         )
 
     if wishlist:
         embed.add_field(
             name="🌱 觀眾許願池",
-            value=_format_comment_list(wishlist, limit=3),
-            inline=False,
-        )
-
-    if complaints:
-        embed.add_field(
-            name="⚠️ 主要抱怨 / 批評",
-            value=_format_comment_list(complaints, limit=3),
+            value=_clip(_format_comment_list(wishlist, limit=3), 1024),
             inline=False,
         )
 
     if resources:
-        lines = []
-        for i, item in enumerate(resources[:3]):
-            text = _safe_get(item, "text", "")
-            urls = _safe_get(item, "urls", []) or []
-            url_text = urls[0] if urls else "未擷取到網址"
-            lines.append(
-                f"{i + 1}. {_clip(text, 80)}\n"
-                f"   🔗 {url_text}"
-            )
-
         embed.add_field(
             name="🔗 外部資源分享",
-            value="\n".join(lines) if lines else "暫無資料",
+            value=_clip(_format_comment_list(resources, limit=3), 1024),
             inline=False,
         )
 
     embed.set_footer(
-        text="Intent Analysis：依留言文字、讚數、回覆數與連結資訊排序"
+        text=(
+            "Intent Analysis：規則先抽取候選留言，"
+            "再由本地 LLM 分類為問題、勘誤、建議、許願、資源或忽略。"
+        )
     )
 
     return embed
