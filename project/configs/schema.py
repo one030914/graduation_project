@@ -74,6 +74,77 @@ class AnalysisResult:
     error: Optional[str] = None
 
 # ========================================
+# Keyword
+# ========================================
+
+@dataclass(slots=True)
+class KeywordItem:
+    keyword: str
+    count: int = 0
+    ratio: float = 0.0
+    language: str = ""
+
+@dataclass(slots=True)
+class KeywordResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+
+    total_comments: int = 0
+    analyzed_comments: int = 0
+
+    language: str = "mixed"
+
+    status: str = "ok"
+    message: Optional[str] = None
+
+    keywords: List[KeywordItem] = field(default_factory=list)
+
+    keyword_counts: Dict[str, int] = field(default_factory=dict)
+    keyword_ratios: Dict[str, float] = field(default_factory=dict)
+
+    chart_data: List[Dict[str, Any]] = field(default_factory=list)
+    wordcloud_data: List[Dict[str, Any]] = field(default_factory=list)
+    top_tags: List[str] = field(default_factory=list)
+
+    keywords_zh: List[str] = field(default_factory=list)
+    keywords_en: List[str] = field(default_factory=list)
+
+    error: Optional[str] = None
+
+# ========================================
+# Summary
+# ========================================
+
+@dataclass(slots=True)
+class SummaryResult:
+    video_id: str = ""
+    title: str = ""
+    url: str = ""
+
+    total_comments: int = 0
+    analyzed_comments: int = 0
+
+    language: str = "mixed"
+    lang_ratio: LangRatio = field(default_factory=LangRatio)
+
+    status: str = "ok"  # ok | insufficient_data | error
+    message: Optional[str] = None
+
+    summary_zh: List[str] = field(default_factory=list)
+    summary_en: List[str] = field(default_factory=list)
+
+    # 給 Discord / Analyze 使用的統一摘要
+    summary_points: List[str] = field(default_factory=list)
+
+    # 保留給 debug 或後續分析
+    comments_zh: List[str] = field(default_factory=list)
+    comments_en: List[str] = field(default_factory=list)
+    tokens_zh: List[List[str]] = field(default_factory=list)
+
+    error: Optional[str] = None
+
+# ========================================
 # Video Content
 # ========================================
 

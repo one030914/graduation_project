@@ -1,9 +1,11 @@
 import discord
 from datetime import datetime
 from configs.schema import (
-    AnalysisResult, 
-    TopCommentsResult, 
-    TopicsResult, 
+    AnalysisResult,
+    KeywordResult,
+    SummaryResult,
+    TopCommentsResult,
+    TopicsResult,
     EmotionResult,
     CommentCriticismResult,
     TimelineResult,
@@ -59,40 +61,68 @@ def _one_line(text: str, limit: int = 120) -> str:
 # Summary Embed
 # -------------------------
 
-def build_summary_embed(result: AnalysisResult, mode: str = "summary") -> discord.Embed:
-    if result.error:
+def build_summary_embed(result: SummaryResult) -> discord.Embed:
+    if result.error or result.status == "error":
         return discord.Embed(
-            title="⚠️ 分析失敗",
-            description=_clip(result.error, 4096),
-            color=0xED4245
+            title="⚠️ 摘要分析失敗",
+            description=_clip(result.error or result.message or "摘要分析發生未知錯誤。", 4096),
+            color=0xED4245,
         )
 
     embed = discord.Embed(
-        title=_clip(f"🧾 影片標題：**{result.title}**", 256),
-        description=_clip(f"🔗 來源：{result.url}", 256),
-        color=0x5865F2
+        title="🧾 YouTube 留言摘要",
+        description=(
+            f"**影片：** [{_clip(result.title, 180)}]({result.url})\n"
+            f"**分析狀態：** `{result.status}`\n"
+            f"**分析留言數：** `{result.analyzed_comments}` / `{result.total_comments}` 則"
+        ),
+        color=0x5865F2 if result.status == "ok" else 0xFEE75C,
     )
 
-    if mode == "summary":
-        if result.summary_zh:
-            embed.add_field(name="📌 中文摘要", value=_clip(_fmt_list(result.summary_zh, 6)), inline=False)
-        if result.summary_en:
-            embed.add_field(name="📌 English Summary", value=_clip(_fmt_list(result.summary_en, 6)), inline=False)
-        if not result.summary_zh and not result.summary_en:
-            embed.add_field(name="📌 摘要", value="（無）", inline=False)
+    if result.status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(result.message or "可分析留言數偏少，摘要僅供參考。"),
+            inline=False,
+        )
 
-    if mode == "keyword":
-        if result.keywords_zh:
-            embed.add_field(name="🔑 中文關鍵字", value=_clip(_fmt_keywords(result.keywords_zh, 15)), inline=False)
-        if result.keywords_en:
-            embed.add_field(name="🔑 English Keywords", value=_clip(_fmt_keywords(result.keywords_en, 15)), inline=False)
-        if not result.keywords_zh and not result.keywords_en:
-            embed.add_field(name="🔑 關鍵字", value="（無）", inline=False)
+    if result.summary_points:
+        embed.add_field(
+            name="📌 留言摘要",
+            value=_clip(_fmt_list(result.summary_points, max_lines=6), 1024),
+            inline=False,
+        )
+    else:
+        if result.summary_zh:
+            embed.add_field(
+                name="📌 中文摘要",
+                value=_clip(_fmt_list(result.summary_zh, max_lines=6), 1024),
+                inline=False,
+            )
+
+        if result.summary_en:
+            embed.add_field(
+                name="📌 English Summary",
+                value=_clip(_fmt_list(result.summary_en, max_lines=6), 1024),
+                inline=False,
+            )
 
     lr = result.lang_ratio
-    lang_text = f"🇹🇼 中文：{lr.zh:.1%}\n🇺🇸 英文：{lr.en:.1%}\n🌐 其他：{lr.other:.1%}"
-    embed.add_field(name="🌍 語言佔比", value=_clip(lang_text), inline=False)
-    embed.set_footer(text=f"總留言數：{result.stats.n_comments}")
+    lang_text = (
+        f"🇹🇼 中文：{lr.zh:.1%}\n"
+        f"🇺🇸 英文：{lr.en:.1%}\n"
+        f"🌐 其他：{lr.other:.1%}"
+    )
+
+    embed.add_field(
+        name="🌍 語言佔比",
+        value=_clip(lang_text),
+        inline=False,
+    )
+
+    embed.set_footer(
+        text="Summary Analysis：根據留言內容抽取代表性摘要"
+    )
 
     return embed
 
@@ -132,6 +162,96 @@ def build_top_comments_embed(result: TopCommentsResult) -> discord.Embed:
 
     embed.add_field(name=f"Top {len(result.top)} comments", value=_clip(chunk), inline=False)
     embed.set_footer(text=f"共抓到可用留言：{result.total_fetched}")
+    return embed
+
+# -------------------------
+# Keyword Embed
+# -------------------------
+
+def build_keyword_embed(result: KeywordResult) -> discord.Embed:
+    if result.error or result.status == "error":
+        return discord.Embed(
+            title="⚠️ 關鍵詞分析失敗",
+            description=_clip(result.error or result.message or "關鍵詞分析發生未知錯誤。", 4096),
+            color=0xED4245,
+        )
+
+    embed = discord.Embed(
+        title="🔑 YouTube 留言關鍵詞分析",
+        description=(
+            f"**影片：** [{_clip(result.title, 180)}]({result.url})\n"
+            f"**分析狀態：** `{result.status}`\n"
+            f"**分析留言數：** `{result.analyzed_comments}` / `{result.total_comments}` 則\n"
+            f"**主要語言：** `{result.language}`"
+        ),
+        color=0x5865F2 if result.status == "ok" else 0xFEE75C,
+    )
+
+    if result.status == "insufficient_data":
+        embed.add_field(
+            name="⚠️ 資料提醒",
+            value=_clip(result.message or "可分析留言數偏少，關鍵詞僅供參考。"),
+            inline=False,
+        )
+
+    if result.top_tags:
+        embed.add_field(
+            name="🏷️ 熱門標籤",
+            value=_clip(" ".join(f"`#{tag}`" for tag in result.top_tags[:10]), 1024),
+            inline=False,
+        )
+
+    chart_data = getattr(result, "chart_data", []) or []
+    if chart_data:
+        lines = []
+        for item in chart_data[:12]:
+            keyword = item.get("keyword") or item.get("label") or ""
+            count = int(item.get("count", 0) or 0)
+            ratio = float(item.get("ratio", 0.0) or 0.0)
+
+            if not keyword:
+                continue
+
+            lines.append(
+                f"`{keyword}`：{count} 則（{_fmt_percent(ratio)}）"
+            )
+
+        if lines:
+            embed.add_field(
+                name="📊 熱門關鍵詞分布",
+                value=_clip("\n".join(lines), 1024),
+                inline=False,
+            )
+
+    if result.keywords_zh:
+        embed.add_field(
+            name="🇹🇼 中文關鍵詞",
+            value=_clip(_fmt_keywords(result.keywords_zh, max_items=15), 1024),
+            inline=False,
+        )
+
+    if result.keywords_en:
+        embed.add_field(
+            name="🇺🇸 English Keywords",
+            value=_clip(_fmt_keywords(result.keywords_en, max_items=15), 1024),
+            inline=False,
+        )
+
+    wordcloud_data = getattr(result, "wordcloud_data", []) or []
+    if wordcloud_data:
+        embed.add_field(
+            name="☁️ 文字雲資料",
+            value=(
+                f"已產生 `{len(wordcloud_data)}` 個文字雲詞項，"
+                "可供 Web 前端繪製文字雲。"
+            ),
+            inline=False,
+        )
+
+    embed.set_footer(
+        text="Keyword Analysis：關鍵詞 count 代表出現於多少則留言中"
+    )
+
     return embed
 
 # -------------------------

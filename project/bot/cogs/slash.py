@@ -6,6 +6,7 @@ from bot.core.classes import Cog_Extension
 from bot.utils.embed import (
     build_emotion_embed,
     build_summary_embed,
+    build_keyword_embed,
     build_top_comments_embed,
     build_topics_embed,
     build_criticism_embed,
@@ -53,8 +54,11 @@ class Slash(Cog_Extension):
             elif mode == "analyze":
                 embed = build_analyze_embed(result)
                 await msg.edit(content=content, embed=embed)
+            elif mode == "keyword":
+                embed = build_keyword_embed(result)
+                await msg.edit(content=content, embed=embed)
             else:
-                embed = build_summary_embed(result, mode=mode)
+                embed = build_summary_embed(result)
                 await msg.edit(content=content, embed=embed)
                 
         except Exception as e:
