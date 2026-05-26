@@ -21,7 +21,14 @@ class Slash(Cog_Extension):
         q = self.bot.analysis_queue
         try:
             if await q.wait_until_running(job_id, timeout=3.0):
-                await msg.edit(content="🔎 分析中…（模型推論可能需要一點時間）", embed=None)
+                await msg.edit(
+                    content=(
+                        "🔎 深度分析中…\n"
+                        "正在處理留言摘要、情緒、主題、批評、時間軸與影片內容脈絡。\n"
+                        "若影片較長，分析可能需要 3～5 分鐘，完成後會自動更新。"
+                    ),
+                    embed=None,
+                )
 
             result = await q.wait_for_result(job_id)
             st = q.get_status(job_id) or {}
@@ -66,7 +73,13 @@ class Slash(Cog_Extension):
         await interaction.response.defer(thinking=True)
         q = self.bot.analysis_queue
         pos = q.queue_size() + 1
-        msg = await interaction.followup.send(content=f"🧾 已加入分析隊列（#{pos}）。", wait=True)
+        msg = await interaction.followup.send(
+            content=(
+                f"🧾 已加入分析隊列（#{pos}）。\n"
+                "🔎 本次會整合留言與影片內容進行深度分析，長影片可能需要數分鐘。"
+            ),
+            wait=True,
+        )
         job_id = await q.submit(url, mode="analyze")
         asyncio.create_task(self._render_and_edit(msg, job_id, mode="analyze"))
         

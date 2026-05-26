@@ -1174,7 +1174,8 @@ def build_analyze_embed(result) -> discord.Embed:
 
     embed.set_footer(
         text=(
-            "Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。"
+            "Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。\n"
+            "長影片會因字幕分析而需要較久時間，且可能因字幕品質影響分析結果。"
         )
     )
 
