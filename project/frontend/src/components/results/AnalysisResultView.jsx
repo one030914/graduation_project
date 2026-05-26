@@ -8,6 +8,7 @@ import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
 import { CriticismChart } from "@/components/charts/CriticismChart";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
 import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
+import { ResultFooter } from "@/components/results/ResultCards";
 
 function TextCard({ title, children, tone = "indigo", className = "" }) {
   const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";

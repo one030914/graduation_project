@@ -5,14 +5,11 @@ import { HistoryRecordBody } from "@/lib/ResultViews";
 import { Header } from "@/components/Header";
 
 const CATEGORIES = [
-  { value: "分析", label: "分析" },
-  { value: "摘要", label: "摘要" },
-  { value: "關鍵詞", label: "關鍵詞" },
-  { value: "主題", label: "主題" },
-  { value: "情緒", label: "情緒" },
-  { value: "批評", label: "批評" },
-  { value: "時間軸", label: "時間軸" },
-  { value: "影片內容", label: "影片內容" },
+  { value: "analyze", label: "綜合分析" },
+  { value: "topics", label: "熱門主題" },
+  { value: "emotion", label: "情緒風向" },
+  { value: "timeline", label: "時間軸熱點" },
+  { value: "video_content", label: "影片內容脈絡" },
 ];
 
 function formatWhen(record) {
@@ -25,6 +22,20 @@ function formatWhen(record) {
   }
 }
 
+async function readApiResponse(res) {
+  const text = await res.text();
+
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      error: `API 回傳非 JSON（HTTP ${res.status}）：${text.slice(0, 180)}`,
+    };
+  }
+}
+
 export default function History() {
   const [records, setRecords] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -33,6 +44,7 @@ export default function History() {
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,21 +58,21 @@ export default function History() {
         if (appliedSearch?.trim()) params.set("q", appliedSearch.trim());
         const qs = params.toString();
         const res = await fetch(`/api/history${qs ? `?${qs}` : ""}`);
-        const data = await res.json();
+        const data = await readApiResponse(res);
 
         if (cancelled) return;
 
         if (!res.ok) {
-          setError(data.error || "載入失敗");
+          setError(data.error || `載入失敗（HTTP ${res.status}）`);
           setRecords([]);
           return;
         }
 
         setError(null);
         setRecords(data.records || []);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
-        setError("無法連線到伺服器");
+        setError(err instanceof Error ? err.message : "無法連線到伺服器");
         setRecords([]);
       }
     }
@@ -91,7 +103,45 @@ export default function History() {
         : [...current, value],
     );
   };
-  
+
+  const openDetail = (item) => {
+    setDetail(item);
+  };
+
+  const handleRecordKeyDown = (event, item) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openDetail(item);
+    }
+  };
+
+  const deleteRecord = async (event, item) => {
+    event.stopPropagation();
+
+    const ok = window.confirm(`確定要刪除「${item.title || "未命名影片"}」這筆紀錄嗎？`);
+    if (!ok) return;
+
+    setDeletingId(item.id);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/history?id=${encodeURIComponent(item.id)}`, {
+        method: "DELETE",
+      });
+      const data = await readApiResponse(res);
+
+      if (!res.ok) {
+        throw new Error(data.error || "刪除失敗");
+      }
+
+      setRecords((current) => current?.filter((record) => record.id !== item.id) ?? current);
+      setDetail((current) => (current?.id === item.id ? null : current));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "刪除失敗");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loading = records === null;
 
@@ -152,25 +202,36 @@ export default function History() {
           <div className="space-y-3">
             {records.length === 0 && !error && <p className="text-white/70">沒有紀錄</p>}
             {records.map((item) => (
-              <div
+              <article
                 key={item.id}
-                className="flex flex-col gap-2 rounded-xl bg-gray-900/90 p-4 ring-1 ring-white/10 transition hover:bg-gray-800/90 sm:flex-row sm:items-center sm:justify-between"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(item)}
+                onKeyDown={(event) => handleRecordKeyDown(event, item)}
+                className="group flex cursor-pointer flex-col gap-3 rounded-xl bg-gray-900/90 p-4 text-left ring-1 ring-white/10 transition hover:bg-gray-800/90 hover:ring-indigo-300/30 focus:outline-none focus:ring-2 focus:ring-indigo-300/60 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{item.title || "（無標題）"}</p>
-                  <p className="truncate text-sm text-gray-400">{item.youtube_url}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {item.category} · {formatWhen(item)}
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-indigo-300/20 bg-indigo-400/10 px-2.5 py-1 text-xs font-semibold text-indigo-100">
+                      {item.category}
+                    </span>
+                  </div>
+                  <p className="truncate font-semibold transition group-hover:text-indigo-100">
+                    {item.title || "（無標題）"}
                   </p>
+                  <p className="mt-1 truncate text-sm text-gray-400">{item.youtube_url}</p>
+                  <p className="mt-1 text-xs text-gray-500">{formatWhen(item)}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setDetail(item)}
-                  className="shrink-0 text-blue-400 hover:underline"
+                  onClick={(event) => deleteRecord(event, item)}
+                  disabled={deletingId === item.id}
+                  className="shrink-0 rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-200/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`刪除 ${item.title || "未命名影片"}`}
                 >
-                  查看
+                  {deletingId === item.id ? "刪除中" : "刪除"}
                 </button>
-              </div>
+              </article>
             ))}
           </div>
         )}
@@ -206,9 +267,9 @@ export default function History() {
               </button>
             </div>
             <HistoryRecordBody
+              mode={detail.mode}
               category={detail.category}
               payload={detail.payload}
-              youtubeUrl={detail.youtube_url}
             />
           </div>
         </div>

@@ -74,7 +74,29 @@ export default function Page() {
       throw new Error(data.error || "Failed to fetch job result.");
     }
 
-    return data.result ?? null;
+    return data;
+  };
+
+  const saveAnalysisRecord = async ({ jobId, mode, url, payload }) => {
+    try {
+      const res = await fetch("/api/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: jobId,
+          mode,
+          url,
+          payload,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save analysis.");
+      }
+    } catch (error) {
+      console.error("Failed to save analysis record", error);
+    }
   };
 
   const pollJobUntilDone = async (jobId, action) => {
@@ -96,8 +118,15 @@ export default function Page() {
       });
 
       if (statusData.status === "completed") {
-        const result = await fetchJobResult(jobId);
+        const resultData = await fetchJobResult(jobId);
+        const result = resultData.result ?? null;
         updateResult(action, result);
+        void saveAnalysisRecord({
+          jobId,
+          mode: resultData.mode || statusData.mode || JOB_MODE[action],
+          url: text.trim(),
+          payload: result,
+        });
         setJobState((prev) =>
           prev && prev.jobId === jobId
             ? { ...prev, status: "completed", fromCache: statusData.from_cache }

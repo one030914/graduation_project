@@ -7,15 +7,15 @@ export function Header({
 }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
         <div>
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-3xl font-bold tracking-tight transition hover:text-indigo-200 sm:text-4xl"
           >
-            YouTube 留言分析平台
+            YouTube 分析平台
           </Link>
-          <p className="mt-2 max-w-xl text-sm text-white/70">留言摘要、關鍵字、主題與情緒視覺化</p>
+          <p className="mt-2 max-w-xl text-sm text-white/70">綜合分析、熱門主題與情緒風向視覺化</p>
         </div>
         {showAction && (
           <Link

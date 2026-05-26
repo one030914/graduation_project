@@ -147,19 +147,26 @@ export function VideoContentResultView({ result }) {
       </ResultCard>
 
       {chapters.length > 0 && (
-        <ResultCard title="章節時間軸" tone="emerald">
-          <section>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div />
+        <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="text-lg font-black tracking-normal text-emerald-200">章節時間軸</h3>
+              <p className="mt-1 text-sm font-semibold text-white/45">
+                共 {chapters.length} 個章節{filteredChapters.length !== chapters.length ? `，顯示 ${filteredChapters.length} 個` : ""}
+              </p>
+            </div>
+            <label className="w-full md:max-w-xs">
+              <span className="sr-only">搜尋章節或關鍵字</span>
               <input
                 type="search"
                 value={chapterQuery}
                 onChange={(event) => setChapterQuery(event.target.value)}
-                className="min-h-9 rounded border border-white/15 bg-white/8 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
+                className="min-h-10 w-full rounded-xl border border-white/15 bg-white/8 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
                 placeholder="搜尋章節或關鍵字"
               />
-            </div>
-            <div className="mt-3 space-y-3">
+            </label>
+          </div>
+          <div className="mt-4 space-y-3">
               {filteredChapters.map((chapter, index) => {
                 const start = Number(chapter.start_seconds) || 0;
                 const end = Number(chapter.end_seconds) || 0;
@@ -235,9 +242,8 @@ export function VideoContentResultView({ result }) {
                   沒有符合搜尋條件的章節。
                 </p>
               )}
-            </div>
-          </section>
-        </ResultCard>
+          </div>
+        </section>
       )}
     </ResultShell>
   );

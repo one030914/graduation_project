@@ -9,38 +9,38 @@ import { CriticismResultView } from "@/components/results/CriticismResultView";
 import { TimelineResultView } from "@/components/results/TimelineResultView";
 import { VideoContentResultView } from "@/components/results/VideoContentResultView";
 
-export function HistoryRecordBody({ category, payload, youtubeUrl }) {
+export function HistoryRecordBody({ mode, category, payload }) {
   const data = payload ?? {};
 
-  if (category === "分析") {
+  if (mode === "analyze") {
     return <AnalysisResultView result={data} />;
   }
 
-  if (category === "摘要") {
+  if (mode === "summary") {
     return <SummaryResultView result={data} />;
   }
 
-  if (category === "關鍵詞") {
+  if (mode === "keyword") {
     return <KeywordResultView result={data} />;
   }
 
-  if (category === "主題" || category === "主題分析") {
+  if (mode === "topics") {
     return <TopicsResultView result={data} />;
   }
 
-  if (category === "情緒" || category === "情緒分析") {
-    return <EmotionRecordView youtubeUrl={youtubeUrl} payload={data} />;
+  if (mode === "emotion") {
+    return <EmotionRecordView result={data} />;
   }
 
-  if (category === "批評" || category === "批評分析") {
+  if (mode === "criticism") {
     return <CriticismResultView result={data} />;
   }
 
-  if (category === "時間軸" || category === "時間軸分析") {
+  if (mode === "timeline") {
     return <TimelineResultView result={data} />;
   }
 
-  if (category === "影片內容") {
+  if (mode === "video_content") {
     return <VideoContentResultView result={data} />;
   }
 

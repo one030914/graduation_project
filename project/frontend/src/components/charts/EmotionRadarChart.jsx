@@ -20,7 +20,7 @@ const EMOTION_LABELS = {
   Neutral: "中性",
 };
 
-export function EmotionBarChart({ data = [] }) {
+export function EmotionRadarChart({ data = [] }) {
   const rawChartData = data
     .map((item, index) => {
       const rawName = item.label || item.emotion || item.name || `emotion-${index}`;

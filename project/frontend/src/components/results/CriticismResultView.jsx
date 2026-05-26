@@ -31,11 +31,17 @@ export function CriticismResultView({ result }) {
   const chartData = result.chart_data ?? [];
 
   return (
-    <ResultShell label="Criticism" title={`批評與改善回饋：${clip(result.title || result.video_id, 256)}`}>
+    <ResultShell
+      label="Criticism"
+      title={`批評與改善回饋：${clip(result.title || result.video_id, 256)}`}
+    >
       <ResultCard title="批評訊號概況">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile label="分析狀態" value={result.status || "ok"} />
-          <InfoTile label="分析留言數" value={`${result.analyzed_comments ?? 0} / ${result.total_comments ?? 0}`} />
+          <InfoTile
+            label="分析留言數"
+            value={`${result.analyzed_comments ?? 0} / ${result.total_comments ?? 0}`}
+          />
           <InfoTile label="批評強度" value={severityLabel(result.severity_level)} tone="red" />
           <InfoTile label="主要批評" value={`${result.criticism_count ?? 0} 項`} />
           <InfoTile label="不滿原因" value={`${result.reason_count ?? 0} 項`} />
@@ -50,7 +56,10 @@ export function CriticismResultView({ result }) {
         <ResultCard title="批評類型分布" tone="red">
           <div className="flex flex-wrap gap-2">
             {chartData.map((item) => (
-              <span key={item.key || item.label} className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-sm font-black text-red-100">
+              <span
+                key={item.key || item.label}
+                className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-sm font-black text-red-100"
+              >
                 {item.label}：{item.count}（{fmtPercent(item.value)}）
               </span>
             ))}

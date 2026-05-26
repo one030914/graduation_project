@@ -36,12 +36,18 @@ export function TimelineResultView({ result }) {
     : null;
 
   return (
-    <ResultShell label="Timeline" title={`時間軸熱點分析：${clip(result.title || result.video_id, 256)}`}>
+    <ResultShell
+      label="Timeline"
+      title={`時間軸熱點分析：${clip(result.title || result.video_id, 256)}`}
+    >
       <ResultCard title="時間軸資料概況">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile label="分析狀態" value={result.status || "ok"} />
           <InfoTile label="分析留言數" value={result.total_comments ?? 0} />
-          <InfoTile label="含時間戳留言" value={`${result.timestamp_comment_count ?? 0} 則（${fmtPercent(result.timestamp_comment_ratio)}）`} />
+          <InfoTile
+            label="含時間戳留言"
+            value={`${result.timestamp_comment_count ?? 0} 則（${fmtPercent(result.timestamp_comment_ratio)}）`}
+          />
           <InfoTile label="時間戳總提及" value={result.total_timestamp_mentions ?? 0} />
           <InfoTile label="時間桶大小" value={`${result.bucket_size ?? 30} 秒`} />
           <InfoTile label="最高峰值" value={`${result.peak_count ?? 0} 次 / bucket`} />
@@ -64,7 +70,11 @@ ${fmtComments((hotspots[0].representative_comments ?? []).slice(0, 2))}`}
             <ResultCard title="其他熱門片段">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {hotspots.slice(1, 6).map((hotspot, idx) => (
-                  <InfoTile key={`${hotspot.time_label}-${idx}`} label={`${idx + 2}. ${hotspot.time_label}`} value={`被提及 ${hotspot.count ?? 0} 次`} />
+                  <InfoTile
+                    key={`${hotspot.time_label}-${idx}`}
+                    label={`${idx + 2}. ${hotspot.time_label}`}
+                    value={`被提及 ${hotspot.count ?? 0} 次`}
+                  />
                 ))}
               </div>
             </ResultCard>
@@ -77,7 +87,8 @@ ${fmtComments((hotspots[0].representative_comments ?? []).slice(0, 2))}`}
       )}
 
       <ResultFooter>
-        曲線資料：series {series.length} 筆，chart_data {chartData.length} 筆。此分析統計留言中被觀眾主動提及的影片時間點，不是 YouTube 官方重播率。
+        曲線資料：series {series.length} 筆，chart_data {chartData.length}{" "}
+        筆。此分析統計留言中被觀眾主動提及的影片時間點，不是 YouTube 官方重播率。
       </ResultFooter>
     </ResultShell>
   );

@@ -26,7 +26,10 @@ export function KeywordResultView({ result }) {
   const wordcloudData = result.wordcloud_data ?? [];
 
   return (
-    <ResultShell label="Keyword" title={`關鍵詞分析：${clip(result.title || result.video_id, 256)}`}>
+    <ResultShell
+      label="Keyword"
+      title={`關鍵詞分析：${clip(result.title || result.video_id, 256)}`}
+    >
       <ResultCard title="分析狀態">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile label="狀態" value={result.status || "ok"} />
@@ -41,7 +44,10 @@ export function KeywordResultView({ result }) {
         <ResultCard title="熱門標籤">
           <div className="flex flex-wrap gap-2">
             {topTags.map((tag) => (
-              <span key={tag} className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-sm font-black text-indigo-100">
+              <span
+                key={tag}
+                className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-sm font-black text-indigo-100"
+              >
                 #{tag}
               </span>
             ))}
@@ -59,7 +65,13 @@ export function KeywordResultView({ result }) {
               const count = item.count ?? 0;
               const ratio = item.ratio ?? 0;
 
-              return <InfoTile key={`${label}-${idx}`} label={label} value={`${count} 則｜${fmtPercent(ratio)}`} />;
+              return (
+                <InfoTile
+                  key={`${label}-${idx}`}
+                  label={label}
+                  value={`${count} 則｜${fmtPercent(ratio)}`}
+                />
+              );
             })}
           </div>
         </ResultCard>
