@@ -429,5 +429,8 @@ class AnalyzeResult:
 
     data_sources: dict[str, str] = field(default_factory=dict)
     data_quality: list[str] = field(default_factory=list)
+    
+    # Collects all the chart data needed for the web dashboard
+    dashboard_data: dict[str, Any] = field(default_factory=dict)
 
     error: str | None = None

@@ -152,6 +152,149 @@ def _build_top_hotspot(timeline_result) -> dict | None:
             getattr(hotspot, "representative_comments", []) or [""]
         )[0],
     }
+    
+def _build_dashboard_data(
+    *,
+    emotion,
+    topics,
+    keyword,
+    timeline,
+    criticism,
+    video_content,
+    score: int,
+    opinion_label: str,
+    main_emotion: str,
+) -> dict:
+    return {
+        "emotion": {
+            "opinion_score": score,
+            "opinion_label": opinion_label,
+            "main_emotion": main_emotion,
+            "positive_ratio": getattr(emotion, "positive_ratio", 0.0),
+            "negative_ratio": getattr(emotion, "negative_ratio", 0.0),
+            "neutral_ratio": getattr(emotion, "neutral_ratio", 0.0),
+            "chart_data": getattr(emotion, "chart_data", []) or [],
+            "radar_data": getattr(emotion, "radar_data", []) or [],
+            "dominant_emotion": getattr(emotion, "dominant_emotion", {}) or {},
+            "emotion_ratios": getattr(emotion, "emotion_ratios", {}) or {},
+        },
+        "topics": {
+            "chart_data": getattr(topics, "chart_data", []) or [],
+            "top_keywords": getattr(topics, "top_keywords", []) or [],
+            "topics": [
+                {
+                    "topic_name": (
+                        getattr(topic, "topic_name", "")
+                        or getattr(topic, "chart_label", "")
+                        or " / ".join(getattr(topic, "keywords", [])[:2])
+                    ),
+                    "size": getattr(topic, "size", 0),
+                    "ratio": getattr(topic, "ratio", 0.0),
+                    "keywords": getattr(topic, "keywords", [])[:8],
+                    "representative_comments": getattr(
+                        topic,
+                        "representative_comments",
+                        [],
+                    )[:3],
+                }
+                for topic in getattr(topics, "topics", [])[:8]
+            ],
+        },
+        "keyword": {
+            "chart_data": getattr(keyword, "chart_data", []) or [],
+            "wordcloud_data": getattr(keyword, "wordcloud_data", []) or [],
+            "top_tags": getattr(keyword, "top_tags", []) or [],
+            "keyword_counts": getattr(keyword, "keyword_counts", {}) or {},
+            "keyword_ratios": getattr(keyword, "keyword_ratios", {}) or {},
+        },
+        "timeline": {
+            "status": getattr(timeline, "status", ""),
+            "message": getattr(timeline, "message", None),
+            "bucket_size": getattr(timeline, "bucket_size", 30),
+            "peak_count": getattr(timeline, "peak_count", 0),
+            "timestamp_comment_count": getattr(
+                timeline,
+                "timestamp_comment_count",
+                0,
+            ),
+            "timestamp_comment_ratio": getattr(
+                timeline,
+                "timestamp_comment_ratio",
+                0.0,
+            ),
+            "total_timestamp_mentions": getattr(
+                timeline,
+                "total_timestamp_mentions",
+                0,
+            ),
+            "chart_data": getattr(timeline, "chart_data", []) or [],
+            "hotspots": [
+                {
+                    "time_label": getattr(hotspot, "time_label", ""),
+                    "seconds": getattr(hotspot, "seconds", 0),
+                    "count": getattr(hotspot, "count", 0),
+                    "representative_comments": getattr(
+                        hotspot,
+                        "representative_comments",
+                        [],
+                    )[:3],
+                }
+                for hotspot in getattr(timeline, "hotspots", [])[:10]
+            ],
+        },
+        "criticism": {
+            "status": getattr(criticism, "status", ""),
+            "severity_level": getattr(criticism, "severity_level", "low"),
+            "criticism_count": getattr(criticism, "criticism_count", 0),
+            "reason_count": getattr(criticism, "reason_count", 0),
+            "suggestion_count": getattr(criticism, "suggestion_count", 0),
+            "chart_data": getattr(criticism, "chart_data", []) or [],
+            "main_criticisms": getattr(criticism, "main_criticisms", [])[:5],
+            "discontent_reasons": getattr(
+                criticism,
+                "discontent_reasons",
+                [],
+            )[:5],
+            "suggestions": getattr(criticism, "suggestions", [])[:5],
+            "action_items": getattr(criticism, "action_items", [])[:5],
+        },
+        "video_content": {
+            "status": _result_status(video_content),
+            "summary_text": getattr(video_content, "summary_text", ""),
+            "final_conclusion": getattr(video_content, "final_conclusion", ""),
+            "recommended_audience": getattr(
+                video_content,
+                "recommended_audience",
+                "",
+            ),
+            "action_suggestions": getattr(
+                video_content,
+                "action_suggestions",
+                [],
+            )[:5],
+            "transcript_word_count": getattr(
+                video_content,
+                "transcript_word_count",
+                0,
+            ),
+            "transcript_source": getattr(
+                video_content,
+                "transcript_source",
+                None,
+            ),
+            "chapter_timeline": [
+                {
+                    "start_seconds": getattr(chapter, "start_seconds", 0),
+                    "end_seconds": getattr(chapter, "end_seconds", 0),
+                    "title": getattr(chapter, "title", ""),
+                    "summary": getattr(chapter, "summary", ""),
+                    "keywords": getattr(chapter, "keywords", [])[:5],
+                    "importance": getattr(chapter, "importance", "medium"),
+                }
+                for chapter in getattr(video_content, "chapter_timeline", [])[:8]
+            ],
+        },
+    }
 
 def _build_rule_based_fallback(
     *,
@@ -457,9 +600,29 @@ def build_analyze(url: str) -> AnalyzeResult:
         or ""
     )
     
+    dashboard_data = _build_dashboard_data(
+        emotion=emotion,
+        topics=topics,
+        keyword=keyword,
+        timeline=timeline,
+        criticism=criticism,
+        video_content=video_content,
+        score=score,
+        opinion_label=opinion_label,
+        main_emotion=main_emotion,
+    )
+    
+    print("=== DASHBOARD DATA PREVIEW ===")
+    print("dashboard_data keys:", dashboard_data.keys())
+    print("emotion chart:", len(dashboard_data["emotion"]["chart_data"]))
+    print("topics chart:", len(dashboard_data["topics"]["chart_data"]))
+    print("timeline chart:", len(dashboard_data["timeline"]["chart_data"]))
+    print("keyword wordcloud:", len(dashboard_data["keyword"]["wordcloud_data"]))
+    
     print("=== ANALYZE TIMING REPORT ===")
     print(timer.report())
     print(f"Total time: {timer.total()} seconds")
+    
 
     return AnalyzeResult(
         video_id=video_id,
@@ -488,4 +651,6 @@ def build_analyze(url: str) -> AnalyzeResult:
 
         data_sources=data_sources,
         data_quality=data_quality,
+        
+        dashboard_data=dashboard_data,
     )
