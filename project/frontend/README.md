@@ -29,12 +29,10 @@ The frontend communicates with `project/backend/interface.py`, which exposes a q
 analyze
 summary
 keyword
-top_comments
 topics
 emotion
 video_content
 criticism
-intent
 timeline
 ```
 

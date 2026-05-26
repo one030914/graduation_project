@@ -81,7 +81,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
       if (trendChart) URL.revokeObjectURL(trendChart);
       if (combinedChart) URL.revokeObjectURL(combinedChart);
     };
-  }, [trendChart, combinedChart]);  
+  }, [trendChart, combinedChart]);
 
   const handleEmotionTopics = async () => {
     if (!youtubeUrl || subPanelLoading) return;
@@ -281,11 +281,11 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
                 alt="趨勢圖表"
                 className="mx-auto max-h-[320px] w-auto max-w-full object-contain"
               />
-              <figcaption className="mt-1 text-center text-xs text-white/50">情緒趨勢分析</figcaption>
+              <figcaption className="mt-1 text-center text-xs text-white/50">
+                情緒趨勢分析
+              </figcaption>
 
-              {negativePeakAnalysis && (
-                <NegativePeakAnalysisCard analysis={negativePeakAnalysis} />
-              )}
+              {negativePeakAnalysis && <NegativePeakAnalysisCard analysis={negativePeakAnalysis} />}
             </figure>
           )}
 
@@ -296,7 +296,9 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
                 alt="綜合圖表"
                 className="mx-auto max-h-[400px] w-auto max-w-full object-contain"
               />
-              <figcaption className="mt-1 text-center text-xs text-white/50">綜合趨勢分析</figcaption>
+              <figcaption className="mt-1 text-center text-xs text-white/50">
+                綜合趨勢分析
+              </figcaption>
             </figure>
           )}
         </figure>
@@ -306,14 +308,19 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
         <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-5 backdrop-blur-md">
           <h3 className="font-semibold text-violet-200">紀錄中的情緒資料</h3>
           {payload?.title && <p className="mt-2 text-white/90">{payload.title}</p>}
-          {payload?.language && <p className="mt-1 text-sm text-white/65">主要語言：{payload.language}</p>}
+          {payload?.language && (
+            <p className="mt-1 text-sm text-white/65">主要語言：{payload.language}</p>
+          )}
           {typeof payload?.total_comments === "number" && (
             <p className="mt-1 text-sm text-white/65">分析留言數：{payload.total_comments}</p>
           )}
           {emotions && Object.keys(emotions).length > 0 && (
             <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
               {Object.entries(emotions).map(([key, value]) => (
-                <li key={key} className="flex justify-between gap-2 rounded-lg bg-black/25 px-3 py-2">
+                <li
+                  key={key}
+                  className="flex justify-between gap-2 rounded-lg bg-black/25 px-3 py-2"
+                >
                   <span className="text-white/75">{key}</span>
                   <span className="tabular-nums text-white/90">{value}</span>
                 </li>
@@ -377,7 +384,10 @@ function EmotionTopicSection({
       <h5 className={`mb-2 font-semibold ${titleClassName}`}>{title}</h5>
       <div className="space-y-3">
         {topics.map((topic, index) => (
-          <div key={`${topic.topic ?? title}-${index}`} className={`rounded-lg border p-3 ${cardClassName}`}>
+          <div
+            key={`${topic.topic ?? title}-${index}`}
+            className={`rounded-lg border p-3 ${cardClassName}`}
+          >
             <div className="mb-2 flex items-start justify-between">
               <h6 className={`font-medium ${textClassName}`}>{topic.topic}</h6>
               <span className={`text-sm ${titleClassName}`}>{topic.count} 則留言</span>
@@ -387,7 +397,10 @@ function EmotionTopicSection({
                 <p className={`mb-1 text-xs ${labelClassName}`}>關鍵字：</p>
                 <div className="flex flex-wrap gap-1">
                   {topic.keywords.map((keyword, keywordIndex) => (
-                    <span key={`${keyword}-${keywordIndex}`} className={`rounded px-2 py-1 text-xs ${tagClassName}`}>
+                    <span
+                      key={`${keyword}-${keywordIndex}`}
+                      className={`rounded px-2 py-1 text-xs ${tagClassName}`}
+                    >
                       {keyword}
                     </span>
                   ))}
@@ -405,8 +418,13 @@ function EmotionTopicSection({
                 <p className={`mb-1 text-xs ${labelClassName}`}>代表留言：</p>
                 <div className="space-y-1">
                   {topic.comments.map((comment, commentIndex) => (
-                    <p key={`${commentIndex}-${comment.slice(0, 12)}`} className={`text-xs italic ${textClassName}`}>
-                      {"\""}{comment}{"\""}
+                    <p
+                      key={`${commentIndex}-${comment.slice(0, 12)}`}
+                      className={`text-xs italic ${textClassName}`}
+                    >
+                      {'"'}
+                      {comment}
+                      {'"'}
                     </p>
                   ))}
                 </div>
@@ -425,9 +443,7 @@ function NegativePeakAnalysisCard({ analysis }) {
     : "未知";
 
   const peakSentimentLabel =
-    typeof analysis?.peak_sentiment === "number"
-      ? analysis.peak_sentiment.toFixed(2)
-      : "未知";
+    typeof analysis?.peak_sentiment === "number" ? analysis.peak_sentiment.toFixed(2) : "未知";
 
   return (
     <div className="mt-4 rounded-xl border border-red-500/30 bg-red-950/40 p-4">
@@ -455,7 +471,10 @@ function NegativePeakAnalysisCard({ analysis }) {
               <p className="mb-2 text-xs text-red-400">負面情緒分布：</p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(analysis.negative_emotions).map(([emotion, count]) => (
-                  <span key={emotion} className="rounded-full bg-red-800/50 px-3 py-1 text-xs text-red-200">
+                  <span
+                    key={emotion}
+                    className="rounded-full bg-red-800/50 px-3 py-1 text-xs text-red-200"
+                  >
                     {emotion}: {count}
                   </span>
                 ))}
@@ -468,7 +487,10 @@ function NegativePeakAnalysisCard({ analysis }) {
               <p className="mb-2 text-xs text-red-400">高峰關鍵字：</p>
               <div className="flex flex-wrap gap-1">
                 {analysis.peak_keywords.map((keyword, index) => (
-                  <span key={`${keyword}-${index}`} className="rounded bg-red-800/30 px-2 py-1 text-xs text-red-200">
+                  <span
+                    key={`${keyword}-${index}`}
+                    className="rounded bg-red-800/30 px-2 py-1 text-xs text-red-200"
+                  >
                     {keyword}
                   </span>
                 ))}
@@ -490,8 +512,13 @@ function NegativePeakAnalysisCard({ analysis }) {
               </p>
               <div className="space-y-2">
                 {analysis.peak_comments.map((comment, index) => (
-                  <p key={`${index}-${comment.slice(0, 12)}`} className="rounded bg-red-900/20 p-2 text-xs italic text-red-100">
-                    {"\""}{comment}{"\""}
+                  <p
+                    key={`${index}-${comment.slice(0, 12)}`}
+                    className="rounded bg-red-900/20 p-2 text-xs italic text-red-100"
+                  >
+                    {'"'}
+                    {comment}
+                    {'"'}
                   </p>
                 ))}
               </div>

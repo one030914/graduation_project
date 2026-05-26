@@ -8,6 +8,9 @@ const MODE_TO_CATEGORY = {
   keyword: "關鍵詞",
   topics: "主題",
   emotion: "情緒",
+  criticism: "批評",
+  timeline: "時間軸",
+  video_content: "影片內容",
 };
 
 const CATEGORY_TO_MODE = {
@@ -18,6 +21,11 @@ const CATEGORY_TO_MODE = {
   主題分析: ["topics"],
   情緒: ["emotion"],
   情緒分析: ["emotion"],
+  批評: ["criticism"],
+  批評分析: ["criticism"],
+  時間軸: ["timeline"],
+  時間軸分析: ["timeline"],
+  影片內容: ["video_content"],
 };
 
 function toHistoryRecord(record) {

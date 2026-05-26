@@ -2,20 +2,39 @@
 
 import { useRef, useState } from "react";
 import { API_BASE } from "@/lib/apiBase";
-import { AnalysisResultView, TopicsResultView, VideoContentResultView } from "@/lib/ResultViews";
+import {
+  AnalysisResultView,
+  SummaryResultView,
+  KeywordResultView,
+  TopicsResultView,
+  EmotionRecordView,
+  CriticismResultView,
+  TimelineResultView,
+  VideoContentResultView,
+} from "@/lib/ResultViews";
 import { Input } from "@/components/Input";
 import { Header } from "@/components/Header";
 import { JobStatusPanel } from "@/components/JobStatusPanel";
 
 const MODE = {
   analyze: "analyze",
+  summary: "summary",
+  keyword: "keyword",
   topics: "topics",
+  emotion: "emotion",
+  criticism: "criticism",
+  timeline: "timeline",
   videoContent: "videoContent",
 };
 
 const JOB_MODE = {
   analyze: "analyze",
+  summary: "summary",
+  keyword: "keyword",
   topics: "topics",
+  emotion: "emotion",
+  criticism: "criticism",
+  timeline: "timeline",
   videoContent: "video_content",
 };
 
@@ -31,32 +50,19 @@ export default function Page() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [visiblePanel, setVisiblePanel] = useState(null);
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [topicsResult, setTopicsResult] = useState(null);
-  const [videoContentResult, setVideoContentResult] = useState(null);
+  const [results, setResults] = useState({});
   const [jobState, setJobState] = useState(null);
   const activeJobRef = useRef(null);
 
   const updateResult = (action, result) => {
-    if (action === MODE.analyze) {
-      setAnalysisResult(result);
-      return;
-    }
-
-    if (action === MODE.topics) {
-      setTopicsResult(result);
-      return;
-    }
-
-    if (action === MODE.videoContent) {
-      setVideoContentResult(result);
-    }
+    setResults((prev) => ({
+      ...prev,
+      [action]: result,
+    }));
   };
 
   const resetOtherPanel = (action) => {
-    setAnalysisResult(null);
-    setTopicsResult(null);
-    setVideoContentResult(null);
+    setResults({});
     setVisiblePanel(action);
   };
 
@@ -125,9 +131,7 @@ export default function Page() {
     activeJobRef.current = null;
     setLoading(false);
     setJobState((prev) =>
-      prev && prev.jobId === jobId
-        ? { ...prev, status: "cancelled", error: "已停止分析。" }
-        : prev,
+      prev && prev.jobId === jobId ? { ...prev, status: "cancelled", error: "已停止分析。" } : prev,
     );
 
     try {
@@ -146,9 +150,7 @@ export default function Page() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to cancel job.";
       setJobState((prev) =>
-        prev && prev.jobId === jobId
-          ? { ...prev, status: "failed", error: message }
-          : prev,
+        prev && prev.jobId === jobId ? { ...prev, status: "failed", error: message } : prev,
       );
     }
   };
@@ -217,25 +219,40 @@ export default function Page() {
 
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
         <main className="space-y-6">
-          <Input
-            text={text}
-            loading={loading}
-            onTextChange={setText}
-            onSubmit={handleSubmit}
-          />
+          <Input text={text} loading={loading} activeAction={visiblePanel} onTextChange={setText} onSubmit={handleSubmit} />
 
           {jobState && <JobStatusPanel jobState={jobState} onCancel={handleCancelJob} />}
 
-          {visiblePanel === MODE.analyze && analysisResult && (
-            <AnalysisResultView result={analysisResult} />
+          {visiblePanel === MODE.analyze && results[MODE.analyze] && (
+            <AnalysisResultView result={results[MODE.analyze]} />
           )}
 
-          {visiblePanel === MODE.topics && topicsResult && (
-            <TopicsResultView result={topicsResult} />
+          {visiblePanel === MODE.summary && results[MODE.summary] && (
+            <SummaryResultView result={results[MODE.summary]} />
           )}
 
-          {visiblePanel === MODE.videoContent && videoContentResult && (
-            <VideoContentResultView result={videoContentResult} />
+          {visiblePanel === MODE.keyword && results[MODE.keyword] && (
+            <KeywordResultView result={results[MODE.keyword]} />
+          )}
+
+          {visiblePanel === MODE.topics && results[MODE.topics] && (
+            <TopicsResultView result={results[MODE.topics]} />
+          )}
+
+          {visiblePanel === MODE.emotion && results[MODE.emotion] && (
+            <EmotionRecordView result={results[MODE.emotion]} />
+          )}
+
+          {visiblePanel === MODE.criticism && results[MODE.criticism] && (
+            <CriticismResultView result={results[MODE.criticism]} />
+          )}
+
+          {visiblePanel === MODE.timeline && results[MODE.timeline] && (
+            <TimelineResultView result={results[MODE.timeline]} />
+          )}
+
+          {visiblePanel === MODE.videoContent && results[MODE.videoContent] && (
+            <VideoContentResultView result={results[MODE.videoContent]} />
           )}
         </main>
       </div>

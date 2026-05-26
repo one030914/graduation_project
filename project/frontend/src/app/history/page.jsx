@@ -10,6 +10,9 @@ const CATEGORIES = [
   { value: "關鍵詞", label: "關鍵詞" },
   { value: "主題", label: "主題" },
   { value: "情緒", label: "情緒" },
+  { value: "批評", label: "批評" },
+  { value: "時間軸", label: "時間軸" },
+  { value: "影片內容", label: "影片內容" },
 ];
 
 function formatWhen(record) {

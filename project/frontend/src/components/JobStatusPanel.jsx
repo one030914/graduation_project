@@ -1,4 +1,15 @@
 export function JobStatusPanel({ jobState, onCancel }) {
+  const actionLabels = {
+    analyze: "留言分析",
+    summary: "摘要分析",
+    keyword: "關鍵詞分析",
+    topics: "主題分析",
+    emotion: "情緒分析",
+    criticism: "批評分析",
+    timeline: "時間軸分析",
+    videoContent: "影片內容",
+  };
+
   const statusLabel = {
     submitting: "提交中",
     queued: "排隊中",
@@ -8,12 +19,7 @@ export function JobStatusPanel({ jobState, onCancel }) {
     cancelled: "已停止",
   }[jobState.status] || `未知狀態：${jobState.status}`;
 
-  const actionLabel =
-    jobState.action === "topics"
-      ? "主題分析"
-      : jobState.action === "videoContent"
-        ? "影片內容"
-        : "留言分析";
+  const actionLabel = actionLabels[jobState.action] || "分析";
 
   const isActive = ["submitting", "queued", "running"].includes(jobState.status);
   const isRunning = jobState.status === "running";
