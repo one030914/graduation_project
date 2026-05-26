@@ -9,6 +9,7 @@ from pipeline.timeline import build_timeline_from_dataset
 from pipeline.summary import build_summary_from_dataset
 from pipeline.keyword import build_keyword_from_dataset
 from pipeline.criticism import analyze_comment_criticism_from_dataset
+from pipeline.video_content import build_video_content
 from agents.analyze_agent import AnalyzeAgent
 
 from scripts.timestamp import Timer
@@ -60,6 +61,7 @@ def _collect_data_quality(data_sources: dict[str, str]) -> list[str]:
         "topics": "主題",
         "criticism": "批評",
         "timeline": "時間軸",
+        "video_content": "影片內容",
     }
 
     notes = []
@@ -281,6 +283,14 @@ def build_analyze(url: str) -> AnalyzeResult:
     timeline = build_timeline_from_dataset(timeline_dataset)
     
     timer.mark("build_timeline")
+    
+    video_content = None
+    try:
+        video_content = build_video_content(url)
+    except Exception as exc:
+        print(f"VideoContent failed: {exc}")
+    
+    timer.mark("build_video_content")
 
     title = (
         dataset.title
@@ -306,6 +316,7 @@ def build_analyze(url: str) -> AnalyzeResult:
         topics=topics,
         criticism=criticism,
         timeline=timeline,
+        video_content=video_content,
     )
     data_quality = _collect_data_quality(data_sources)
 
@@ -404,6 +415,26 @@ def build_analyze(url: str) -> AnalyzeResult:
                 for h in getattr(timeline, "hotspots", [])[:3]
             ],
         },
+        "video_content": {
+            "label": "影片內容脈絡",
+            "purpose": "提供影片主題、內容摘要、章節與創作者建議，用來校正留言解讀，避免只靠留言誤判影片內容。",
+            "status": _result_status(video_content),
+            "summary_text": getattr(video_content, "summary_text", ""),
+            "final_conclusion": getattr(video_content, "final_conclusion", ""),
+            "recommended_audience": getattr(video_content, "recommended_audience", ""),
+            "action_suggestions": getattr(video_content, "action_suggestions", [])[:5],
+            "chapter_timeline": [
+                {
+                    "start_seconds": getattr(chapter, "start_seconds", 0),
+                    "end_seconds": getattr(chapter, "end_seconds", 0),
+                    "title": getattr(chapter, "title", ""),
+                    "summary": getattr(chapter, "summary", ""),
+                    "keywords": getattr(chapter, "keywords", [])[:5],
+                    "importance": getattr(chapter, "importance", "medium"),
+                }
+                for chapter in getattr(video_content, "chapter_timeline", [])[:5]
+            ],
+        }
     }
 
     try:
@@ -426,8 +457,9 @@ def build_analyze(url: str) -> AnalyzeResult:
         or ""
     )
     
-    print("=== ANALYZE TIMING REPORT ===\n")
+    print("=== ANALYZE TIMING REPORT ===")
     print(timer.report())
+    print(f"Total time: {timer.total()} seconds")
 
     return AnalyzeResult(
         video_id=video_id,

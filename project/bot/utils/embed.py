@@ -1085,6 +1085,9 @@ def build_analyze_embed(result) -> discord.Embed:
     total_comments = int(getattr(result, "total_comments", 0) or 0)
     main_emotion = getattr(result, "main_emotion", "") or "未知"
     timeline_status = getattr(result, "timeline_status", "") or "unknown"
+    
+    data_sources = getattr(result, "data_sources", {}) or {}
+    video_content_status = data_sources.get("video_content", "missing")
 
     embed = discord.Embed(
         title="📊 YouTube 留言 AI 主分析",
@@ -1102,7 +1105,8 @@ def build_analyze_embed(result) -> discord.Embed:
             value=(
                 f"本次共分析 `{total_comments}` 則留言。\n"
                 f"主導情緒：**{main_emotion}**\n"
-                f"時間軸狀態：`{timeline_status}`"
+                f"時間軸狀態：`{timeline_status}`\n"
+                f"影片內容脈絡：`{video_content_status}`"
             ),
             inline=False,
         )
@@ -1161,7 +1165,6 @@ def build_analyze_embed(result) -> discord.Embed:
             inline=False,
         )
 
-    data_sources = getattr(result, "data_sources", {}) or {}
     if data_sources:
         embed.add_field(
             name="🧩 子分析來源狀態",
@@ -1171,7 +1174,7 @@ def build_analyze_embed(result) -> discord.Embed:
 
     embed.set_footer(
         text=(
-            "Analyze：整合摘要、情緒、主題、批評、關鍵詞與時間軸分析產生。"
+            "Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。"
         )
     )
 

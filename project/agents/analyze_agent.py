@@ -36,6 +36,7 @@ class AnalyzeAgent(BaseAgent):
         - keyword_context：熱門標籤與關鍵詞，適合產生 tags。
         - timeline_context：留言提及的影片時間點熱點，適合產生觀看提示。
         - data_quality：資料不足或失敗提醒，不得忽略。
+        - video_content：影片內容脈絡，提供影片摘要、章節與創作者建議，用來避免只靠留言誤判影片主題。
 
         要求：
         1. 不要重新分類留言。
