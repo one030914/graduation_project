@@ -62,8 +62,8 @@ export function TopicsBarChart({ data = [] }) {
               key={`${item.name}-featured-${index}`}
               className="flex items-center gap-3 rounded-xl border border-indigo-300/10 bg-indigo-400/8 px-4 py-3 text-sm text-white/72"
             >
-              <span className="shrink-0 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-black text-white shadow-[0_8px_18px_rgba(99,102,241,0.28)]">
-                {item.count || Math.round(item.ratio)} 則留言參與討論
+              <span>
+                {item.count > 0 ? `${item.count} 則留言` : `${Math.round(item.ratio)}% 佔比`}
               </span>
               <span className="min-w-0 truncate font-semibold">{item.name}</span>
             </div>

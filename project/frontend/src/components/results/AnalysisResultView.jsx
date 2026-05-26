@@ -4,7 +4,7 @@ import { clip, fmtKeywords, fmtList } from "@/lib/analysisFormat";
 import { OpinionGauge } from "@/components/charts/OpinionGauge";
 import { TopicsBarChart } from "@/components/charts/TopicsBarChart";
 import { TimelineLineChart } from "@/components/charts/TimelineLineChart";
-import { EmotionBarChart } from "@/components/charts/EmotionBarChart";
+import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
 import { CriticismChart } from "@/components/charts/CriticismChart";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
 import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
@@ -53,6 +53,16 @@ function SourceStatusStrip({ sources }) {
   const entries = Object.entries(sources);
   if (entries.length === 0) return null;
 
+  const SOURCE_LABELS = {
+    summary: "摘要",
+    keyword: "關鍵詞",
+    emotion: "情緒",
+    topics: "主題",
+    criticism: "批評",
+    timeline: "時間軸",
+    video_content: "影片內容",
+  };
+
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-white/45">
       <div className="flex flex-wrap items-center gap-2">
@@ -62,7 +72,7 @@ function SourceStatusStrip({ sources }) {
             key={key}
             className={`rounded-full border px-2.5 py-1 font-black ${getSourceStatusClass(value)}`}
           >
-            {key}: {String(value)}
+            {SOURCE_LABELS[key] || key}: {String(value)}
           </span>
         ))}
       </div>
@@ -105,7 +115,7 @@ export function AnalysisResultView({ result }) {
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
         <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
-            Analysis Result
+            YouTube 留言綜合分析
           </p>
           <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
             標題：{clip(result.title || result.video_id, 256)}
@@ -157,7 +167,7 @@ export function AnalysisResultView({ result }) {
           )}
 
           {/* 情緒心理圖譜 */}
-          <EmotionBarChart data={emotionDashboard.chart_data ?? []} />
+          <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
 
           {/* 批評與改善訊號 */}
           <CriticismChart data={criticismDashboard.chart_data ?? []} />

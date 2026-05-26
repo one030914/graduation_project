@@ -4,6 +4,12 @@ function fmtPercent(value) {
   return `${((Number(value) || 0) * 100).toFixed(1)}%`;
 }
 
+function normalizeRatio(value) {
+  const ratio = Number(value ?? 0);
+  if (ratio > 1) return ratio / 100;
+  return ratio;
+}
+
 export function CriticismChart({ data = [] }) {
   const chartData = data
     .map((item) => ({
@@ -22,7 +28,7 @@ export function CriticismChart({ data = [] }) {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {chartData.map((item, index) => {
-          const width = Math.max(8, Math.min(100, item.value * 100));
+          const width = Math.max(8, Math.min(100, normalizeRatio(item.value) * 100));
           const tone = index === 0 ? "from-amber-400 to-orange-400" : "from-indigo-400 to-violet-400";
 
           return (
