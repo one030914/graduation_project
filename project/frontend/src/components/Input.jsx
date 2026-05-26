@@ -3,14 +3,14 @@
 export function Input({ text, loading, activeAction, onTextChange, onSubmit }) {
   const createClickHandler = (action) => () => onSubmit(action);
   const actions = [
-    { action: "analyze", label: "留言分析", description: "整體", activeTone: "from-indigo-500 to-sky-500", accent: "bg-indigo-300" },
-    { action: "summary", label: "摘要", description: "重點", activeTone: "from-violet-500 to-fuchsia-500", accent: "bg-violet-300" },
-    { action: "keyword", label: "關鍵詞", description: "詞頻", activeTone: "from-amber-500 to-orange-500", accent: "bg-amber-300" },
-    { action: "topics", label: "主題", description: "群集", activeTone: "from-sky-500 to-blue-500", accent: "bg-sky-300" },
-    { action: "emotion", label: "情緒", description: "傾向", activeTone: "from-rose-500 to-pink-500", accent: "bg-rose-300" },
-    { action: "criticism", label: "批評", description: "問題", activeTone: "from-red-500 to-rose-500", accent: "bg-red-300" },
-    { action: "timeline", label: "時間軸", description: "脈絡", activeTone: "from-cyan-500 to-teal-500", accent: "bg-cyan-300" },
-    { action: "videoContent", label: "影片內容", description: "章節", activeTone: "from-emerald-500 to-green-500", accent: "bg-emerald-300" },
+    { action: "analyze", label: "綜合分析", description: "整體", activeTone: "from-indigo-500 to-sky-500", accent: "bg-indigo-300" },
+    { action: "summary", label: "留言摘要", description: "重點", activeTone: "from-violet-500 to-fuchsia-500", accent: "bg-violet-300" },
+    { action: "keyword", label: "熱門關鍵詞", description: "詞頻", activeTone: "from-amber-500 to-orange-500", accent: "bg-amber-300" },
+    { action: "topics", label: "熱門主題", description: "群集", activeTone: "from-sky-500 to-blue-500", accent: "bg-sky-300" },
+    { action: "emotion", label: "情緒風向", description: "傾向", activeTone: "from-rose-500 to-pink-500", accent: "bg-rose-300" },
+    { action: "criticism", label: "批評回饋", description: "問題", activeTone: "from-red-500 to-rose-500", accent: "bg-red-300" },
+    { action: "timeline", label: "時間軸熱點", description: "脈絡", activeTone: "from-cyan-500 to-teal-500", accent: "bg-cyan-300" },
+    { action: "videoContent", label: "影片內容脈絡", description: "章節", activeTone: "from-emerald-500 to-green-500", accent: "bg-emerald-300" },
   ];
 
   return (

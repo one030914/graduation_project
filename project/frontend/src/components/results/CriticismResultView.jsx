@@ -1,13 +1,11 @@
 "use client";
 
 import { clip, fmtList } from "@/lib/analysisFormat";
+import { CriticismChart } from "@/components/charts/CriticismChart";
+import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function severityLabel(level) {
-  const map = {
-    low: "低",
-    medium: "中",
-    high: "高",
-  };
+  const map = { low: "低", medium: "中", high: "高" };
   return map[level] || level || "未知";
 }
 
@@ -33,80 +31,66 @@ export function CriticismResultView({ result }) {
   const chartData = result.chart_data ?? [];
 
   return (
-    <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-6 shadow-inner backdrop-blur-md">
-      <h2 className="text-xl font-bold">
-        批評與改善回饋：{clip(result.title || result.video_id, 256)}
-      </h2>
+    <ResultShell label="Criticism" title={`批評與改善回饋：${clip(result.title || result.video_id, 256)}`}>
+      <ResultCard title="批評訊號概況">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <InfoTile label="分析狀態" value={result.status || "ok"} />
+          <InfoTile label="分析留言數" value={`${result.analyzed_comments ?? 0} / ${result.total_comments ?? 0}`} />
+          <InfoTile label="批評強度" value={severityLabel(result.severity_level)} tone="red" />
+          <InfoTile label="主要批評" value={`${result.criticism_count ?? 0} 項`} />
+          <InfoTile label="不滿原因" value={`${result.reason_count ?? 0} 項`} />
+          <InfoTile label="改進建議" value={`${result.suggestion_count ?? 0} 項`} />
+        </div>
+        {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
+      </ResultCard>
 
-      <div className="mt-6 space-y-5">
-        <section>
-          <h3 className="font-semibold text-indigo-200">批評訊號概況</h3>
-          <p className="mt-2 whitespace-pre-line text-white/90">
-            {`分析狀態：${result.status || "ok"}
-                        分析留言數：${result.analyzed_comments ?? 0} / ${result.total_comments ?? 0}
-                        批評強度：${severityLabel(result.severity_level)}
-                        主要批評：${result.criticism_count ?? 0} 項
-                        不滿原因：${result.reason_count ?? 0} 項
-                        改進建議：${result.suggestion_count ?? 0} 項`}
-          </p>
-          {result.message && <p className="mt-2 text-sm text-amber-200">{result.message}</p>}
-        </section>
+      {chartData.length > 0 && <CriticismChart data={chartData} />}
 
-        {chartData.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">批評類型分布</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {chartData.map((item) => (
-                <span
-                  key={item.key || item.label}
-                  className="rounded-full bg-red-500/15 px-3 py-1 text-sm text-red-100"
-                >
-                  {item.label}：{item.count}（{fmtPercent(item.value)}）
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
+      {chartData.length > 0 && (
+        <ResultCard title="批評類型分布" tone="red">
+          <div className="flex flex-wrap gap-2">
+            {chartData.map((item) => (
+              <span key={item.key || item.label} className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-sm font-black text-red-100">
+                {item.label}：{item.count}（{fmtPercent(item.value)}）
+              </span>
+            ))}
+          </div>
+        </ResultCard>
+      )}
 
+      <div className="grid gap-5 lg:grid-cols-2">
         {mainCriticisms.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-red-200">主要批評與抱怨痛點</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(mainCriticisms)}</p>
-          </section>
+          <ResultCard title="主要批評與抱怨痛點" tone="red" className="h-full">
+            <p className="whitespace-pre-line">{fmtList(mainCriticisms)}</p>
+          </ResultCard>
         )}
 
         {reasons.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-amber-200">觀眾不滿原因</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(reasons)}</p>
-          </section>
+          <ResultCard title="觀眾不滿原因" tone="amber" className="h-full">
+            <p className="whitespace-pre-line">{fmtList(reasons)}</p>
+          </ResultCard>
         )}
 
         {suggestions.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-emerald-200">觀眾提出的改進建議</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(suggestions)}</p>
-          </section>
+          <ResultCard title="觀眾提出的改進建議" tone="emerald" className="h-full">
+            <p className="whitespace-pre-line">{fmtList(suggestions)}</p>
+          </ResultCard>
         )}
 
         {actionItems.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">可轉換為創作者行動</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(actionItems)}</p>
-          </section>
+          <ResultCard title="可轉換為創作者行動" className="h-full">
+            <p className="whitespace-pre-line">{fmtList(actionItems)}</p>
+          </ResultCard>
         )}
-
-        {mainCriticisms.length === 0 && reasons.length === 0 && suggestions.length === 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">批評結果</h3>
-            <p className="mt-2 text-white/90">目前沒有形成明確批評、抱怨或改進建議。</p>
-          </section>
-        )}
-
-        <footer className="border-t border-white/10 pt-4 text-sm text-white/50">
-          Criticism：資料不足時不代表風向良好。
-        </footer>
       </div>
-    </article>
+
+      {mainCriticisms.length === 0 && reasons.length === 0 && suggestions.length === 0 && (
+        <ResultCard title="批評結果">
+          <p>目前沒有形成明確批評、抱怨或改進建議。</p>
+        </ResultCard>
+      )}
+
+      <ResultFooter>Criticism：資料不足時不代表風向良好。</ResultFooter>
+    </ResultShell>
   );
 }

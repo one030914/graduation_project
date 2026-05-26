@@ -1,6 +1,74 @@
 "use client";
 
 import { clip, fmtKeywords, fmtList } from "@/lib/analysisFormat";
+import { OpinionGauge } from "@/components/charts/OpinionGauge";
+import { TopicsBarChart } from "@/components/charts/TopicsBarChart";
+import { TimelineLineChart } from "@/components/charts/TimelineLineChart";
+import { EmotionBarChart } from "@/components/charts/EmotionBarChart";
+import { CriticismChart } from "@/components/charts/CriticismChart";
+import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
+import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
+
+function TextCard({ title, children, tone = "indigo", className = "" }) {
+  const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";
+
+  return (
+    <section
+      className={`rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md ${className}`}
+    >
+      <h3 className={`text-lg font-black tracking-normal ${titleClass}`}>{title}</h3>
+      <div className="mt-4 text-sm font-semibold leading-7 text-white/72">{children}</div>
+    </section>
+  );
+}
+
+function InfoTile({ label, value }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 ring-1 ring-white/5">
+      <p className="text-xs font-bold text-white/42">{label}</p>
+      <p className="mt-1 break-words text-sm font-black text-white/88">{String(value)}</p>
+    </div>
+  );
+}
+
+function getSourceStatusClass(value) {
+  const status = String(value).toLowerCase();
+
+  if (status.includes("error")) {
+    return "border-rose-300/20 bg-rose-400/10 text-rose-200";
+  }
+
+  if (status.includes("insufficient_data")) {
+    return "border-amber-300/20 bg-amber-400/10 text-amber-200";
+  }
+
+  if (status.includes("ok")) {
+    return "border-emerald-300/20 bg-emerald-400/10 text-emerald-200";
+  }
+
+  return "border-slate-300/15 bg-slate-400/10 text-slate-200";
+}
+
+function SourceStatusStrip({ sources }) {
+  const entries = Object.entries(sources);
+  if (entries.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-white/45">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-white/38">子分析來源狀態</span>
+        {entries.map(([key, value]) => (
+          <span
+            key={key}
+            className={`rounded-full border px-2.5 py-1 font-black ${getSourceStatusClass(value)}`}
+          >
+            {key}: {String(value)}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function AnalysisResultView({ result }) {
   if (!result) return null;
@@ -21,156 +89,173 @@ export function AnalysisResultView({ result }) {
     const quickSummary = result.quick_summary ?? [];
     const creatorActions = result.creator_actions ?? [];
     const viewerTips = result.viewer_tips ?? [];
-    const topTopics = result.top_topics ?? [];
     const topHotspot = result.top_hotspot ?? null;
     const mainEmotion = result.main_emotion || "未知";
     const dataSources = result.data_sources || {};
     const dataQuality = result.data_quality || [];
+    const dashboardData = result.dashboard_data ?? {};
+    const topicsDashboard = dashboardData.topics ?? {};
+    const timelineDashboard = dashboardData.timeline ?? {};
+    const emotionDashboard = dashboardData.emotion ?? {};
+    const criticismDashboard = dashboardData.criticism ?? {};
+    const keywordDashboard = dashboardData.keyword ?? {};
+    const videoContentDashboard = dashboardData.video_content ?? {};
 
     return (
-      <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-6 shadow-inner backdrop-blur-md">
-        <h2 className="text-xl font-bold">標題：{clip(result.title || result.video_id, 256)}</h2>
+      <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
+        <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
+            Analysis Result
+          </p>
+          <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
+            標題：{clip(result.title || result.video_id, 256)}
+          </h2>
+        </div>
 
         <div className="mt-6 space-y-5">
-          <section>
-            <h3 className="font-semibold text-indigo-200">整體風向</h3>
-            <p className="mt-2 text-white/90">
-              {label} · {score}/100
-            </p>
-          </section>
+          {/* 分析範圍 */}
+          <TextCard title="分析範圍">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <InfoTile label="總留言數" value={result.total_comments ?? 0} />
+              <InfoTile label="主導情緒" value={mainEmotion} />
+              <InfoTile label="時間軸狀態" value={result.timeline_status || "unknown"} />
+              <InfoTile label="影片內容脈絡" value={dataSources.video_content || "missing"} />
+            </div>
+          </TextCard>
 
-          <section>
-            <h3 className="font-semibold text-indigo-200">分析範圍</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">
-              {`總留言數：${result.total_comments ?? 0}
-              主導情緒：${mainEmotion}
-              時間軸狀態：${result.timeline_status || "unknown"}
-              影片內容脈絡：${dataSources.video_content || "missing"}`}
-            </p>
-          </section>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* 整體風向 */}
+            <OpinionGauge
+              score={emotionDashboard.opinion_score ?? score}
+              label={emotionDashboard.opinion_label ?? label}
+            />
+            {/* 熱門討論焦點 */}
+            <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
+          </div>
 
-          {dataQuality.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-amber-200">資料品質提醒</h3>
-              <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(dataQuality)}</p>
-            </section>
+          {/* AI 智慧快報 */}
+          {quickSummary.length > 0 && (
+            <TextCard title="AI 智慧快報">
+              <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
+            </TextCard>
           )}
 
-          {Object.keys(dataSources).length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">子分析來源狀態</h3>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {Object.entries(dataSources).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+          {/* 留言區標籤 */}
+          {tags.length > 0 && (
+            <TextCard title="留言區標籤">
+              <div className="flex flex-wrap gap-2">
+                {tags.slice(0, 8).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-sm font-black text-indigo-100"
                   >
-                    <p className="text-xs text-white/50">{key}</p>
-                    <p className="text-sm text-white/90">{String(value)}</p>
-                  </div>
+                    #{tag}
+                  </span>
                 ))}
               </div>
-            </section>
+            </TextCard>
           )}
 
-          {quickSummary.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">AI 智慧快報</h3>
-              <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(quickSummary)}</p>
-            </section>
+          {/* 情緒心理圖譜 */}
+          <EmotionBarChart data={emotionDashboard.chart_data ?? []} />
+
+          {/* 批評與改善訊號 */}
+          <CriticismChart data={criticismDashboard.chart_data ?? []} />
+
+          {/* 熱門關鍵詞 */}
+          <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
+
+          {/* 留言時間軸熱點 */}
+          <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+
+          {/* 影片內容脈絡 */}
+          <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            {/* 創作者行動建議 */}
+            {creatorActions.length > 0 && (
+              <TextCard title="創作者行動建議" className="h-full">
+                <p className="whitespace-pre-line">{fmtList(creatorActions)}</p>
+              </TextCard>
+            )}
+
+            {/* 觀眾觀看提示 */}
+            {viewerTips.length > 0 && (
+              <TextCard title="觀眾觀看提示" className="h-full">
+                <p className="whitespace-pre-line">{fmtList(viewerTips)}</p>
+              </TextCard>
+            )}
+          </div>
+
+          {/* 資料品質提醒 */}
+          {dataQuality.length > 0 && (
+            <TextCard title="資料品質提醒" tone="amber">
+              <p className="whitespace-pre-line">{fmtList(dataQuality)}</p>
+            </TextCard>
           )}
 
-          {tags.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">留言區標籤</h3>
-              <p className="mt-2 text-white/90">{tags.map((tag) => `#${tag}`).join(" ")}</p>
-            </section>
-          )}
+          {/* 子分析來源狀態 */}
+          <SourceStatusStrip sources={dataSources} />
 
-          {topTopics.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">熱門討論主題</h3>
-              <p className="mt-2 text-white/90">{fmtKeywords(topTopics)}</p>
-            </section>
-          )}
-
-          {topHotspot && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">最高討論片段</h3>
-              <p className="mt-2 whitespace-pre-line text-white/90">
-                {topHotspot.time_label} 附近被留言提及 {topHotspot.count ?? 0} 次
-                {topHotspot.representative_comment ? `\n${topHotspot.representative_comment}` : ""}
-              </p>
-            </section>
-          )}
-
-          {creatorActions.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">創作者行動建議</h3>
-              <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(creatorActions)}</p>
-            </section>
-          )}
-
-          {viewerTips.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-indigo-200">觀眾觀看提示</h3>
-              <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(viewerTips)}</p>
-            </section>
-          )}
-
-          <footer className="border-t border-white/10 pt-4 text-sm text-white/50">
-            總留言數：{result.total_comments ?? 0}
-          </footer>
+          <ResultFooter>
+            <p>Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。</p>
+            <p>長影片會因字幕分析而需要較久時間，且可能因字幕品質影響分析結果。</p>
+          </ResultFooter>
         </div>
       </article>
     );
   }
 
   return (
-    <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-6 shadow-inner backdrop-blur-md">
-      <h2 className="text-xl font-bold">標題：{clip(result.title || result.video_id, 256)}</h2>
+    <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
+      <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
+          Analysis Result
+        </p>
+        <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
+          標題：{clip(result.title || result.video_id, 256)}
+        </h2>
+      </div>
 
       <div className="mt-6 space-y-5">
         {result.summary_zh?.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">中文摘要</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(result.summary_zh)}</p>
-          </section>
+          <TextCard title="中文摘要">
+            <p className="whitespace-pre-line">{fmtList(result.summary_zh)}</p>
+          </TextCard>
         )}
 
         {result.summary_en?.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">English summary</h3>
-            <p className="mt-2 whitespace-pre-line text-white/90">{fmtList(result.summary_en)}</p>
-          </section>
+          <TextCard title="English summary">
+            <p className="whitespace-pre-line">{fmtList(result.summary_en)}</p>
+          </TextCard>
         )}
 
         {result.keywords_zh?.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">中文關鍵字</h3>
-            <p className="mt-2 text-white/90">{fmtKeywords(result.keywords_zh)}</p>
-          </section>
+          <TextCard title="中文關鍵字">
+            <p>{fmtKeywords(result.keywords_zh)}</p>
+          </TextCard>
         )}
 
         {result.keywords_en?.length > 0 && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">English keywords</h3>
-            <p className="mt-2 text-white/90">{fmtKeywords(result.keywords_en)}</p>
-          </section>
+          <TextCard title="English keywords">
+            <p>{fmtKeywords(result.keywords_en)}</p>
+          </TextCard>
         )}
 
         {result.lang_ratio && (
-          <section>
-            <h3 className="font-semibold text-indigo-200">語言佔比</h3>
-            <p className="mt-2 text-white/90">
-              中文：{((result.lang_ratio.zh ?? 0) * 100).toFixed(1)}% · 英文：
-              {((result.lang_ratio.en ?? 0) * 100).toFixed(1)}% · 其他：
-              {((result.lang_ratio.other ?? 0) * 100).toFixed(1)}%
-            </p>
-          </section>
+          <TextCard title="語言佔比">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoTile label="中文" value={`${((result.lang_ratio.zh ?? 0) * 100).toFixed(1)}%`} />
+              <InfoTile label="英文" value={`${((result.lang_ratio.en ?? 0) * 100).toFixed(1)}%`} />
+              <InfoTile
+                label="其他"
+                value={`${((result.lang_ratio.other ?? 0) * 100).toFixed(1)}%`}
+              />
+            </div>
+          </TextCard>
         )}
 
-        <footer className="border-t border-white/10 pt-4 text-sm text-white/50">
+        <footer className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm font-semibold text-white/45">
           總留言數：{result.stats?.n_comments ?? 0}
         </footer>
       </div>

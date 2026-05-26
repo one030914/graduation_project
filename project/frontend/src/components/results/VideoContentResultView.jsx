@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { clip } from "@/lib/analysisFormat";
+import { InfoTile, ResultCard, ResultShell } from "@/components/results/ResultCards";
 
 function formatSource(source) {
   if (source === "caption") return "手動 CC 字幕";
@@ -63,11 +64,14 @@ export function VideoContentResultView({ result }) {
   const [chapterQuery, setChapterQuery] = useState("");
 
   const safeResult = result ?? {};
-  const legacySummary = safeResult.summary_zh?.length > 0 ? safeResult.summary_zh : safeResult.summary_en;
+  const legacySummary =
+    safeResult.summary_zh?.length > 0 ? safeResult.summary_zh : safeResult.summary_en;
   const summaryText = String(safeResult.summary_text || legacySummary?.join(" ") || "").trim();
   const finalConclusion = String(safeResult.final_conclusion || "").trim();
   const recommendedAudience = String(safeResult.recommended_audience || "").trim();
-  const actionSuggestions = Array.isArray(safeResult.action_suggestions) ? safeResult.action_suggestions : [];
+  const actionSuggestions = Array.isArray(safeResult.action_suggestions)
+    ? safeResult.action_suggestions
+    : [];
   const transcriptWordCount = formatCount(safeResult.transcript_word_count);
   const chapters = Array.isArray(safeResult.chapter_timeline) ? safeResult.chapter_timeline : [];
   const normalizedChapterQuery = chapterQuery.trim().toLowerCase();
@@ -96,57 +100,57 @@ export function VideoContentResultView({ result }) {
   }
 
   return (
-    <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-6 shadow-inner backdrop-blur-md">
-      <h2 className="text-xl font-bold">{clip(safeResult.title || "影片內容分析", 256)}</h2>
+    <ResultShell label="Video Content" title={clip(safeResult.title || "影片內容分析", 256)}>
+      <ResultCard title="逐字稿資訊" tone="emerald">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <InfoTile
+            label="逐字稿來源"
+            value={formatSource(safeResult.transcript_source)}
+            tone="emerald"
+          />
+          {safeResult.language && <InfoTile label="語言" value={safeResult.language} />}
+          {transcriptWordCount && <InfoTile label="逐字稿總字數" value={transcriptWordCount} />}
+        </div>
+      </ResultCard>
+      {summaryText && (
+        <ResultCard title="摘要" tone="emerald">
+          <p>{summaryText}</p>
+        </ResultCard>
+      )}
 
-      <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/65">
-        <span>逐字稿來源：{formatSource(safeResult.transcript_source)}</span>
-        {safeResult.language && <span>語言：{safeResult.language}</span>}
-        {transcriptWordCount && <span>逐字稿總字數：{transcriptWordCount}</span>}
-      </div>
+      {(finalConclusion || recommendedAudience || actionSuggestions.length > 0) && (
+        <ResultCard title="結論與行動建議" tone="emerald">
+          <div className="space-y-3">
+            {finalConclusion && <p>{finalConclusion}</p>}
+            {recommendedAudience && (
+              <p>
+                <span className="font-black text-white">適合對象：</span>
+                {recommendedAudience}
+              </p>
+            )}
+            {actionSuggestions.length > 0 && (
+              <ul className="list-disc space-y-1 pl-5">
+                {actionSuggestions.slice(0, 5).map((item, index) => (
+                  <li key={`${item}-${index}`}>{clip(item, 180)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </ResultCard>
+      )}
 
-      <div className="mt-6 space-y-5">
-        {summaryText && (
-          <section>
-            <h3 className="font-semibold text-emerald-200">摘要</h3>
-            <p className="mt-2 leading-7 text-white/90">{summaryText}</p>
-          </section>
-        )}
+      <ResultCard title="逐字稿品質提示" tone="emerald">
+        <p>
+          {getQualityNote(safeResult.transcript_source)}
+          {transcriptWordCount ? ` 目前可讀字數約 ${transcriptWordCount}。` : ""}
+        </p>
+      </ResultCard>
 
-        {(finalConclusion || recommendedAudience || actionSuggestions.length > 0) && (
-          <section>
-            <h3 className="font-semibold text-emerald-200">結論與行動建議</h3>
-            <div className="mt-2 space-y-3 text-white/90">
-              {finalConclusion && <p className="leading-7">{finalConclusion}</p>}
-              {recommendedAudience && (
-                <p className="leading-7">
-                  <span className="font-medium text-white">適合對象：</span>
-                  {recommendedAudience}
-                </p>
-              )}
-              {actionSuggestions.length > 0 && (
-                <ul className="list-disc space-y-1 pl-5 leading-7">
-                  {actionSuggestions.slice(0, 5).map((item, index) => (
-                    <li key={`${item}-${index}`}>{clip(item, 180)}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-        )}
-
-        <section>
-          <h3 className="font-semibold text-emerald-200">逐字稿品質提示</h3>
-          <p className="mt-2 leading-6 text-white/75">
-            {getQualityNote(safeResult.transcript_source)}
-            {transcriptWordCount ? ` 目前可讀字數約 ${transcriptWordCount}。` : ""}
-          </p>
-        </section>
-
-        {chapters.length > 0 && (
+      {chapters.length > 0 && (
+        <ResultCard title="章節時間軸" tone="emerald">
           <section>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="font-semibold text-emerald-200">章節時間軸</h3>
+              <div />
               <input
                 type="search"
                 value={chapterQuery}
@@ -189,7 +193,9 @@ export function VideoContentResultView({ result }) {
                             {getImportanceLabel(chapter.importance)}
                           </span>
                         </div>
-                        <h4 className="mt-1 font-semibold text-white">{clip(chapter.title || "重點片段", 120)}</h4>
+                        <h4 className="mt-1 font-semibold text-white">
+                          {clip(chapter.title || "重點片段", 120)}
+                        </h4>
                       </div>
                       {timestampUrl ? (
                         <a
@@ -231,8 +237,8 @@ export function VideoContentResultView({ result }) {
               )}
             </div>
           </section>
-        )}
-      </div>
-    </article>
+        </ResultCard>
+      )}
+    </ResultShell>
   );
 }

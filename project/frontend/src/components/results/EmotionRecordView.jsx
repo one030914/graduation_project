@@ -204,7 +204,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
         </p>
       )}
       {imageSrc && (
-        <figure className="overflow-hidden rounded-2xl border border-white/15 bg-black/30 p-4">
+        <figure className="overflow-hidden rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
           <img
             src={imageSrc}
             alt="情緒雷達圖"
@@ -262,7 +262,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
           )}
 
           {emotionSubPanel === EMOTION_PANEL.topics && emotionTopicsResult && (
-            <div className="mt-4 rounded-xl border border-white/15 bg-black/30 p-4">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 ring-1 ring-white/5">
               {emotionTopicsResult.error ? (
                 <div className="text-center text-red-400">
                   <p>情緒話題分析失敗</p>
@@ -275,7 +275,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
           )}
 
           {emotionSubPanel === EMOTION_PANEL.trend && trendChart && (
-            <figure className="mt-4 overflow-hidden rounded-xl border border-white/15 bg-black/30 p-3">
+            <figure className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 ring-1 ring-white/5">
               <img
                 src={trendChart}
                 alt="趨勢圖表"
@@ -290,7 +290,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
           )}
 
           {emotionSubPanel === EMOTION_PANEL.combined && combinedChart && (
-            <figure className="mt-4 overflow-hidden rounded-xl border border-white/15 bg-black/30 p-3">
+            <figure className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 ring-1 ring-white/5">
               <img
                 src={combinedChart}
                 alt="綜合圖表"
@@ -305,8 +305,8 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
       )}
 
       {(payload?.title || payload?.language != null || emotions) && (
-        <article className="rounded-2xl border border-white/15 bg-gray-900/50 p-5 backdrop-blur-md">
-          <h3 className="font-semibold text-violet-200">紀錄中的情緒資料</h3>
+        <article className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+          <h3 className="text-lg font-black tracking-normal text-violet-200">紀錄中的情緒資料</h3>
           {payload?.title && <p className="mt-2 text-white/90">{payload.title}</p>}
           {payload?.language && (
             <p className="mt-1 text-sm text-white/65">主要語言：{payload.language}</p>
@@ -319,7 +319,7 @@ export function EmotionRecordView({ youtubeUrl, payload }) {
               {Object.entries(emotions).map(([key, value]) => (
                 <li
                   key={key}
-                  className="flex justify-between gap-2 rounded-lg bg-black/25 px-3 py-2"
+                  className="flex justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 ring-1 ring-white/5"
                 >
                   <span className="text-white/75">{key}</span>
                   <span className="tabular-nums text-white/90">{value}</span>
