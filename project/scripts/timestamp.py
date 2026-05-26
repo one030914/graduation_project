@@ -12,3 +12,6 @@ class Timer:
 
     def report(self) -> dict:
         return {name: round(sec, 3) for name, sec in self.marks}
+    
+    def total(self) -> float:
+        return round(sum(sec for _, sec in self.marks), 3)
