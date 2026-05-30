@@ -78,8 +78,8 @@ class VideoContentAgent(BaseAgent):
         return self.run(
             user_prompt,
             temperature=0.1,
-            num_predict=1800,
-            num_ctx=12000,
+            num_predict=1500,
+            num_ctx=8000,
         )
 
     def analyze_chunk(
@@ -123,8 +123,8 @@ class VideoContentAgent(BaseAgent):
         return self.run(
             user_prompt,
             temperature=0.1,
-            num_predict=1200,
-            num_ctx=10000,
+            num_predict=1000,
+            num_ctx=6000,
         )
 
     def synthesize_chunks(
@@ -169,6 +169,6 @@ class VideoContentAgent(BaseAgent):
         return self.run(
             user_prompt,
             temperature=0.1,
-            num_predict=1800,
-            num_ctx=12000,
+            num_predict=1500,
+            num_ctx=8000,
         )

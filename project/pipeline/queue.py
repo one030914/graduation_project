@@ -21,14 +21,27 @@ _yt_api = API()
 
 def _to_jsonable(obj: Any) -> Any:
     # 讓 FastAPI 之類的 JSON response 可以直接用
+    if obj is None:
+        return None
     if is_dataclass(obj):
         return {k: _to_jsonable(v) for k, v in asdict(obj).items()}
     if isinstance(obj, dict):
         return {k: _to_jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+    if isinstance(obj, (list, tuple)):
         return [_to_jsonable(x) for x in obj]
-    if isinstance(obj, tuple):
-        return [_to_jsonable(x) for x in obj]
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    # numpy / pandas 純量
+    type_name = type(obj).__name__
+    if type_name in ("float32", "float64", "int32", "int64", "bool_"):
+        return obj.item()
+    if hasattr(obj, "item") and callable(obj.item):
+        try:
+            return obj.item()
+        except Exception:
+            pass
+    if type_name == "ndarray":
+        return [_to_jsonable(x) for x in obj.tolist()]
     return obj
 
 class AnalysisQueue:
@@ -200,6 +213,9 @@ class AnalysisQueue:
             "status": st.status,
             "video_id": st.video_id,
             "mode": st.mode,
+            "stage": st.stage,
+            "stage_progress": st.stage_progress,
+            "partial_result": _to_jsonable(st.partial_result) if st.partial_result else None,
             "from_cache": st.from_cache,
             "error": st.error,
             "created_at": st.created_at.isoformat(),
@@ -288,6 +304,21 @@ class AnalysisQueue:
                         running_event.set()
 
                     def _run():
+                        def _on_progress(stage, progress, partial):
+                            st = self._job_status.get(job.job_id)
+                            if not st:
+                                return
+                            try:
+                                st.stage = stage
+                                st.stage_progress = progress
+                                st.partial_result = _to_jsonable(partial)
+                                st.updated_at = datetime.utcnow()
+                            except Exception as exc:
+                                print(
+                                    f"[progress] job={job.job_id} stage={stage} "
+                                    f"serialize failed: {exc}"
+                                )
+
                         if job.mode == "summary":
                             return build_summary(job.url)
                         elif job.mode == "keyword":
@@ -303,9 +334,9 @@ class AnalysisQueue:
                         elif job.mode == "timeline":
                             return build_timeline(job.url)
                         elif job.mode == "analyze":
-                            return build_analyze(job.url)
-                        
-                        return build_analyze(job.url)
+                            return build_analyze(job.url, on_progress=_on_progress)
+
+                        return build_analyze(job.url, on_progress=_on_progress)
 
                     executor_future = loop.run_in_executor(None, _run)
                     self._running_executor_futures[job.job_id] = executor_future

@@ -190,6 +190,9 @@ class JobStatus:
     created_at: datetime
     updated_at: datetime
     expires_at: datetime
+    stage: str = ""                          # 目前步驟名稱
+    stage_progress: float = 0.0              # 0.0 ~ 1.0
+    partial_result: dict | None = None       # 已完成的子分析結果
     from_cache: Optional[bool] = None
     error: Optional[str] = None
     # 可選：不要讓 web adapter 依賴 queue 內部型別就能序列化結果

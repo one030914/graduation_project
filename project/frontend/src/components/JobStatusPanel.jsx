@@ -1,6 +1,18 @@
+const STAGE_LABELS = {
+  collect: "抓取留言",
+  emotion: "情緒分析",
+  topics: "主題分析",
+  summary: "摘要分析",
+  keyword: "關鍵詞分析",
+  criticism: "批評分析",
+  timeline: "時間軸分析",
+  video_content: "影片內容",
+  synthesize: "AI 整合中",
+};
+
 export function JobStatusPanel({ jobState, onCancel }) {
   const actionLabels = {
-    analyze: "留言分析",
+    analyze: "綜合分析",
     summary: "摘要分析",
     keyword: "關鍵詞分析",
     topics: "主題分析",
@@ -20,9 +32,13 @@ export function JobStatusPanel({ jobState, onCancel }) {
   }[jobState.status] || `未知狀態：${jobState.status}`;
 
   const actionLabel = actionLabels[jobState.action] || "分析";
+  const stageLabel = jobState.stage ? STAGE_LABELS[jobState.stage] || jobState.stage : null;
+  const progressPercent = Math.round((jobState.stageProgress ?? 0) * 100);
 
   const isActive = ["submitting", "queued", "running"].includes(jobState.status);
   const isRunning = jobState.status === "running";
+  const hasProgress = isRunning && (jobState.stageProgress ?? 0) > 0;
+
   const toneClassName =
     jobState.status === "failed"
       ? "border-red-500/30 bg-red-950/30 text-red-100"
@@ -43,14 +59,14 @@ export function JobStatusPanel({ jobState, onCancel }) {
 
   return (
     <section className={`relative overflow-hidden rounded-2xl border p-4 backdrop-blur-md ${toneClassName}`}>
-      {isRunning && <div className="job-status-scan pointer-events-none absolute inset-0" />}
+      {isRunning && !hasProgress && <div className="job-status-scan pointer-events-none absolute inset-0" />}
 
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-medium">{actionLabel}</p>
           <div className="mt-1 flex items-center gap-3">
             <p className="text-lg font-semibold">{statusLabel}</p>
-            {isRunning && (
+            {isRunning && !hasProgress && (
               <div className="flex items-center gap-1.5" aria-hidden="true">
                 <span className="job-status-dot" />
                 <span className="job-status-dot job-status-dot-delay-1" />
@@ -58,6 +74,12 @@ export function JobStatusPanel({ jobState, onCancel }) {
               </div>
             )}
           </div>
+          {isRunning && stageLabel && (
+            <p className="mt-1 text-sm text-white/70">
+              目前步驟：{stageLabel}
+              {hasProgress ? `（${progressPercent}%）` : ""}
+            </p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -79,10 +101,19 @@ export function JobStatusPanel({ jobState, onCancel }) {
       {isRunning && (
         <div className="relative mt-4">
           <div className="h-2 overflow-hidden rounded-full bg-white/8 ring-1 ring-white/10">
-            <div className="job-status-marquee h-full rounded-full" />
+            {hasProgress ? (
+              <div
+                className="h-full rounded-full bg-sky-400 transition-all duration-500 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            ) : (
+              <div className="job-status-marquee h-full rounded-full" />
+            )}
           </div>
           <p className="mt-2 text-xs text-white/60">
-            任務正在背景執行，完成後會自動更新結果。
+            {hasProgress
+              ? "子分析完成後會逐步顯示在下方，無需等待全部完成。"
+              : "任務正在背景執行，完成後會自動更新結果。"}
           </p>
         </div>
       )}

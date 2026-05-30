@@ -47,28 +47,49 @@ function getSourceStatusClass(value) {
     return "border-emerald-300/20 bg-emerald-400/10 text-emerald-200";
   }
 
+  if (status.includes("等待")) {
+    return "border-slate-300/15 bg-slate-400/5 text-slate-300/60";
+  }
+
   return "border-slate-300/15 bg-slate-400/10 text-slate-200";
 }
 
-function SourceStatusStrip({ sources }) {
-  const entries = Object.entries(sources);
-  if (entries.length === 0) return null;
+function ChartPlaceholder({ label }) {
+  return (
+    <section className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-white/45 ring-1 ring-white/5">
+      <p className="text-sm font-bold text-white/35">{label}</p>
+      <div className="mt-4 h-40 animate-pulse rounded-xl bg-white/[0.04]" />
+      <p className="mt-3 text-xs font-semibold text-white/30">分析進行中…</p>
+    </section>
+  );
+}
 
-  const SOURCE_LABELS = {
-    summary: "摘要",
-    keyword: "關鍵詞",
-    emotion: "情緒",
-    topics: "主題",
-    criticism: "批評",
-    timeline: "時間軸",
-    video_content: "影片內容",
-  };
+const PENDING_LABEL = "等待中";
+
+const SOURCE_LABELS = {
+  summary: "摘要",
+  keyword: "關鍵詞",
+  emotion: "情緒",
+  topics: "主題",
+  criticism: "批評",
+  timeline: "時間軸",
+  video_content: "影片內容",
+};
+
+function SourceStatusStrip({ sources, isPartial = false }) {
+  const entries = Object.entries(sources);
+  if (entries.length === 0 && !isPartial) return null;
+
+  const ALL_KEYS = ["emotion", "topics", "summary", "keyword", "criticism", "timeline", "video_content"];
+  const displayEntries = isPartial
+    ? ALL_KEYS.map((key) => [key, sources[key] || PENDING_LABEL])
+    : entries;
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-white/45">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-white/38">子分析來源狀態</span>
-        {entries.map(([key, value]) => (
+        {displayEntries.map(([key, value]) => (
           <span
             key={key}
             className={`rounded-full border px-2.5 py-1 font-black ${getSourceStatusClass(value)}`}
@@ -92,7 +113,13 @@ export function AnalysisResultView({ result }) {
     );
   }
 
-  if (result.public_opinion_score !== undefined || result.quick_summary !== undefined) {
+  if (
+    result.is_partial ||
+    result.dashboard_data ||
+    result.public_opinion_score !== undefined ||
+    result.quick_summary !== undefined
+  ) {
+    const isPartial = Boolean(result.is_partial);
     const score = Number(result.public_opinion_score ?? 0);
     const label =
       result.opinion_label || (score >= 75 ? "正向偏高" : score >= 50 ? "中性偏穩" : "負面偏高");
@@ -112,8 +139,27 @@ export function AnalysisResultView({ result }) {
     const keywordDashboard = dashboardData.keyword ?? {};
     const videoContentDashboard = dashboardData.video_content ?? {};
 
+    const completedStages = result.completed_stages ?? [];
+    const hasEmotion = Boolean(dashboardData.emotion);
+    const hasTopics = Boolean(dashboardData.topics);
+    const hasCriticism = Boolean(dashboardData.criticism);
+    const hasKeyword = Boolean(dashboardData.keyword);
+    const hasTimeline = Boolean(dashboardData.timeline);
+    const hasVideoContent = Boolean(dashboardData.video_content);
+    const stageHint =
+      completedStages.length > 0
+        ? `已完成：${completedStages.join("、")}`
+        : "正在抓取留言與準備子分析…";
+
     return (
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
+        {isPartial && (
+          <div className="mb-5 rounded-xl border border-sky-400/20 bg-sky-950/30 px-4 py-3 text-sm font-semibold text-sky-100">
+            綜合分析進行中，已完成的部分會逐步顯示在下方。
+            <span className="mt-1 block text-xs font-medium text-sky-100/70">{stageHint}</span>
+          </div>
+        )}
+
         <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
             YouTube 留言綜合分析
@@ -135,13 +181,19 @@ export function AnalysisResultView({ result }) {
           </TextCard>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* 整體風向 */}
-            <OpinionGauge
-              score={emotionDashboard.opinion_score ?? score}
-              label={emotionDashboard.opinion_label ?? label}
-            />
-            {/* 熱門討論焦點 */}
-            <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
+            {isPartial && !hasEmotion ? (
+              <ChartPlaceholder label="整體風向" />
+            ) : (
+              <OpinionGauge
+                score={emotionDashboard.opinion_score ?? score}
+                label={emotionDashboard.opinion_label ?? label}
+              />
+            )}
+            {isPartial && !hasTopics ? (
+              <ChartPlaceholder label="熱門討論焦點" />
+            ) : (
+              <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
+            )}
           </div>
 
           {/* AI 智慧快報 */}
@@ -167,20 +219,35 @@ export function AnalysisResultView({ result }) {
             </TextCard>
           )}
 
-          {/* 情緒心理圖譜 */}
-          <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
+          {isPartial && !hasEmotion ? (
+            <ChartPlaceholder label="情緒心理圖譜" />
+          ) : (
+            <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
+          )}
 
-          {/* 批評與改善訊號 */}
-          <CriticismChart data={criticismDashboard.chart_data ?? []} />
+          {isPartial && !hasCriticism ? (
+            <ChartPlaceholder label="批評與改善訊號" />
+          ) : (
+            <CriticismChart data={criticismDashboard.chart_data ?? []} />
+          )}
 
-          {/* 熱門關鍵詞 */}
-          <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
+          {isPartial && !hasKeyword ? (
+            <ChartPlaceholder label="熱門關鍵詞" />
+          ) : (
+            <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
+          )}
 
-          {/* 留言時間軸熱點 */}
-          <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+          {isPartial && !hasTimeline ? (
+            <ChartPlaceholder label="留言時間軸熱點" />
+          ) : (
+            <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+          )}
 
-          {/* 影片內容脈絡 */}
-          <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
+          {isPartial && !hasVideoContent ? (
+            <ChartPlaceholder label="影片內容脈絡" />
+          ) : (
+            <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
+          )}
 
           <div className="grid gap-5 lg:grid-cols-2">
             {/* 創作者行動建議 */}
@@ -206,12 +273,14 @@ export function AnalysisResultView({ result }) {
           )}
 
           {/* 子分析來源狀態 */}
-          <SourceStatusStrip sources={dataSources} />
+          <SourceStatusStrip sources={dataSources} isPartial={isPartial} />
 
-          <ResultFooter>
-            <p>Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。</p>
-            <p>長影片會因字幕分析而需要較久時間，且可能因字幕品質影響分析結果。</p>
-          </ResultFooter>
+          {!isPartial && (
+            <ResultFooter>
+              <p>Analyze：整合留言摘要、情緒、主題、批評、關鍵詞、時間軸與影片內容脈絡產生。</p>
+              <p>長影片會因字幕分析而需要較久時間，且可能因字幕品質影響分析結果。</p>
+            </ResultFooter>
+          )}
         </div>
       </article>
     );

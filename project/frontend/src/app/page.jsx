@@ -39,6 +39,17 @@ const JOB_MODE = {
 };
 
 const POLL_INTERVAL_MS = 1200;
+const ANALYZE_POLL_INTERVAL_MS = 600;
+
+const ANALYZE_PLACEHOLDER = {
+  is_partial: true,
+  status: "partial",
+  title: "分析準備中…",
+  total_comments: 0,
+  dashboard_data: {},
+  data_sources: {},
+  completed_stages: [],
+};
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -100,6 +111,8 @@ export default function Page() {
   };
 
   const pollJobUntilDone = async (jobId, action) => {
+    const pollMs = action === MODE.analyze ? ANALYZE_POLL_INTERVAL_MS : POLL_INTERVAL_MS;
+
     while (activeJobRef.current === jobId) {
       const statusRes = await fetch(`${API_BASE}/jobs/${jobId}`);
       const statusData = await statusRes.json();
@@ -108,14 +121,24 @@ export default function Page() {
         throw new Error(statusData.error || "Failed to fetch job status.");
       }
 
-      setJobState({
+      setJobState((prev) => ({
         jobId,
         action,
         status: statusData.status,
         mode: statusData.mode,
         fromCache: statusData.from_cache,
         error: statusData.error || null,
-      });
+        stage: statusData.stage || prev?.stage || "",
+        stageProgress: statusData.stage_progress ?? prev?.stageProgress ?? 0,
+      }));
+
+      if (
+        action === MODE.analyze &&
+        statusData.partial_result &&
+        typeof statusData.partial_result === "object"
+      ) {
+        updateResult(action, statusData.partial_result);
+      }
 
       if (statusData.status === "completed") {
         const resultData = await fetchJobResult(jobId);
@@ -129,7 +152,13 @@ export default function Page() {
         });
         setJobState((prev) =>
           prev && prev.jobId === jobId
-            ? { ...prev, status: "completed", fromCache: statusData.from_cache }
+            ? {
+                ...prev,
+                status: "completed",
+                fromCache: statusData.from_cache,
+                stage: "synthesize",
+                stageProgress: 1,
+              }
             : prev,
         );
         return;
@@ -149,7 +178,7 @@ export default function Page() {
         return;
       }
 
-      await sleep(POLL_INTERVAL_MS);
+      await sleep(pollMs);
     }
   };
 
@@ -191,6 +220,9 @@ export default function Page() {
     if (!trimmedText) return;
 
     resetOtherPanel(action);
+    if (action === MODE.analyze) {
+      updateResult(MODE.analyze, ANALYZE_PLACEHOLDER);
+    }
     setLoading(true);
     setJobState({
       jobId: null,
@@ -253,7 +285,10 @@ export default function Page() {
           {jobState && <JobStatusPanel jobState={jobState} onCancel={handleCancelJob} />}
 
           {visiblePanel === MODE.analyze && results[MODE.analyze] && (
-            <AnalysisResultView result={results[MODE.analyze]} />
+            <AnalysisResultView
+              key={`${jobState?.stage || "init"}-${jobState?.stageProgress ?? 0}-${results[MODE.analyze]?.completed_stages?.length ?? 0}`}
+              result={results[MODE.analyze]}
+            />
           )}
 
           {visiblePanel === MODE.summary && results[MODE.summary] && (

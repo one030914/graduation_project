@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from configs.schema import AnalyzeResult
 from pipeline.collect import collect_comments
 
@@ -369,8 +371,108 @@ def _build_rule_based_fallback(
         _dedup(viewer_tips, limit=5),
     )
 
-def build_analyze(url: str) -> AnalyzeResult:
+def _build_partial_snapshot(dataset, partial: dict) -> dict:
+    """將已完成的子分析轉成前端可渲染的漸進式快照。"""
+    emotion = partial.get("emotion")
+    topics = partial.get("topics")
+    summary = partial.get("summary")
+    keyword = partial.get("keyword")
+    criticism = partial.get("criticism")
+    timeline = partial.get("timeline")
+    video_content = partial.get("video_content")
+
+    score = _calc_opinion_score(emotion) if emotion else 0
+    opinion_label = (
+        getattr(emotion, "opinion_label", "") or _opinion_label(score)
+        if emotion
+        else ""
+    )
+
+    dominant = getattr(emotion, "dominant_emotion", {}) or {} if emotion else {}
+    main_emotion = dominant.get("display_name") or dominant.get("label") or ""
+
+    data_sources = _collect_data_sources(
+        summary=summary,
+        keyword=keyword,
+        emotion=emotion,
+        topics=topics,
+        criticism=criticism,
+        timeline=timeline,
+        video_content=video_content,
+    )
+    data_quality = _collect_data_quality(data_sources) if partial else []
+
+    full_dashboard = _build_dashboard_data(
+        emotion=emotion,
+        topics=topics,
+        keyword=keyword,
+        timeline=timeline,
+        criticism=criticism,
+        video_content=video_content,
+        score=score,
+        opinion_label=opinion_label,
+        main_emotion=main_emotion,
+    )
+    dashboard_data = {
+        key: full_dashboard[key]
+        for key in partial
+        if key in full_dashboard
+    }
+
+    tags: list[str] = []
+    quick_summary: list[str] = []
+    creator_actions: list[str] = []
+    viewer_tips: list[str] = []
+
+    if emotion:
+        tags, quick_summary, creator_actions, viewer_tips = _build_rule_based_fallback(
+            score=score,
+            emotion=emotion,
+            topics=topics,
+            timeline=timeline,
+            summary=summary,
+            keyword=keyword,
+            criticism=criticism,
+        )
+
+    title = dataset.title or ""
+    for result in (emotion, topics, summary, keyword, criticism, timeline):
+        if result and getattr(result, "title", ""):
+            title = getattr(result, "title", "")
+            break
+
+    total_comments = len(dataset.df) if dataset.df is not None else 0
+
+    return {
+        "is_partial": True,
+        "status": "partial",
+        "completed_stages": list(partial.keys()),
+        "video_id": dataset.video_id,
+        "title": title,
+        "url": dataset.url,
+        "total_comments": total_comments,
+        "public_opinion_score": score if emotion else None,
+        "opinion_label": opinion_label,
+        "main_emotion": main_emotion,
+        "timeline_status": getattr(timeline, "status", "") if timeline else "",
+        "top_hotspot": _build_top_hotspot(timeline) if timeline else None,
+        "tags": tags,
+        "quick_summary": quick_summary,
+        "creator_actions": creator_actions,
+        "viewer_tips": viewer_tips,
+        "data_sources": data_sources,
+        "data_quality": data_quality,
+        "dashboard_data": dashboard_data,
+    }
+
+def build_analyze(url: str, on_progress=None) -> AnalyzeResult:
     timer = Timer()
+    partial = {}
+    dataset = None
+
+    def report(stage: str, progress: float) -> None:
+        if on_progress and dataset is not None:
+            on_progress(stage, progress, _build_partial_snapshot(dataset, partial))
     
     dataset = collect_comments(
         url,
@@ -381,6 +483,7 @@ def build_analyze(url: str) -> AnalyzeResult:
     )
     
     timer.mark("collect_comments")
+    report("collect", 0.05)
 
     if dataset.error:
         return AnalyzeResult(
@@ -402,38 +505,68 @@ def build_analyze(url: str) -> AnalyzeResult:
     )
 
     timer.mark("collect_timeline_comments")
+    report("collect", 0.10)
 
-    emotion = build_emotion_from_dataset(dataset)
-    
-    timer.mark("build_emotion")
-    
-    topics = build_topics_from_dataset(dataset)
-    
-    timer.mark("build_topics")
+    stage_progress = {
+        "emotion": 0.20,
+        "topics": 0.35,
+        "summary": 0.45,
+        "keyword": 0.55,
+        "criticism": 0.65,
+        "timeline": 0.75,
+        "video_content": 0.85,
+    }
+    results: dict = {}
 
-    summary = build_summary_from_dataset(dataset)
+    def run_emotion():
+        return "emotion", build_emotion_from_dataset(dataset)
 
-    timer.mark("build_summary")
+    def run_topics():
+        return "topics", build_topics_from_dataset(dataset)
 
-    keyword = build_keyword_from_dataset(dataset)
+    def run_summary():
+        return "summary", build_summary_from_dataset(dataset)
 
-    timer.mark("build_keyword")
+    def run_keyword():
+        return "keyword", build_keyword_from_dataset(dataset)
 
-    criticism = analyze_comment_criticism_from_dataset(dataset)
+    def run_criticism():
+        return "criticism", analyze_comment_criticism_from_dataset(dataset)
 
-    timer.mark("analyze_criticism")
+    def run_timeline():
+        return "timeline", build_timeline_from_dataset(timeline_dataset)
 
-    timeline = build_timeline_from_dataset(timeline_dataset)
-    
-    timer.mark("build_timeline")
-    
-    video_content = None
-    try:
-        video_content = build_video_content(url)
-    except Exception as exc:
-        print(f"VideoContent failed: {exc}")
-    
-    timer.mark("build_video_content")
+    def run_video_content():
+        try:
+            return "video_content", build_video_content(url)
+        except Exception as exc:
+            print(f"VideoContent failed: {exc}")
+            return "video_content", None
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [pool.submit(fn) for fn in (
+            run_emotion,
+            run_topics,
+            run_summary,
+            run_keyword,
+            run_criticism,
+            run_timeline,
+            run_video_content,
+        )]
+        for future in as_completed(futures):
+            name, result = future.result()
+            results[name] = result
+            partial[name] = result
+            report(name, stage_progress[name])
+            timer.mark(f"build_{name}")
+
+    emotion = results["emotion"]
+    topics = results["topics"]
+    summary = results["summary"]
+    keyword = results["keyword"]
+    criticism = results["criticism"]
+    timeline = results["timeline"]
+    video_content = results["video_content"]
 
     title = (
         dataset.title
@@ -592,6 +725,7 @@ def build_analyze(url: str) -> AnalyzeResult:
         print(f"AnalyzeAgent failed, fallback to rule-based result: {e}")
         
     timer.mark("analyze_agent")
+    report("synthesize", 0.95)
 
     dominant = getattr(emotion, "dominant_emotion", {}) or {}
     main_emotion = (
@@ -622,7 +756,7 @@ def build_analyze(url: str) -> AnalyzeResult:
     print("=== ANALYZE TIMING REPORT ===")
     print(timer.report())
     print(f"Total time: {timer.total()} seconds")
-    
+    report("synthesize", 1.0)
 
     return AnalyzeResult(
         video_id=video_id,
