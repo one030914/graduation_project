@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Callable
+
 from configs.schema import AnalyzeResult
 from pipeline.collect import collect_comments
 
@@ -369,7 +371,87 @@ def _build_rule_based_fallback(
         _dedup(viewer_tips, limit=5),
     )
 
-def build_analyze(url: str) -> AnalyzeResult:
+def _build_analyze_result(
+    *,
+    url: str,
+    dataset,
+    summary=None,
+    keyword=None,
+    emotion=None,
+    topics=None,
+    criticism=None,
+    timeline=None,
+    video_content=None,
+    tags=None,
+    quick_summary=None,
+    creator_actions=None,
+    viewer_tips=None,
+    status: str = "running",
+    pending_sources: set[str] | None = None,
+) -> AnalyzeResult:
+    pending_sources = pending_sources or set()
+    score = _calc_opinion_score(emotion)
+    opinion_label = getattr(emotion, "opinion_label", "") or _opinion_label(score)
+    dominant = getattr(emotion, "dominant_emotion", {}) or {}
+    main_emotion = dominant.get("display_name") or dominant.get("label") or ""
+    top_topics = _build_top_topics(topics, limit=5)
+    top_hotspot = _build_top_hotspot(timeline)
+    data_sources = _collect_data_sources(
+        summary=summary,
+        keyword=keyword,
+        emotion=emotion,
+        topics=topics,
+        criticism=criticism,
+        timeline=timeline,
+        video_content=video_content,
+    )
+
+    for source in pending_sources:
+        data_sources[source] = "pending"
+
+    data_quality = _collect_data_quality(data_sources)
+    dashboard_data = _build_dashboard_data(
+        emotion=emotion,
+        topics=topics,
+        keyword=keyword,
+        timeline=timeline,
+        criticism=criticism,
+        video_content=video_content,
+        score=score,
+        opinion_label=opinion_label,
+        main_emotion=main_emotion,
+    )
+
+    return AnalyzeResult(
+        video_id=getattr(dataset, "video_id", ""),
+        title=(
+            getattr(dataset, "title", "")
+            or getattr(emotion, "title", "")
+            or getattr(topics, "title", "")
+            or getattr(summary, "title", "")
+            or getattr(keyword, "title", "")
+            or getattr(criticism, "title", "")
+            or getattr(timeline, "title", "")
+        ),
+        url=url,
+        status=status,
+        total_comments=len(getattr(dataset, "df", [])) if dataset is not None else 0,
+        public_opinion_score=score,
+        opinion_label=opinion_label,
+        main_emotion=main_emotion,
+        timeline_status=getattr(timeline, "status", data_sources.get("timeline", "")),
+        tags=_dedup((tags or []) + (getattr(keyword, "top_tags", []) or [])[:5], limit=8),
+        quick_summary=_dedup(quick_summary or [], limit=5),
+        top_topics=_dedup(top_topics, limit=5),
+        top_hotspot=top_hotspot,
+        creator_actions=_dedup(creator_actions or [], limit=5),
+        viewer_tips=_dedup(viewer_tips or [], limit=5),
+        data_sources=data_sources,
+        data_quality=data_quality,
+        dashboard_data=dashboard_data,
+    )
+
+def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None = None) -> AnalyzeResult:
     timer = Timer()
     
     dataset = collect_comments(
@@ -403,37 +485,82 @@ def build_analyze(url: str) -> AnalyzeResult:
 
     timer.mark("collect_timeline_comments")
 
+    summary = None
+    keyword = None
+    emotion = None
+    topics = None
+    criticism = None
+    timeline = None
+    video_content = None
+
+    pending_sources = {
+        "summary",
+        "keyword",
+        "emotion",
+        "topics",
+        "criticism",
+        "timeline",
+        "video_content",
+    }
+
+    def publish_partial() -> None:
+        if on_partial is None:
+            return
+        on_partial(
+            _build_analyze_result(
+                url=url,
+                dataset=dataset,
+                summary=summary,
+                keyword=keyword,
+                emotion=emotion,
+                topics=topics,
+                criticism=criticism,
+                timeline=timeline,
+                video_content=video_content,
+                status="running",
+                pending_sources=pending_sources,
+            )
+        )
+
+    publish_partial()
+
     emotion = build_emotion_from_dataset(dataset)
-    
+    pending_sources.discard("emotion")
     timer.mark("build_emotion")
+    publish_partial()
     
     topics = build_topics_from_dataset(dataset)
-    
+    pending_sources.discard("topics")
     timer.mark("build_topics")
+    publish_partial()
 
     summary = build_summary_from_dataset(dataset)
-
+    pending_sources.discard("summary")
     timer.mark("build_summary")
+    publish_partial()
 
     keyword = build_keyword_from_dataset(dataset)
-
+    pending_sources.discard("keyword")
     timer.mark("build_keyword")
+    publish_partial()
 
     criticism = analyze_comment_criticism_from_dataset(dataset)
-
+    pending_sources.discard("criticism")
     timer.mark("analyze_criticism")
+    publish_partial()
 
     timeline = build_timeline_from_dataset(timeline_dataset)
-    
+    pending_sources.discard("timeline")
     timer.mark("build_timeline")
+    publish_partial()
     
-    video_content = None
     try:
         video_content = build_video_content(url)
     except Exception as exc:
         print(f"VideoContent failed: {exc}")
-    
+    pending_sources.discard("video_content")
     timer.mark("build_video_content")
+    publish_partial()
 
     title = (
         dataset.title

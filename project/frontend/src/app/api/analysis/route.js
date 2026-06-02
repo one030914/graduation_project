@@ -15,6 +15,14 @@ function getTitle(payload, fallback) {
   return fallback;
 }
 
+function hasFailedPayload(payload) {
+  if (!payload || typeof payload !== "object") return true;
+  if (payload.error) return true;
+
+  const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
+  return status === "error" || status === "failed";
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -22,12 +30,21 @@ export async function POST(request) {
     const mode = typeof body.mode === "string" ? body.mode.trim() : "";
     const url = typeof body.url === "string" ? body.url.trim() : "";
     const payload = body.payload;
+    const fromCache = Boolean(body.from_cache || body.fromCache);
 
     if (!jobId || !mode || !url || payload == null) {
       return NextResponse.json(
         { error: "job_id, mode, url, and payload are required." },
         { status: 400 },
       );
+    }
+
+    if (fromCache) {
+      return NextResponse.json({ saved: false, from_cache: true });
+    }
+
+    if (hasFailedPayload(payload)) {
+      return NextResponse.json({ saved: false, failed_payload: true });
     }
 
     const existing = await prisma.analysis.findFirst({

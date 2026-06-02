@@ -23,6 +23,49 @@ function TextCard({ title, children, tone = "indigo", className = "" }) {
   );
 }
 
+
+function SkeletonLines({ lines = 3 }) {
+  return (
+    <div className="animate-pulse space-y-3" aria-hidden="true">
+      {Array.from({ length: lines }).map((_, index) => (
+        <div
+          key={index}
+          className={`h-4 rounded-full bg-white/10 ${
+            index === lines - 1 ? "w-2/3" : "w-full"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SkeletonChart() {
+  return (
+    <div className="animate-pulse space-y-4" aria-hidden="true">
+      <div className="h-64 rounded-2xl border border-white/10 bg-white/[0.045]" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="h-10 rounded-xl bg-white/10" />
+        <div className="h-10 rounded-xl bg-white/10" />
+        <div className="h-10 rounded-xl bg-white/10" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonChips() {
+  return (
+    <div className="flex animate-pulse flex-wrap gap-2" aria-hidden="true">
+      {[96, 72, 112, 84, 104, 68].map((width, index) => (
+        <div key={index} className="h-8 rounded-full bg-white/10" style={{ width }} />
+      ))}
+    </div>
+  );
+}
+
+function isLoadingStatus(value) {
+  return ["submitting", "queued", "running", "pending"].includes(String(value || "").toLowerCase());
+}
+
 function InfoTile({ label, value }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 ring-1 ring-white/5">
@@ -114,6 +157,7 @@ export function AnalysisResultView({ result }) {
     const criticismDashboard = dashboardData.criticism ?? {};
     const keywordDashboard = dashboardData.keyword ?? {};
     const videoContentDashboard = dashboardData.video_content ?? {};
+    const isSourceLoading = (key) => isLoadingStatus(dataSources[key]);
 
     return (
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
@@ -138,26 +182,34 @@ export function AnalysisResultView({ result }) {
           </TextCard>
 
           {/* 資料品質提醒 */}
-          <TextCard title="資料品質提醒" tone="amber">
-            {dataQuality.length > 0 ? (
+          {dataQuality.length > 0 && (
+            <TextCard title="資料品質提醒" tone="amber">
               <p className="whitespace-pre-line">{fmtList(dataQuality)}</p>
-            ) : (
-              <FallbackText>目前沒有資料品質提醒。</FallbackText>
-            )}
-          </TextCard>
+            </TextCard>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             {/* 整體風向 */}
-            <OpinionGauge
-              score={emotionDashboard.opinion_score ?? score}
-              label={emotionDashboard.opinion_label ?? label}
-            />
+            {isSourceLoading("emotion") ? (
+              <TextCard title="輿情溫度計">
+                <SkeletonChart />
+              </TextCard>
+            ) : (
+              <OpinionGauge
+                score={emotionDashboard.opinion_score ?? score}
+                label={emotionDashboard.opinion_label ?? label}
+              />
+            )}
             {/* 熱門討論焦點 */}
             {(topicsDashboard.chart_data ?? []).length > 0 ? (
               <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
             ) : (
               <TextCard title="熱門討論焦點">
-                <FallbackText>目前沒有可繪製的主題圖表資料。</FallbackText>
+                {isSourceLoading("topics") ? (
+                  <SkeletonChart />
+                ) : (
+                  <FallbackText>目前沒有可繪製的主題圖表資料。</FallbackText>
+                )}
               </TextCard>
             )}
           </div>
@@ -166,6 +218,8 @@ export function AnalysisResultView({ result }) {
           <TextCard title="AI 智慧快報">
             {quickSummary.length > 0 ? (
               <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
+            ) : isSourceLoading("summary") ? (
+              <SkeletonLines lines={4} />
             ) : (
               <FallbackText>目前沒有 AI 智慧快報資料。</FallbackText>
             )}
@@ -184,6 +238,8 @@ export function AnalysisResultView({ result }) {
                   </span>
                 ))}
               </div>
+            ) : isSourceLoading("keyword") || isSourceLoading("topics") ? (
+              <SkeletonChips />
             ) : (
               <FallbackText>目前沒有留言區標籤資料。</FallbackText>
             )}
@@ -194,7 +250,11 @@ export function AnalysisResultView({ result }) {
             <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
           ) : (
             <TextCard title="情緒心理圖譜">
-              <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
+              {isSourceLoading("emotion") ? (
+                <SkeletonChart />
+              ) : (
+                <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
+              )}
             </TextCard>
           )}
 
@@ -203,7 +263,11 @@ export function AnalysisResultView({ result }) {
             <CriticismChart data={criticismDashboard.chart_data ?? []} />
           ) : (
             <TextCard title="批評與改善訊號">
-              <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
+              {isSourceLoading("criticism") ? (
+                <SkeletonChart />
+              ) : (
+                <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
+              )}
             </TextCard>
           )}
 
@@ -212,7 +276,11 @@ export function AnalysisResultView({ result }) {
             <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
           ) : (
             <TextCard title="熱門關鍵詞">
-              <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+              {isSourceLoading("keyword") ? (
+                <SkeletonChart />
+              ) : (
+                <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+              )}
             </TextCard>
           )}
 
@@ -221,7 +289,11 @@ export function AnalysisResultView({ result }) {
             <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
           ) : (
             <TextCard title="留言時間軸熱點">
-              <FallbackText>目前沒有可繪製的時間軸資料。</FallbackText>
+              {isSourceLoading("timeline") ? (
+                <SkeletonChart />
+              ) : (
+                <FallbackText>目前沒有可繪製的時間軸資料。</FallbackText>
+              )}
             </TextCard>
           )}
 
@@ -230,7 +302,11 @@ export function AnalysisResultView({ result }) {
             <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
           ) : (
             <TextCard title="影片內容脈絡">
-              <FallbackText>目前沒有影片章節脈絡資料。</FallbackText>
+              {isSourceLoading("video_content") ? (
+                <SkeletonChart />
+              ) : (
+                <FallbackText>目前沒有影片章節脈絡資料。</FallbackText>
+              )}
             </TextCard>
           )}
 
@@ -239,6 +315,8 @@ export function AnalysisResultView({ result }) {
             <TextCard title="創作者行動建議" className="h-full">
               {creatorActions.length > 0 ? (
                 <p className="whitespace-pre-line">{fmtList(creatorActions)}</p>
+              ) : isSourceLoading("criticism") || isSourceLoading("video_content") ? (
+                <SkeletonLines lines={3} />
               ) : (
                 <FallbackText>目前沒有創作者行動建議資料。</FallbackText>
               )}
@@ -248,6 +326,8 @@ export function AnalysisResultView({ result }) {
             <TextCard title="觀眾觀看提示" className="h-full">
               {viewerTips.length > 0 ? (
                 <p className="whitespace-pre-line">{fmtList(viewerTips)}</p>
+              ) : isSourceLoading("timeline") ? (
+                <SkeletonLines lines={3} />
               ) : (
                 <FallbackText>目前沒有觀眾觀看提示資料。</FallbackText>
               )}

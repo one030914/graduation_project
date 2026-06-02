@@ -46,6 +46,14 @@ function sleep(ms) {
   });
 }
 
+function hasFailedPayload(payload) {
+  if (!payload || typeof payload !== "object") return true;
+  if (payload.error) return true;
+
+  const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
+  return status === "error" || status === "failed";
+}
+
 export default function Page() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -66,6 +74,24 @@ export default function Page() {
     setVisiblePanel(action);
   };
 
+  const createJob = async (url, action) => {
+    const createRes = await fetch(`${API_BASE}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        video_url: url,
+        job_mode: JOB_MODE[action],
+      }),
+    });
+    const createData = await createRes.json();
+
+    if (!createRes.ok) {
+      throw new Error(createData.error || "Failed to create job.");
+    }
+
+    return createData;
+  };
+
   const fetchJobResult = async (jobId) => {
     const res = await fetch(`${API_BASE}/jobs/${jobId}/result`);
     const data = await res.json();
@@ -77,7 +103,9 @@ export default function Page() {
     return data;
   };
 
-  const saveAnalysisRecord = async ({ jobId, mode, url, payload }) => {
+  const saveAnalysisRecord = async ({ jobId, mode, url, payload, fromCache = false }) => {
+    if (fromCache || hasFailedPayload(payload)) return;
+
     try {
       const res = await fetch("/api/analysis", {
         method: "POST",
@@ -87,6 +115,7 @@ export default function Page() {
           mode,
           url,
           payload,
+          from_cache: fromCache,
         }),
       });
 
@@ -99,7 +128,7 @@ export default function Page() {
     }
   };
 
-  const pollJobUntilDone = async (jobId, action) => {
+  const pollJobUntilDone = async (jobId, action, url) => {
     while (activeJobRef.current === jobId) {
       const statusRes = await fetch(`${API_BASE}/jobs/${jobId}`);
       const statusData = await statusRes.json();
@@ -124,8 +153,9 @@ export default function Page() {
         void saveAnalysisRecord({
           jobId,
           mode: resultData.mode || statusData.mode || JOB_MODE[action],
-          url: text.trim(),
+          url,
           payload: result,
+          fromCache: Boolean(statusData.from_cache),
         });
         setJobState((prev) =>
           prev && prev.jobId === jobId
@@ -139,6 +169,66 @@ export default function Page() {
         throw new Error(statusData.error || "Job failed.");
       }
 
+      await sleep(POLL_INTERVAL_MS);
+    }
+  };
+
+  const handleProgressiveAnalyze = async (url) => {
+    const createData = await createJob(url, MODE.analyze);
+    const jobId = createData.job_id;
+    activeJobRef.current = jobId;
+    setJobState({
+      jobId,
+      action: MODE.analyze,
+      status: createData.status || "queued",
+      mode: createData.mode || JOB_MODE.analyze,
+      fromCache: false,
+      error: null,
+    });
+
+    while (activeJobRef.current === jobId) {
+      const statusRes = await fetch(`${API_BASE}/jobs/${jobId}`);
+      const statusData = await statusRes.json();
+
+      if (!statusRes.ok) {
+        throw new Error(statusData.error || "Failed to fetch analyze status.");
+      }
+
+      if (statusData.partial_result) {
+        updateResult(MODE.analyze, statusData.partial_result);
+      }
+
+      setJobState({
+        jobId,
+        action: MODE.analyze,
+        status: statusData.status,
+        mode: statusData.mode,
+        fromCache: statusData.from_cache,
+        error: statusData.error || null,
+      });
+
+      if (statusData.status === "completed") {
+        const resultData = await fetchJobResult(jobId);
+        const result = resultData.result ?? null;
+        updateResult(MODE.analyze, result);
+        void saveAnalysisRecord({
+          jobId,
+          mode: resultData.mode || statusData.mode || JOB_MODE.analyze,
+          url,
+          payload: result,
+          fromCache: Boolean(statusData.from_cache),
+        });
+        setJobState((prev) =>
+          prev && prev.jobId === jobId
+            ? { ...prev, status: "completed", fromCache: statusData.from_cache }
+            : prev,
+        );
+        return;
+      }
+
+      if (statusData.status === "failed") {
+        throw new Error(statusData.error || "Analyze job failed.");
+      }
 
       await sleep(POLL_INTERVAL_MS);
     }
@@ -162,20 +252,12 @@ export default function Page() {
     });
 
     try {
-      const createRes = await fetch(`${API_BASE}/jobs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          video_url: trimmedText,
-          job_mode: JOB_MODE[action],
-        }),
-      });
-      const createData = await createRes.json();
-
-      if (!createRes.ok) {
-        throw new Error(createData.error || "Failed to create job.");
+      if (action === MODE.analyze) {
+        await handleProgressiveAnalyze(trimmedText);
+        return;
       }
 
+      const createData = await createJob(trimmedText, action);
       const jobId = createData.job_id;
       activeJobRef.current = jobId;
       setJobState({
@@ -187,7 +269,7 @@ export default function Page() {
         error: null,
       });
 
-      await pollJobUntilDone(jobId, action);
+      await pollJobUntilDone(jobId, action, trimmedText);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Job failed.";
       setJobState((prev) => ({

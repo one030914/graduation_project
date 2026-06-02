@@ -16,6 +16,7 @@ from pipeline.emotion import build_emotion
 from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
 from pipeline.timeline import build_timeline
+from pipeline.dependencies import check_analysis_dependencies
 
 _yt_api = API()
 
@@ -30,6 +31,24 @@ def _to_jsonable(obj: Any) -> Any:
     if isinstance(obj, tuple):
         return [_to_jsonable(x) for x in obj]
     return obj
+
+
+def _result_error(result: Any) -> Optional[str]:
+    if result is None:
+        return "result is empty"
+
+    if isinstance(result, dict):
+        error = result.get("error")
+        status = str(result.get("status") or "").lower()
+    else:
+        error = getattr(result, "error", None)
+        status = str(getattr(result, "status", "") or "").lower()
+
+    if error:
+        return str(error)
+    if status in {"error", "failed"}:
+        return f"result status is {status}"
+    return None
 
 class AnalysisQueue:
     """
@@ -195,7 +214,7 @@ class AnalysisQueue:
             self._cancelled_jobs.discard(job_id)
             self._running_executor_futures.pop(job_id, None)
             return None
-        return {
+        payload = {
             "job_id": job_id,
             "status": st.status,
             "video_id": st.video_id,
@@ -205,6 +224,9 @@ class AnalysisQueue:
             "created_at": st.created_at.isoformat(),
             "updated_at": st.updated_at.isoformat(),
         }
+        if st.status == "running" and st.result is not None:
+            payload["partial_result"] = _to_jsonable(st.result)
+        return payload
 
     def get_result_payload(self, job_id: str) -> Optional[dict]:
         st = self._job_status.get(job_id)
@@ -288,6 +310,8 @@ class AnalysisQueue:
                         running_event.set()
 
                     def _run():
+                        check_analysis_dependencies(job.mode)
+
                         if job.mode == "summary":
                             return build_summary(job.url)
                         elif job.mode == "keyword":
@@ -303,7 +327,13 @@ class AnalysisQueue:
                         elif job.mode == "timeline":
                             return build_timeline(job.url)
                         elif job.mode == "analyze":
-                            return build_analyze(job.url)
+                            def _on_partial(partial_result):
+                                partial_status = self._job_status.get(job.job_id)
+                                if partial_status and partial_status.status == "running":
+                                    partial_status.updated_at = datetime.utcnow()
+                                    partial_status.result = partial_result
+
+                            return build_analyze(job.url, on_partial=_on_partial)
                         
                         return build_analyze(job.url)
 
@@ -317,6 +347,20 @@ class AnalysisQueue:
                             st.status = "cancelled"
                             st.updated_at = datetime.utcnow()
                             st.result = None
+                        continue
+
+                    result_error = _result_error(result)
+                    if result_error:
+                        st = self._job_status.get(job.job_id)
+                        if st:
+                            st.status = "failed"
+                            st.updated_at = datetime.utcnow()
+                            st.from_cache = False
+                            st.error = result_error
+                            st.result = None
+                        future = self._job_futures.get(job.job_id)
+                        if future and not future.done():
+                            future.set_exception(RuntimeError(result_error))
                         continue
 
                     # 4) 存快取 + 回傳
