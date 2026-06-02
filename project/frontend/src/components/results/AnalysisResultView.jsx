@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { clip, fmtKeywords, fmtList } from "@/lib/analysisFormat";
 import { OpinionGauge } from "@/components/charts/OpinionGauge";
 import { TopicsBarChart } from "@/components/charts/TopicsBarChart";
@@ -17,8 +18,8 @@ function TextCard({ title, children, tone = "indigo", className = "" }) {
     <section
       className={`rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md ${className}`}
     >
-      <h3 className={`text-lg font-black tracking-normal ${titleClass}`}>{title}</h3>
-      <div className="mt-4 text-sm font-semibold leading-7 text-white/72">{children}</div>
+      <h3 className={`text-xl font-black tracking-normal ${titleClass}`}>{title}</h3>
+      <div className="mt-4 text-base font-semibold leading-8 text-white/72">{children}</div>
     </section>
   );
 }
@@ -62,6 +63,32 @@ function SkeletonChips() {
   );
 }
 
+function TagChips({ tags, isLoading }) {
+  return (
+    <div>
+      <h4 className="text-base font-black tracking-normal text-indigo-200">留言區標籤</h4>
+      <div className="mt-3">
+        {tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {tags.slice(0, 8).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-base font-black text-indigo-100"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        ) : isLoading ? (
+          <SkeletonChips />
+        ) : (
+          <FallbackText>目前沒有留言區標籤資料。</FallbackText>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function isLoadingStatus(value) {
   return ["submitting", "queued", "running", "pending"].includes(String(value || "").toLowerCase());
 }
@@ -69,8 +96,8 @@ function isLoadingStatus(value) {
 function InfoTile({ label, value }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 ring-1 ring-white/5">
-      <p className="text-xs font-bold text-white/42">{label}</p>
-      <p className="mt-1 break-words text-sm font-black text-white/88">{String(value)}</p>
+      <p className="text-base font-bold text-white/42">{label}</p>
+      <p className="mt-1 break-words text-base font-black text-white/88">{String(value)}</p>
     </div>
   );
 }
@@ -107,7 +134,7 @@ function SourceStatusStrip({ sources }) {
   };
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-white/45">
+    <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-base font-bold text-white/45">
       {entries.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-white/38">子分析來源狀態</span>
@@ -127,7 +154,68 @@ function SourceStatusStrip({ sources }) {
   );
 }
 
+function AdviceToggleCard({
+  activeTab,
+  creatorActions,
+  viewerTips,
+  isCreatorLoading,
+  isViewerLoading,
+  onTabChange,
+}) {
+  const isCreator = activeTab === "creator";
+  const items = isCreator ? creatorActions : viewerTips;
+  const isLoading = isCreator ? isCreatorLoading : isViewerLoading;
+  const title = isCreator ? "創作者行動建議" : "觀眾觀看提示";
+  const fallback = isCreator ? "目前沒有創作者行動建議資料。" : "目前沒有觀眾觀看提示資料。";
+
+  const buttonClassName = (value) => {
+    const isActive = activeTab === value;
+    return isActive
+      ? "border-indigo-200/70 bg-indigo-400/18 text-indigo-100 shadow-[0_0_18px_rgba(129,140,248,0.22)]"
+      : "border-white/10 bg-white/[0.04] text-white/55 hover:border-white/25 hover:bg-white/[0.08] hover:text-white/82";
+  };
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">建議</p>
+          <h3 className="mt-2 text-xl font-black tracking-normal text-indigo-200">{title}</h3>
+        </div>
+        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.025] p-1">
+          <button
+            type="button"
+            onClick={() => onTabChange("creator")}
+            className={`rounded-lg border px-3 py-2 text-base font-black transition ${buttonClassName("creator")}`}
+          >
+            創作者
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange("viewer")}
+            className={`rounded-lg border px-3 py-2 text-base font-black transition ${buttonClassName("viewer")}`}
+          >
+            觀眾
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 text-base font-semibold leading-8 text-white/72">
+        {items.length > 0 ? (
+          <p className="whitespace-pre-line">{fmtList(items)}</p>
+        ) : isLoading ? (
+          <SkeletonLines lines={3} />
+        ) : (
+          <FallbackText>{fallback}</FallbackText>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function AnalysisResultView({ result }) {
+  const [activeAdviceTab, setActiveAdviceTab] = useState("creator");
+
   if (!result) return null;
 
   if (result.error) {
@@ -162,7 +250,7 @@ export function AnalysisResultView({ result }) {
     return (
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
         <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
+          <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
             YouTube 留言綜合分析
           </p>
           <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
@@ -180,6 +268,16 @@ export function AnalysisResultView({ result }) {
               <InfoTile label="影片內容脈絡" value={dataSources.video_content || "missing"} />
             </div>
           </TextCard>
+
+          {/* 建議切換 */}
+          <AdviceToggleCard
+            activeTab={activeAdviceTab}
+            creatorActions={creatorActions}
+            viewerTips={viewerTips}
+            isCreatorLoading={isSourceLoading("criticism") || isSourceLoading("video_content")}
+            isViewerLoading={isSourceLoading("timeline")}
+            onTabChange={setActiveAdviceTab}
+          />
 
           {/* 資料品質提醒 */}
           {dataQuality.length > 0 && (
@@ -225,26 +323,6 @@ export function AnalysisResultView({ result }) {
             )}
           </TextCard>
 
-          {/* 留言區標籤 */}
-          <TextCard title="留言區標籤">
-            {tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {tags.slice(0, 8).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-sm font-black text-indigo-100"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            ) : isSourceLoading("keyword") || isSourceLoading("topics") ? (
-              <SkeletonChips />
-            ) : (
-              <FallbackText>目前沒有留言區標籤資料。</FallbackText>
-            )}
-          </TextCard>
-
           {/* 情緒心理圖譜 */}
           {(emotionDashboard.chart_data ?? []).length > 0 ? (
             <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
@@ -284,9 +362,18 @@ export function AnalysisResultView({ result }) {
             </TextCard>
           )}
 
-          {/* 留言時間軸熱點 */}
+          {/* 留言時間軸熱點 + 留言區標籤 */}
           {(timelineDashboard.chart_data ?? []).length > 0 ? (
-            <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+            <TimelineLineChart
+              data={timelineDashboard.chart_data ?? []}
+              hotspot={topHotspot}
+              footer={(
+                <TagChips
+                  tags={tags}
+                  isLoading={isSourceLoading("keyword") || isSourceLoading("topics")}
+                />
+              )}
+            />
           ) : (
             <TextCard title="留言時間軸熱點">
               {isSourceLoading("timeline") ? (
@@ -294,6 +381,12 @@ export function AnalysisResultView({ result }) {
               ) : (
                 <FallbackText>目前沒有可繪製的時間軸資料。</FallbackText>
               )}
+              <div className="mt-6 border-t border-white/10 pt-5">
+                <TagChips
+                  tags={tags}
+                  isLoading={isSourceLoading("keyword") || isSourceLoading("topics")}
+                />
+              </div>
             </TextCard>
           )}
 
@@ -310,30 +403,6 @@ export function AnalysisResultView({ result }) {
             </TextCard>
           )}
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            {/* 創作者行動建議 */}
-            <TextCard title="創作者行動建議" className="h-full">
-              {creatorActions.length > 0 ? (
-                <p className="whitespace-pre-line">{fmtList(creatorActions)}</p>
-              ) : isSourceLoading("criticism") || isSourceLoading("video_content") ? (
-                <SkeletonLines lines={3} />
-              ) : (
-                <FallbackText>目前沒有創作者行動建議資料。</FallbackText>
-              )}
-            </TextCard>
-
-            {/* 觀眾觀看提示 */}
-            <TextCard title="觀眾觀看提示" className="h-full">
-              {viewerTips.length > 0 ? (
-                <p className="whitespace-pre-line">{fmtList(viewerTips)}</p>
-              ) : isSourceLoading("timeline") ? (
-                <SkeletonLines lines={3} />
-              ) : (
-                <FallbackText>目前沒有觀眾觀看提示資料。</FallbackText>
-              )}
-            </TextCard>
-          </div>
-
           {/* 子分析來源狀態 */}
           <SourceStatusStrip sources={dataSources} />
 
@@ -349,7 +418,7 @@ export function AnalysisResultView({ result }) {
   return (
     <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
       <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
+        <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
           Analysis Result
         </p>
         <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
@@ -405,7 +474,7 @@ export function AnalysisResultView({ result }) {
           )}
         </TextCard>
 
-        <footer className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm font-semibold text-white/45">
+        <footer className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-base font-semibold text-white/45">
           總留言數：{result.stats?.n_comments ?? 0}
         </footer>
       </div>

@@ -46,7 +46,7 @@ export function KeywordResultView({ result }) {
             {topTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-sm font-black text-indigo-100"
+                className="rounded-full border border-indigo-300/15 bg-indigo-400/10 px-3 py-1.5 text-base font-black text-indigo-100"
               >
                 #{tag}
               </span>

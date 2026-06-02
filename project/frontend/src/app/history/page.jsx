@@ -98,9 +98,7 @@ export default function History() {
     setRecords(null);
     setError(null);
     setCategories((current) =>
-      current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value],
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     );
   };
 
@@ -147,33 +145,31 @@ export default function History() {
 
   return (
     <div className="min-h-screen text-white">
-      <Header
-        showAction={false}
-      />
+      <Header showAction={false} />
 
-      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-        <h1 className="text-3xl font-bold">歷史紀錄</h1>
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+        <h1 className="text-4xl font-bold">歷史紀錄</h1>
 
         <div className="flex flex-col gap-2 rounded-2xl border border-white/15 bg-white/6 p-5 backdrop-blur-md lg:flex-row lg:items-stretch">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runSearch()}
-              placeholder="搜尋分析紀錄"
-              className="min-h-[48px] flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-white outline-none placeholder:text-white/45 focus:ring-2 focus:ring-indigo-400"
-            />
-            <button
-              type="button"
-              onClick={runSearch}
-              className="min-h-[48px] rounded-xl bg-indigo-500 px-5 font-medium transition hover:bg-indigo-400"
-            >
-              搜尋
-            </button>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder="搜尋分析紀錄"
+            className="min-h-[48px] flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-white outline-none placeholder:text-white/45 focus:ring-2 focus:ring-indigo-400"
+          />
+          <button
+            type="button"
+            onClick={runSearch}
+            className="min-h-[48px] rounded-xl bg-indigo-500 px-5 font-medium transition hover:bg-indigo-400"
+          >
+            搜尋
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="self-center text-sm text-white/70">類型</span>
+          <span className="self-center text-base text-white/70">類型</span>
           {CATEGORIES.map((c) => {
             const active = categories.includes(c.value);
 
@@ -182,7 +178,7 @@ export default function History() {
                 key={c.value}
                 type="button"
                 onClick={() => handleCategoryToggle(c.value)}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-xl px-4 py-2 text-base font-medium transition ${
                   active
                     ? "bg-indigo-500 text-white"
                     : "bg-white/10 text-white/90 ring-1 ring-white/20 hover:bg-white/20"
@@ -212,21 +208,21 @@ export default function History() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-indigo-300/20 bg-indigo-400/10 px-2.5 py-1 text-xs font-semibold text-indigo-100">
+                    <span className="rounded-full border border-indigo-300/20 bg-indigo-400/10 px-2.5 py-1 text-sm font-semibold text-indigo-100">
                       {item.category}
                     </span>
                   </div>
                   <p className="truncate font-semibold transition group-hover:text-indigo-100">
                     {item.title || "（無標題）"}
                   </p>
-                  <p className="mt-1 truncate text-sm text-gray-400">{item.youtube_url}</p>
-                  <p className="mt-1 text-xs text-gray-500">{formatWhen(item)}</p>
+                  <p className="mt-1 truncate text-base text-gray-400">{item.youtube_url}</p>
+                  <p className="mt-1 text-sm text-gray-500">{formatWhen(item)}</p>
                 </div>
                 <button
                   type="button"
                   onClick={(event) => deleteRecord(event, item)}
                   disabled={deletingId === item.id}
-                  className="shrink-0 rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-200/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="shrink-0 rounded-lg border border-red-300/20 bg-red-500/10 px-3 py-2 text-base font-semibold text-red-100 transition hover:border-red-200/40 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={`刪除 ${item.title || "未命名影片"}`}
                 >
                   {deletingId === item.id ? "刪除中" : "刪除"}
@@ -244,26 +240,27 @@ export default function History() {
           onClick={() => setDetail(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-gray-950/95 p-6 text-left shadow-xl ring-1 ring-white/20"
+            className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-gray-950/95 p-6 text-left shadow-xl ring-1 ring-white/20"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-indigo-300/90">
+                <p className="text-md font-medium uppercase tracking-wide text-indigo-300/90">
                   與首頁相同預覽
                 </p>
-                <h2 className="mt-1 text-lg font-bold text-white">{detail.title || "紀錄詳情"}</h2>
-                <p className="mt-1 break-all text-sm text-gray-400">{detail.youtube_url}</p>
-                <p className="mt-2 text-xs text-gray-500">
+                <h2 className="mt-1 text-xl font-bold text-white">{detail.title || "紀錄詳情"}</h2>
+                <p className="mt-1 break-all text-base text-gray-400">{detail.youtube_url}</p>
+                <p className="mt-2 text-sm text-gray-500">
                   {detail.category} · {formatWhen(detail)}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setDetail(null)}
-                className="rounded-lg bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-transparent bg-transparent text-3xl font-medium leading-none text-white/90 transition hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-300/70"
+                aria-label="關閉紀錄詳情"
               >
-                關閉
+                ×
               </button>
             </div>
             <HistoryRecordBody

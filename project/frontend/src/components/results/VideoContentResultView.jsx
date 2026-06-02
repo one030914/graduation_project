@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { clip } from "@/lib/analysisFormat";
-import { FallbackText, InfoTile, ResultCard, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function formatSource(source) {
   if (source === "caption") return "手動 CC 字幕";
@@ -154,7 +154,7 @@ export function VideoContentResultView({ result }) {
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h3 className="text-lg font-black tracking-normal text-emerald-200">章節時間軸</h3>
-              <p className="mt-1 text-sm font-semibold text-white/45">
+              <p className="mt-1 text-base font-semibold text-white/45">
                 共 {chapters.length} 個章節{filteredChapters.length !== chapters.length ? `，顯示 ${filteredChapters.length} 個` : ""}
               </p>
             </div>
@@ -165,7 +165,7 @@ export function VideoContentResultView({ result }) {
                 type="search"
                 value={chapterQuery}
                 onChange={(event) => setChapterQuery(event.target.value)}
-                className="min-h-10 w-full rounded-xl border border-white/15 bg-white/8 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
+                className="min-h-10 w-full rounded-xl border border-white/15 bg-white/8 px-3 text-base text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
                 placeholder="搜尋章節或關鍵字"
               />
               </label>
@@ -193,15 +193,15 @@ export function VideoContentResultView({ result }) {
                               href={timestampUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-sm font-medium text-emerald-200 transition hover:text-emerald-100"
+                              className="text-base font-medium text-emerald-200 transition hover:text-emerald-100"
                             >
                               {timeLabel}
                             </a>
                           ) : (
-                            <p className="text-sm font-medium text-emerald-200">{timeLabel}</p>
+                            <p className="text-base font-medium text-emerald-200">{timeLabel}</p>
                           )}
                           <span
-                            className={`px-2 py-1 text-xs font-medium ring-1 ${getImportanceClassName(chapter.importance)}`}
+                            className={`px-2 py-1 text-base font-medium ring-1 ${getImportanceClassName(chapter.importance)}`}
                           >
                             {getImportanceLabel(chapter.importance)}
                           </span>
@@ -215,12 +215,12 @@ export function VideoContentResultView({ result }) {
                           href={timestampUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-8 items-center justify-center border border-white/15 bg-white/8 px-3 text-xs font-medium text-white/80 transition hover:border-emerald-300/45 hover:bg-emerald-400/12 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                          className="inline-flex min-h-8 items-center justify-center border border-white/15 bg-white/8 px-3 text-base font-medium text-white/80 transition hover:border-emerald-300/45 hover:bg-emerald-400/12 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         >
                           前往時間點
                         </a>
                       ) : (
-                        <span className="inline-flex min-h-8 items-center justify-center border border-white/10 bg-white/5 px-3 text-xs font-medium text-white/35">
+                        <span className="inline-flex min-h-8 items-center justify-center border border-white/10 bg-white/5 px-3 text-base font-medium text-white/35">
                           無法跳轉
                         </span>
                       )}
@@ -233,7 +233,7 @@ export function VideoContentResultView({ result }) {
                         {chapter.keywords.slice(0, 5).map((keyword, keywordIndex) => (
                           <span
                             key={`${keyword}-${keywordIndex}`}
-                            className="bg-emerald-400/10 px-2 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-300/20"
+                            className="bg-emerald-400/10 px-2 py-1 text-base font-medium text-emerald-100 ring-1 ring-emerald-300/20"
                           >
                             {clip(keyword, 32)}
                           </span>
@@ -244,12 +244,17 @@ export function VideoContentResultView({ result }) {
                 );
               })}
               {chapters.length > 0 && filteredChapters.length === 0 && (
-                <p className="border border-white/10 bg-slate-950/35 px-4 py-3 text-sm text-white/65">
+                <p className="border border-white/10 bg-slate-950/35 px-4 py-3 text-base text-white/65">
                   沒有符合搜尋條件的章節。
                 </p>
               )}
           </div>
         </section>
+
+      <ResultFooter>
+        Video Content：根據 YouTube 字幕或 Whisper 逐字稿整理影片摘要、章節與建議。
+        逐字稿來源與品質會影響內容判讀，長影片可能需要較久時間完成分析。
+      </ResultFooter>
     </ResultShell>
   );
 }

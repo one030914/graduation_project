@@ -27,9 +27,9 @@ export function TopicsBarChart({ data = [] }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-black tracking-normal">熱門討論焦點</h3>
-          <p className="mt-2 text-sm font-semibold text-white/45">留言區最常被提到的主軸</p>
+          <p className="mt-2 text-base font-semibold text-white/45">留言區最常被提到的主軸</p>
         </div>
-        <span className="rounded-full bg-indigo-400/10 px-3 py-1 text-xs font-black text-indigo-200 ring-1 ring-indigo-300/15">
+        <span className="rounded-full bg-indigo-400/10 px-3 py-1 text-base font-black text-indigo-200 ring-1 ring-indigo-300/15">
           Top {chartData.length}
         </span>
       </div>
@@ -39,7 +39,7 @@ export function TopicsBarChart({ data = [] }) {
           const percent = item.ratio || (item.count / maxCount) * 100;
           return (
             <div key={`${item.name}-${index}`}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black">
+              <div className="mb-2 flex items-center justify-between gap-3 text-base font-black">
                 <span className="min-w-0 truncate text-white/88">{item.name}</span>
                 <span className="shrink-0 text-white/45">{Math.round(percent)}%</span>
               </div>
@@ -56,11 +56,11 @@ export function TopicsBarChart({ data = [] }) {
 
       {featured.length > 0 && (
         <div className="mt-8 space-y-3">
-          <h4 className="text-sm font-black text-indigo-200">代表主題群</h4>
+          <h4 className="text-base font-black text-indigo-200">代表主題群</h4>
           {featured.map((item, index) => (
             <div
               key={`${item.name}-featured-${index}`}
-              className="flex items-center gap-3 rounded-xl border border-indigo-300/10 bg-indigo-400/8 px-4 py-3 text-sm text-white/72"
+              className="flex items-center gap-3 rounded-xl border border-indigo-300/10 bg-indigo-400/8 px-4 py-3 text-base text-white/72"
             >
               <span>
                 {item.count > 0 ? `${item.count} 則留言` : `${Math.round(item.ratio)}% 佔比`}

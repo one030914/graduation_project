@@ -15,12 +15,12 @@ export function Header({
           >
             YouTube 分析平台
           </Link>
-          <p className="mt-2 max-w-xl text-sm text-white/70">綜合分析、熱門主題與情緒風向視覺化</p>
+          <p className="mt-2 max-w-xl text-base text-white/70">綜合分析、熱門主題與情緒風向視覺化</p>
         </div>
         {showAction && (
           <Link
             href="/history"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white/10 px-5 py-2.5 text-sm font-medium ring-1 ring-white/20 transition hover:bg-white/20"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white/10 px-5 py-2.5 text-base font-medium ring-1 ring-white/20 transition hover:bg-white/20"
           >
             歷史紀錄
           </Link>

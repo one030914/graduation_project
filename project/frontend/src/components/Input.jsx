@@ -15,7 +15,7 @@ export function Input({ text, loading, activeAction, onTextChange, onSubmit }) {
 
   return (
     <div className="rounded-2xl border border-white/15 bg-white/6 p-5 backdrop-blur-md">
-      <label className="block text-sm font-medium text-white/85">
+      <label className="block text-base font-medium text-white/85">
         貼上 YouTube 影片連結開始分析
       </label>
       <div className="mt-3 space-y-3">
@@ -23,7 +23,7 @@ export function Input({ text, loading, activeAction, onTextChange, onSubmit }) {
           type="url"
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
-          className="min-h-[48px] w-full rounded-xl border border-white/20 bg-white/10 px-4 text-white outline-none placeholder:text-white/45 focus:ring-2 focus:ring-indigo-400"
+          className="min-h-[48px] w-full rounded-xl border border-white/20 bg-white/10 px-4 text-base text-white outline-none placeholder:text-white/45 focus:ring-2 focus:ring-indigo-400"
           placeholder="YouTube 影片網址"
         />
         <div
@@ -47,8 +47,8 @@ export function Input({ text, loading, activeAction, onTextChange, onSubmit }) {
               >
                 {!isActive && <span className={`absolute inset-x-3 top-0 h-0.5 rounded-full opacity-60 ${accent}`} />}
                 {isActive && <span className="absolute inset-x-0 top-0 h-1 bg-white/90" />}
-                <span className="relative block text-sm font-semibold leading-5">{label}</span>
-                <span className={`relative mt-0.5 block text-xs leading-4 transition ${isActive ? "text-white/90" : "text-white/50 group-hover:text-white/75"}`}>
+                <span className="relative block text-base font-semibold leading-6">{label}</span>
+                <span className={`relative mt-0.5 block text-sm leading-5 transition ${isActive ? "text-white/90" : "text-white/50 group-hover:text-white/75"}`}>
                   {isActive ? (loading ? "執行中" : "已選取") : description}
                 </span>
               </button>

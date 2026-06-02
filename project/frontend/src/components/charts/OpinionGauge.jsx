@@ -52,17 +52,17 @@ export function OpinionGauge({ score = 0, label = "" }) {
 
         <div className="-mt-14 max-w-full px-4 text-center">
           <p className="text-2xl font-black leading-tight tracking-normal sm:text-3xl">{labelText}</p>
-          <p className="mt-1.5 text-sm font-black text-white/48">{safeScore}% 好評率</p>
+          <p className="mt-1.5 text-base font-black text-white/48">{safeScore}% 好評率</p>
         </div>
 
-        <div className="mt-10 grid w-full max-w-[460px] grid-cols-3 text-center text-base font-black text-white/45">
+        <div className="mt-10 grid w-full max-w-[460px] grid-cols-3 text-center text-lg font-black text-white/45">
           <span>負面</span>
           <span>中性</span>
           <span>正向</span>
         </div>
       </div>
 
-      <p className="mx-auto mt-10 max-w-md text-center text-base font-semibold leading-7 text-white/58">
+      <p className="mx-auto mt-10 max-w-md text-center text-lg font-semibold leading-8 text-white/58">
         {summary}
       </p>
     </section>

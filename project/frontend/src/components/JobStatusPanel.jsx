@@ -41,9 +41,9 @@ export function JobStatusPanel({ jobState }) {
 
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-medium">{actionLabel}</p>
+          <p className="text-base font-medium">{actionLabel}</p>
           <div className="mt-1 flex items-center gap-3">
-            <p className="text-lg font-semibold">{statusLabel}</p>
+            <p className="text-xl font-semibold">{statusLabel}</p>
             {isRunning && (
               <div className="flex items-center gap-1.5" aria-hidden="true">
                 <span className="job-status-dot" />
@@ -55,7 +55,7 @@ export function JobStatusPanel({ jobState }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ring-1 ${badgeClassName}`}>
+          <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ring-1 ${badgeClassName}`}>
             {jobState.status}
           </span>
         </div>
@@ -66,13 +66,13 @@ export function JobStatusPanel({ jobState }) {
           <div className="h-2 overflow-hidden rounded-full bg-white/8 ring-1 ring-white/10">
             <div className="job-status-marquee h-full rounded-full" />
           </div>
-          <p className="mt-2 text-xs text-white/60">
+          <p className="mt-2 text-sm text-white/60">
             任務正在背景執行，完成後會自動更新結果。
           </p>
         </div>
       )}
 
-      {jobState.error && <p className="relative mt-3 text-sm">{jobState.error}</p>}
+      {jobState.error && <p className="relative mt-3 text-base">{jobState.error}</p>}
     </section>
   );
 }

@@ -64,7 +64,7 @@ export function CriticismResultView({ result }) {
             {chartData.map((item) => (
               <span
                 key={item.key || item.label}
-                className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-sm font-black text-red-100"
+                className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-base font-black text-red-100"
               >
                 {item.label}：{item.count}（{fmtPercent(item.value)}）
               </span>

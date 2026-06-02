@@ -17,7 +17,7 @@ function getHighlightLabel(index) {
   return "延伸討論點";
 }
 
-export function TimelineLineChart({ data = [], hotspot = null }) {
+export function TimelineLineChart({ data = [], hotspot = null, footer = null }) {
   const chartData = data
     .map((item) => ({
       time: item.time_label || String(item.seconds ?? ""),
@@ -53,7 +53,7 @@ export function TimelineLineChart({ data = [], hotspot = null }) {
             <CartesianGrid stroke="#334155" vertical={false} opacity={0.48} />
             <XAxis
               dataKey="time"
-              tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 700 }}
+              tick={{ fill: "#94a3b8", fontSize: 14, fontWeight: 700 }}
               tickLine={false}
               axisLine={{ stroke: "#334155" }}
             />
@@ -66,12 +66,13 @@ export function TimelineLineChart({ data = [], hotspot = null }) {
                 borderRadius: 12,
                 boxShadow: "0 18px 40px rgba(2, 6, 23, 0.32)",
                 color: "#e2e8f0",
+                fontSize: 14,
               }}
               formatter={(value, name) => {
                 if (name === "count") return [value, "提及次數"];
                 return [value, name];
               }}
-              labelStyle={{ color: "#e2e8f0", fontWeight: 800 }}
+              labelStyle={{ color: "#e2e8f0", fontSize: 14, fontWeight: 800 }}
             />
             <Area
               type="monotone"
@@ -97,9 +98,9 @@ export function TimelineLineChart({ data = [], hotspot = null }) {
       </div>
 
       {hotspot && (
-        <div className="mt-6 rounded-xl border border-amber-300/15 bg-amber-400/8 px-4 py-3 text-sm font-semibold text-white/68 ring-1 ring-amber-300/10">
+        <div className="mt-6 rounded-xl border border-amber-300/15 bg-amber-400/8 px-4 py-3 text-base font-semibold text-white/68 ring-1 ring-amber-300/10">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-amber-400/14 px-2.5 py-1 text-xs font-black text-amber-200">
+            <span className="rounded-full bg-amber-400/14 px-2.5 py-1 text-base font-black text-amber-200">
               最高討論片段
             </span>
             <span className="font-black text-white">{hotspot.time_label}</span>
@@ -125,12 +126,14 @@ export function TimelineLineChart({ data = [], hotspot = null }) {
               key={`${item.time}-${item.count}-${index}`}
               className={`rounded-xl px-4 py-3 text-center ring-1 ${colorClass}`}
             >
-              <p className="text-sm font-black">{item.time}</p>
-              <p className="mt-1 text-xs font-bold text-white/48">{item.label}</p>
+              <p className="text-base font-black">{item.time}</p>
+              <p className="mt-1 text-sm font-bold text-white/48">{item.label}</p>
             </div>
           );
         })}
       </div>
+
+      {footer && <div className="mt-6 border-t border-white/10 pt-5">{footer}</div>}
     </section>
   );
 }

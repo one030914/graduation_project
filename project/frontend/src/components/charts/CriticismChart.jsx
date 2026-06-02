@@ -34,13 +34,13 @@ export function CriticismChart({ data = [] }) {
           return (
             <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 ring-1 ring-white/5">
               <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-sm font-black text-white/72">{item.label}</p>
-                <span className="rounded-full bg-white/8 px-2 py-1 text-xs font-black text-white/45">
+                <p className="min-w-0 text-base font-black text-white/72">{item.label}</p>
+                <span className="rounded-full bg-white/8 px-2 py-1 text-sm font-black text-white/45">
                   {fmtPercent(item.value)}
                 </span>
               </div>
               <p className="mt-4 text-3xl font-black text-white">{item.count}</p>
-              <p className="mt-1 text-xs font-bold text-white/42">相關留言數</p>
+              <p className="mt-1 text-sm font-bold text-white/42">相關留言數</p>
 
               <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-800/80 ring-1 ring-white/5">
                 <div

@@ -91,8 +91,7 @@ ${fmtComments((hotspots[0].representative_comments ?? []).slice(0, 2))}`}
       </ResultCard>
 
       <ResultFooter>
-        曲線資料：series {series.length} 筆，chart_data {chartData.length}{" "}
-        筆。此分析統計留言中被觀眾主動提及的影片時間點，不是 YouTube 官方重播率。
+        此分析統計留言中被觀眾主動提及的影片時間點，不是 YouTube 官方重播率。
       </ResultFooter>
     </ResultShell>
   );

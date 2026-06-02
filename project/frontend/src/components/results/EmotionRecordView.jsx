@@ -27,8 +27,8 @@ function TextCard({ title, children, tone = "indigo" }) {
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
-      <h3 className={`text-lg font-black tracking-normal ${titleClass}`}>{title}</h3>
-      <div className="mt-4 text-sm font-semibold leading-7 text-white/72">{children}</div>
+      <h3 className={`text-xl font-black tracking-normal ${titleClass}`}>{title}</h3>
+      <div className="mt-4 text-base font-semibold leading-8 text-white/72">{children}</div>
     </section>
   );
 }
@@ -59,7 +59,7 @@ function SentimentRatioCards({ positive = 0, neutral = 0, negative = 0 }) {
           key={item.label}
           className={`rounded-2xl border p-5 shadow-[0_18px_48px_rgba(2,6,23,0.22)] ring-1 ring-white/5 ${item.className}`}
         >
-          <p className="text-sm font-black text-white/50">{item.label}</p>
+          <p className="text-base font-black text-white/50">{item.label}</p>
           <p className="mt-2 text-3xl font-black">{fmtPercent(item.value)}</p>
 
           <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">
@@ -116,7 +116,7 @@ function EmotionDistributionList({ data = [] }) {
 
           return (
             <div key={item.name}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black">
+              <div className="mb-2 flex items-center justify-between gap-3 text-base font-black">
                 <span className="text-white/88">{item.name}</span>
                 <span className="text-white/48">
                   {item.count} 則 / {fmtPercent(item.ratio)}
@@ -165,7 +165,7 @@ function RepresentativeComments({ commentsByEmotion = {} }) {
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <h4 className="font-black text-indigo-100">{group.label}</h4>
-              <span className="rounded-full bg-indigo-400/10 px-2.5 py-1 text-xs font-black text-indigo-200">
+              <span className="rounded-full bg-indigo-400/10 px-2.5 py-1 text-base font-black text-indigo-200">
                 {group.comments.length} 則
               </span>
             </div>
@@ -187,11 +187,11 @@ function RepresentativeComments({ commentsByEmotion = {} }) {
                     key={`${group.emotion}-${index}`}
                     className="border-l-2 border-indigo-300/35 bg-slate-900/50 px-4 py-3"
                   >
-                    <p className="text-sm font-semibold leading-7 text-white/76">
+                    <p className="text-base font-semibold leading-8 text-white/76">
                       {text || "無留言內容"}
                     </p>
                     {likeCount !== null && (
-                      <p className="mt-1 text-xs font-bold text-white/38">👍 {likeCount}</p>
+                      <p className="mt-1 text-base font-bold text-white/38">👍 {likeCount}</p>
                     )}
                   </div>
                 );
@@ -227,13 +227,13 @@ export function EmotionRecordView({ result }) {
   return (
     <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
       <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200/70">
+        <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
           Emotion Analysis
         </p>
         <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
           情緒風向分析
         </h2>
-        <p className="mt-2 text-sm font-semibold text-white/50">
+        <p className="mt-2 text-base font-semibold text-white/50">
           {result.title || result.url || "YouTube 留言情緒分析"}
         </p>
       </div>

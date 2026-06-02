@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
+import os
+
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from configs.schema import Req
@@ -48,6 +50,11 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"message": "Topic API running"}
+
+@app.get("/history")
+def history_page_redirect():
+    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
+    return RedirectResponse(f"{frontend_base_url}/history", status_code=307)
 
 # ----------------------
 # POST: 經佇列的分析

@@ -83,7 +83,8 @@ function buildChartData(data) {
   const totalCount = items.reduce((sum, item) => sum + item.count, 0);
 
   return items.map((item) => {
-    const ratio = item.providedRatio > 0 ? item.providedRatio : item.count / Math.max(totalCount, 1);
+    const ratio =
+      item.providedRatio > 0 ? item.providedRatio : item.count / Math.max(totalCount, 1);
 
     return {
       ...item,
@@ -105,50 +106,50 @@ export function EmotionRadarChart({ data = [] }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-black tracking-normal">情緒心理圖譜</h3>
-          <p className="mt-2 text-sm font-semibold text-white/45">雷達圖呈現留言區情緒分布</p>
+          <p className="mt-2 text-base font-semibold text-white/45">雷達圖呈現留言區情緒分布</p>
         </div>
-        <div className="rounded-xl border border-indigo-300/10 bg-indigo-400/8 px-3 py-2 text-right">
-          <p className="text-xs font-bold text-white/38">主導情緒</p>
-          <p className="mt-1 text-sm font-black text-indigo-200">{dominant.name}</p>
+        <div className="rounded-2xl border border-indigo-300/15 bg-indigo-400/10 px-5 py-4 text-right ring-1 ring-indigo-300/10">
+          <p className="text-base font-bold text-white/42">主導情緒</p>
+          <p className="mt-1 text-2xl font-black text-indigo-100">{dominant.name}</p>
         </div>
       </div>
 
-      <div className="mt-5 h-80 min-h-80 min-w-0">
-        <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={280}>
-          <RadarChart data={chartData} outerRadius="72%">
+      <div className="mt-4 h-[440px] min-h-[440px] min-w-0">
+        <ResponsiveContainer width="100%" height={440} minWidth={0} minHeight={400}>
+          <RadarChart
+            data={chartData}
+            outerRadius="82%"
+            margin={{ top: 34, right: 72, bottom: 34, left: 72 }}
+          >
             <PolarGrid gridType="polygon" stroke="rgba(148, 163, 184, 0.24)" />
             <PolarAngleAxis
               dataKey="name"
-              tick={{ fill: "#cbd5e1", fontSize: 12, fontWeight: 800 }}
+              tick={{ fill: "#e2e8f0", fontSize: 24, fontWeight: 900 }}
             />
-            <PolarRadiusAxis
-              angle={90}
-              domain={[0, maxScore]}
-              tick={false}
-              axisLine={false}
-            />
+            <PolarRadiusAxis angle={90} domain={[0, maxScore]} tick={false} axisLine={false} />
             <Tooltip
               contentStyle={{
                 background: "#0f172a",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
                 borderRadius: 12,
-                boxShadow: "0 18px 40px rgba(2, 6, 23, 0.32)",
+                boxShadow: "0 24px 40px rgba(2, 6, 23, 0.32)",
                 color: "#e2e8f0",
+                fontSize: 16,
               }}
               formatter={(value, name, props) => {
                 const payload = props?.payload ?? {};
                 const ratio = `${((payload.ratio ?? 0) * 100).toFixed(1)}%`;
                 return [`${payload.count ?? 0} 則 / ${ratio}`, "情緒聲量"];
               }}
-              labelStyle={{ color: "#e2e8f0", fontWeight: 800 }}
+              labelStyle={{ color: "#e2e8f0", fontSize: 16, fontWeight: 800 }}
             />
             <Radar
               dataKey="score"
               fill="#818cf8"
               fillOpacity={0.34}
               stroke="#a5b4fc"
-              strokeWidth={3}
-              dot={{ r: 4, fill: "#fbbf24", stroke: "#070d20", strokeWidth: 2 }}
+              strokeWidth={4}
+              dot={{ r: 5, fill: "#fbbf24", stroke: "#070d20", strokeWidth: 2 }}
             />
           </RadarChart>
         </ResponsiveContainer>

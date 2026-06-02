@@ -45,6 +45,6 @@ export function HistoryRecordBody({ mode, category, payload }) {
   }
 
   return (
-    <p className="text-sm text-white/60">此紀錄類型無法對應首頁預覽（{category || "未分類"}）。</p>
+    <p className="text-base text-white/60">此紀錄類型無法對應首頁預覽（{category || "未分類"}）。</p>
   );
 }

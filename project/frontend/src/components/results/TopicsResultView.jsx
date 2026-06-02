@@ -13,7 +13,7 @@ function KeywordChips({ keywords }) {
     : [];
 
   if (items.length === 0) {
-    return <p className="text-sm font-semibold text-white/45">無關鍵詞</p>;
+    return <p className="text-base font-semibold text-white/45">無關鍵詞</p>;
   }
 
   return (
@@ -21,7 +21,7 @@ function KeywordChips({ keywords }) {
       {items.map((keyword, index) => (
         <span
           key={`${keyword}-${index}`}
-          className="rounded-full border border-sky-200/15 bg-sky-300/10 px-3 py-1 text-xs font-black leading-5 text-sky-100 ring-1 ring-white/5"
+          className="rounded-full border border-sky-200/15 bg-sky-300/10 px-3 py-1 text-base font-black leading-5 text-sky-100 ring-1 ring-white/5"
         >
           {clip(keyword, 28)}
         </span>
@@ -39,7 +39,7 @@ function RepresentativeComments({ comments }) {
     : [];
 
   if (items.length === 0) {
-    return <p className="text-sm font-semibold text-white/45">尚無代表留言</p>;
+    return <p className="text-base font-semibold text-white/45">尚無代表留言</p>;
   }
 
   return (
@@ -47,7 +47,7 @@ function RepresentativeComments({ comments }) {
       {items.map((comment, index) => (
         <blockquote
           key={`${comment}-${index}`}
-          className="border-l-2 border-indigo-300/35 bg-white/[0.045] px-4 py-3 text-sm font-semibold leading-6 text-white/72"
+          className="border-l-2 border-indigo-300/35 bg-white/[0.045] px-4 py-3 text-base font-semibold leading-6 text-white/72"
         >
           <p className="break-words">{clip(comment, 260)}</p>
         </blockquote>
@@ -110,10 +110,10 @@ export function TopicsResultView({ result }) {
 
                 <div className="mt-4 space-y-3 rounded-xl border border-sky-200/10 bg-sky-300/[0.045] p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-xs font-black uppercase tracking-[0.14em] text-sky-200/75">
+                    <h4 className="text-base font-black uppercase tracking-[0.14em] text-sky-200/75">
                       主題關鍵詞
                     </h4>
-                    <span className="text-xs font-bold text-white/35">
+                    <span className="text-base font-bold text-white/35">
                       {topic.keywords?.length ?? 0} 則
                     </span>
                   </div>
@@ -122,10 +122,10 @@ export function TopicsResultView({ result }) {
 
                 <div className="mt-4 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-xs font-black uppercase tracking-[0.14em] text-indigo-200/75">
+                    <h4 className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/75">
                       代表留言
                     </h4>
-                    <span className="text-xs font-bold text-white/35">
+                    <span className="text-base font-bold text-white/35">
                       {topic.representative_comments?.length ?? 0} 則
                     </span>
                   </div>
@@ -141,7 +141,11 @@ export function TopicsResultView({ result }) {
         </ResultCard>
       )}
 
-      <ResultFooter>參與主題分析留言數：{result.total_comments}</ResultFooter>
+      <ResultFooter>
+        Topics：根據留言語言與內容相似度整理主要討論群組。
+        主題占比與代表留言可用來判斷留言區討論焦點；資料不足時結果僅供參考。
+        參與主題分析留言數：{result.total_comments ?? 0}。
+      </ResultFooter>
     </ResultShell>
   );
 }
