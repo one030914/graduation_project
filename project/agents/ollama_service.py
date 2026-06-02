@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import json
 import re
+import os
 from typing import Any
+from dotenv import load_dotenv
 from ollama import Client
+
+load_dotenv(verbose=True)
 
 class LocalLLMService:
     def __init__(
         self,
-        model_name: str = "gemma3:12b",
-        host: str = "http://host.docker.internal:11434",
+        model_name: str = os.getenv("OLLAMA_MODEL", "gemma3:12b"),
+        host: str = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434"),
     ):
         self.model_name = model_name
         self.client = Client(host=host)
