@@ -25,7 +25,6 @@ async def lifespan(app: FastAPI):
     yield
     await wq.stop()
 
-
 app = FastAPI(title="YouTube Comment Analyzer API", lifespan=lifespan)
 ALLOWED_JOB_MODES = {
     "analyze",

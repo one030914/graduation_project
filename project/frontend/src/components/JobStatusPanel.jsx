@@ -1,4 +1,4 @@
-export function JobStatusPanel({ jobState, onCancel }) {
+export function JobStatusPanel({ jobState }) {
   const actionLabels = {
     analyze: "留言分析",
     summary: "摘要分析",
@@ -16,30 +16,24 @@ export function JobStatusPanel({ jobState, onCancel }) {
     running: "分析中",
     completed: jobState.fromCache ? "已完成（快取）" : "已完成",
     failed: "分析失敗",
-    cancelled: "已停止",
   }[jobState.status] || `未知狀態：${jobState.status}`;
 
   const actionLabel = actionLabels[jobState.action] || "分析";
 
-  const isActive = ["submitting", "queued", "running"].includes(jobState.status);
   const isRunning = jobState.status === "running";
   const toneClassName =
     jobState.status === "failed"
       ? "border-red-500/30 bg-red-950/30 text-red-100"
-      : jobState.status === "cancelled"
-        ? "border-amber-400/30 bg-amber-950/20 text-amber-100"
-        : jobState.status === "completed"
-          ? "border-emerald-400/30 bg-emerald-950/20 text-emerald-100"
-          : "border-sky-400/20 bg-sky-950/20 text-sky-100";
+      : jobState.status === "completed"
+        ? "border-emerald-400/30 bg-emerald-950/20 text-emerald-100"
+        : "border-sky-400/20 bg-sky-950/20 text-sky-100";
 
   const badgeClassName =
     jobState.status === "failed"
       ? "bg-red-400/10 text-red-100 ring-red-300/20"
-      : jobState.status === "cancelled"
-        ? "bg-amber-400/10 text-amber-100 ring-amber-300/20"
-        : jobState.status === "completed"
-          ? "bg-emerald-400/10 text-emerald-100 ring-emerald-300/20"
-          : "bg-sky-400/10 text-sky-100 ring-sky-300/20";
+      : jobState.status === "completed"
+        ? "bg-emerald-400/10 text-emerald-100 ring-emerald-300/20"
+        : "bg-sky-400/10 text-sky-100 ring-sky-300/20";
 
   return (
     <section className={`relative overflow-hidden rounded-2xl border p-4 backdrop-blur-md ${toneClassName}`}>
@@ -64,15 +58,6 @@ export function JobStatusPanel({ jobState, onCancel }) {
           <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ring-1 ${badgeClassName}`}>
             {jobState.status}
           </span>
-          {isActive && jobState.jobId && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex min-h-8 items-center rounded-full border border-red-300/25 bg-red-500/15 px-3 text-xs font-semibold text-red-100 transition hover:border-red-200/45 hover:bg-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-            >
-              停止分析
-            </button>
-          )}
         </div>
       </div>
 
