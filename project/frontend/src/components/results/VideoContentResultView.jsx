@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { clip } from "@/lib/analysisFormat";
-import { InfoTile, ResultCard, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultShell } from "@/components/results/ResultCards";
 
 function formatSource(source) {
   if (source === "caption") return "手動 CC 字幕";
@@ -108,36 +108,40 @@ export function VideoContentResultView({ result }) {
             value={formatSource(safeResult.transcript_source)}
             tone="emerald"
           />
-          {safeResult.language && <InfoTile label="語言" value={safeResult.language} />}
-          {transcriptWordCount && <InfoTile label="逐字稿總字數" value={transcriptWordCount} />}
+          <InfoTile label="語言" value={safeResult.language || "未知"} />
+          <InfoTile label="逐字稿總字數" value={transcriptWordCount || "無資料"} />
         </div>
       </ResultCard>
-      {summaryText && (
-        <ResultCard title="摘要" tone="emerald">
-          <p>{summaryText}</p>
-        </ResultCard>
-      )}
+      <ResultCard title="摘要" tone="emerald">
+        {summaryText ? <p>{summaryText}</p> : <FallbackText>目前沒有影片內容摘要資料。</FallbackText>}
+      </ResultCard>
 
-      {(finalConclusion || recommendedAudience || actionSuggestions.length > 0) && (
-        <ResultCard title="結論與行動建議" tone="emerald">
+      <ResultCard title="結論與行動建議" tone="emerald">
+        {finalConclusion || recommendedAudience || actionSuggestions.length > 0 ? (
           <div className="space-y-3">
-            {finalConclusion && <p>{finalConclusion}</p>}
-            {recommendedAudience && (
+            {finalConclusion ? <p>{finalConclusion}</p> : <FallbackText>目前沒有結論資料。</FallbackText>}
+            {recommendedAudience ? (
               <p>
                 <span className="font-black text-white">適合對象：</span>
                 {recommendedAudience}
               </p>
+            ) : (
+              <FallbackText>目前沒有適合對象資料。</FallbackText>
             )}
-            {actionSuggestions.length > 0 && (
+            {actionSuggestions.length > 0 ? (
               <ul className="list-disc space-y-1 pl-5">
                 {actionSuggestions.slice(0, 5).map((item, index) => (
                   <li key={`${item}-${index}`}>{clip(item, 180)}</li>
                 ))}
               </ul>
+            ) : (
+              <FallbackText>目前沒有行動建議資料。</FallbackText>
             )}
           </div>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有結論與行動建議資料。</FallbackText>
+        )}
+      </ResultCard>
 
       <ResultCard title="逐字稿品質提示" tone="emerald">
         <p>
@@ -146,8 +150,7 @@ export function VideoContentResultView({ result }) {
         </p>
       </ResultCard>
 
-      {chapters.length > 0 && (
-        <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+      <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h3 className="text-lg font-black tracking-normal text-emerald-200">章節時間軸</h3>
@@ -155,7 +158,8 @@ export function VideoContentResultView({ result }) {
                 共 {chapters.length} 個章節{filteredChapters.length !== chapters.length ? `，顯示 ${filteredChapters.length} 個` : ""}
               </p>
             </div>
-            <label className="w-full md:max-w-xs">
+            {chapters.length > 0 && (
+              <label className="w-full md:max-w-xs">
               <span className="sr-only">搜尋章節或關鍵字</span>
               <input
                 type="search"
@@ -164,10 +168,12 @@ export function VideoContentResultView({ result }) {
                 className="min-h-10 w-full rounded-xl border border-white/15 bg-white/8 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
                 placeholder="搜尋章節或關鍵字"
               />
-            </label>
+              </label>
+            )}
           </div>
           <div className="mt-4 space-y-3">
-              {filteredChapters.map((chapter, index) => {
+              {chapters.length === 0 && <FallbackText>目前沒有章節時間軸資料。</FallbackText>}
+              {chapters.length > 0 && filteredChapters.map((chapter, index) => {
                 const start = Number(chapter.start_seconds) || 0;
                 const end = Number(chapter.end_seconds) || 0;
                 const timestampUrl = buildTimestampUrl(safeResult.url, start);
@@ -237,14 +243,13 @@ export function VideoContentResultView({ result }) {
                   </div>
                 );
               })}
-              {filteredChapters.length === 0 && (
+              {chapters.length > 0 && filteredChapters.length === 0 && (
                 <p className="border border-white/10 bg-slate-950/35 px-4 py-3 text-sm text-white/65">
                   沒有符合搜尋條件的章節。
                 </p>
               )}
           </div>
         </section>
-      )}
     </ResultShell>
   );
 }

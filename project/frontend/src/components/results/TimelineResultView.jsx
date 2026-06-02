@@ -2,7 +2,7 @@
 
 import { clip } from "@/lib/analysisFormat";
 import { TimelineLineChart } from "@/components/charts/TimelineLineChart";
-import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function fmtPercent(value) {
   return `${((Number(value) || 0) * 100).toFixed(1)}%`;
@@ -55,36 +55,40 @@ export function TimelineResultView({ result }) {
         {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
       </ResultCard>
 
-      {chartData.length > 0 && <TimelineLineChart data={chartData} hotspot={topHotspot} />}
-
-      {hotspots.length > 0 ? (
-        <>
-          <ResultCard title="Top 1 高能片段" tone="amber">
-            <p className="whitespace-pre-line">
-              {`${hotspots[0].time_label} 附近｜被提及 ${hotspots[0].count ?? 0} 次
-${fmtComments((hotspots[0].representative_comments ?? []).slice(0, 2))}`}
-            </p>
-          </ResultCard>
-
-          {hotspots.length > 1 && (
-            <ResultCard title="其他熱門片段">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {hotspots.slice(1, 6).map((hotspot, idx) => (
-                  <InfoTile
-                    key={`${hotspot.time_label}-${idx}`}
-                    label={`${idx + 2}. ${hotspot.time_label}`}
-                    value={`被提及 ${hotspot.count ?? 0} 次`}
-                  />
-                ))}
-              </div>
-            </ResultCard>
-          )}
-        </>
+      {chartData.length > 0 ? (
+        <TimelineLineChart data={chartData} hotspot={topHotspot} />
       ) : (
-        <ResultCard title="熱點結果">
-          <p>目前沒有形成明確時間軸熱點。</p>
+        <ResultCard title="時間軸圖表">
+          <FallbackText>目前沒有可繪製的時間軸曲線資料。</FallbackText>
         </ResultCard>
       )}
+
+      <ResultCard title="Top 1 高能片段" tone="amber">
+        {hotspots.length > 0 ? (
+          <p className="whitespace-pre-line">
+            {`${hotspots[0].time_label} 附近｜被提及 ${hotspots[0].count ?? 0} 次
+${fmtComments((hotspots[0].representative_comments ?? []).slice(0, 2))}`}
+          </p>
+        ) : (
+          <FallbackText>目前沒有形成明確時間軸熱點。</FallbackText>
+        )}
+      </ResultCard>
+
+      <ResultCard title="其他熱門片段">
+        {hotspots.length > 1 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {hotspots.slice(1, 6).map((hotspot, idx) => (
+              <InfoTile
+                key={`${hotspot.time_label}-${idx}`}
+                label={`${idx + 2}. ${hotspot.time_label}`}
+                value={`被提及 ${hotspot.count ?? 0} 次`}
+              />
+            ))}
+          </div>
+        ) : (
+          <FallbackText>目前沒有其他熱門片段資料。</FallbackText>
+        )}
+      </ResultCard>
 
       <ResultFooter>
         曲線資料：series {series.length} 筆，chart_data {chartData.length}{" "}

@@ -2,7 +2,7 @@
 
 import { clip } from "@/lib/analysisFormat";
 import { TopicsBarChart } from "@/components/charts/TopicsBarChart";
-import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function KeywordChips({ keywords }) {
   const items = Array.isArray(keywords)
@@ -83,9 +83,15 @@ export function TopicsResultView({ result }) {
         </div>
       </ResultCard>
 
-      {chartData.length > 0 && <TopicsBarChart data={chartData} />}
+      {chartData.length > 0 ? (
+        <TopicsBarChart data={chartData} />
+      ) : (
+        <ResultCard title="主題圖表">
+          <FallbackText>目前沒有可繪製的主題圖表資料。</FallbackText>
+        </ResultCard>
+      )}
 
-      {topics.length > 0 && (
+      {topics.length > 0 ? (
         <div className="columns-1 gap-3 lg:columns-2 [&>*]:mb-3">
           {topics.map((topic, idx) => {
             const topicName = topic.topic_name || topic.chart_label || `Topic ${idx + 1}`;
@@ -129,6 +135,10 @@ export function TopicsResultView({ result }) {
             );
           })}
         </div>
+      ) : (
+        <ResultCard title="主題列表">
+          <FallbackText>目前沒有形成可顯示的主題。</FallbackText>
+        </ResultCard>
       )}
 
       <ResultFooter>參與主題分析留言數：{result.total_comments}</ResultFooter>

@@ -2,7 +2,7 @@
 
 import { clip, fmtKeywords } from "@/lib/analysisFormat";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
-import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function fmtPercent(value) {
   return `${((Number(value) || 0) * 100).toFixed(1)}%`;
@@ -40,8 +40,8 @@ export function KeywordResultView({ result }) {
         {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
       </ResultCard>
 
-      {topTags.length > 0 && (
-        <ResultCard title="熱門標籤">
+      <ResultCard title="熱門標籤">
+        {topTags.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {topTags.map((tag) => (
               <span
@@ -52,13 +52,21 @@ export function KeywordResultView({ result }) {
               </span>
             ))}
           </div>
+        ) : (
+          <FallbackText>目前沒有熱門標籤資料。</FallbackText>
+        )}
+      </ResultCard>
+
+      {chartData.length > 0 ? (
+        <KeywordBarChart data={chartData} />
+      ) : (
+        <ResultCard title="熱門關鍵詞圖表">
+          <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
         </ResultCard>
       )}
 
-      {chartData.length > 0 && <KeywordBarChart data={chartData} />}
-
-      {chartData.length > 0 && (
-        <ResultCard title="熱門關鍵詞分布">
+      <ResultCard title="熱門關鍵詞分布">
+        {chartData.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {chartData.slice(0, 12).map((item, idx) => {
               const label = item.keyword || item.label || `keyword-${idx}`;
@@ -74,20 +82,18 @@ export function KeywordResultView({ result }) {
               );
             })}
           </div>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有熱門關鍵詞分布資料。</FallbackText>
+        )}
+      </ResultCard>
 
-      {keywordsZh.length > 0 && (
-        <ResultCard title="中文關鍵詞">
-          <p>{fmtKeywords(keywordsZh)}</p>
-        </ResultCard>
-      )}
+      <ResultCard title="中文關鍵詞">
+        {keywordsZh.length > 0 ? <p>{fmtKeywords(keywordsZh)}</p> : <FallbackText>目前沒有中文關鍵詞資料。</FallbackText>}
+      </ResultCard>
 
-      {keywordsEn.length > 0 && (
-        <ResultCard title="English Keywords">
-          <p>{fmtKeywords(keywordsEn)}</p>
-        </ResultCard>
-      )}
+      <ResultCard title="English Keywords">
+        {keywordsEn.length > 0 ? <p>{fmtKeywords(keywordsEn)}</p> : <FallbackText>No English keyword data is available.</FallbackText>}
+      </ResultCard>
 
       <ResultFooter>文字雲資料：{wordcloudData.length} 個詞項，可供後續圖表顯示。</ResultFooter>
     </ResultShell>

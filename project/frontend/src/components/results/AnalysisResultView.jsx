@@ -8,7 +8,7 @@ import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
 import { CriticismChart } from "@/components/charts/CriticismChart";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
 import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
-import { ResultFooter } from "@/components/results/ResultCards";
+import { FallbackText, ResultFooter } from "@/components/results/ResultCards";
 
 function TextCard({ title, children, tone = "indigo", className = "" }) {
   const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";
@@ -52,7 +52,6 @@ function getSourceStatusClass(value) {
 
 function SourceStatusStrip({ sources }) {
   const entries = Object.entries(sources);
-  if (entries.length === 0) return null;
 
   const SOURCE_LABELS = {
     summary: "摘要",
@@ -66,17 +65,21 @@ function SourceStatusStrip({ sources }) {
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-white/45">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-white/38">子分析來源狀態</span>
-        {entries.map(([key, value]) => (
-          <span
-            key={key}
-            className={`rounded-full border px-2.5 py-1 font-black ${getSourceStatusClass(value)}`}
-          >
-            {SOURCE_LABELS[key] || key}: {String(value)}
-          </span>
-        ))}
-      </div>
+      {entries.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-white/38">子分析來源狀態</span>
+          {entries.map(([key, value]) => (
+            <span
+              key={key}
+              className={`rounded-full border px-2.5 py-1 font-black ${getSourceStatusClass(value)}`}
+            >
+              {SOURCE_LABELS[key] || key}: {String(value)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <FallbackText>目前沒有子分析來源狀態資料。</FallbackText>
+      )}
     </section>
   );
 }
@@ -134,6 +137,15 @@ export function AnalysisResultView({ result }) {
             </div>
           </TextCard>
 
+          {/* 資料品質提醒 */}
+          <TextCard title="資料品質提醒" tone="amber">
+            {dataQuality.length > 0 ? (
+              <p className="whitespace-pre-line">{fmtList(dataQuality)}</p>
+            ) : (
+              <FallbackText>目前沒有資料品質提醒。</FallbackText>
+            )}
+          </TextCard>
+
           <div className="grid gap-4 lg:grid-cols-2">
             {/* 整體風向 */}
             <OpinionGauge
@@ -141,19 +153,27 @@ export function AnalysisResultView({ result }) {
               label={emotionDashboard.opinion_label ?? label}
             />
             {/* 熱門討論焦點 */}
-            <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
+            {(topicsDashboard.chart_data ?? []).length > 0 ? (
+              <TopicsBarChart data={topicsDashboard.chart_data ?? []} />
+            ) : (
+              <TextCard title="熱門討論焦點">
+                <FallbackText>目前沒有可繪製的主題圖表資料。</FallbackText>
+              </TextCard>
+            )}
           </div>
 
           {/* AI 智慧快報 */}
-          {quickSummary.length > 0 && (
-            <TextCard title="AI 智慧快報">
+          <TextCard title="AI 智慧快報">
+            {quickSummary.length > 0 ? (
               <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
-            </TextCard>
-          )}
+            ) : (
+              <FallbackText>目前沒有 AI 智慧快報資料。</FallbackText>
+            )}
+          </TextCard>
 
           {/* 留言區標籤 */}
-          {tags.length > 0 && (
-            <TextCard title="留言區標籤">
+          <TextCard title="留言區標籤">
+            {tags.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {tags.slice(0, 8).map((tag) => (
                   <span
@@ -164,46 +184,75 @@ export function AnalysisResultView({ result }) {
                   </span>
                 ))}
               </div>
+            ) : (
+              <FallbackText>目前沒有留言區標籤資料。</FallbackText>
+            )}
+          </TextCard>
+
+          {/* 情緒心理圖譜 */}
+          {(emotionDashboard.chart_data ?? []).length > 0 ? (
+            <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
+          ) : (
+            <TextCard title="情緒心理圖譜">
+              <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
             </TextCard>
           )}
 
-          {/* 情緒心理圖譜 */}
-          <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
-
           {/* 批評與改善訊號 */}
-          <CriticismChart data={criticismDashboard.chart_data ?? []} />
+          {(criticismDashboard.chart_data ?? []).length > 0 ? (
+            <CriticismChart data={criticismDashboard.chart_data ?? []} />
+          ) : (
+            <TextCard title="批評與改善訊號">
+              <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
+            </TextCard>
+          )}
 
           {/* 熱門關鍵詞 */}
-          <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
+          {(keywordDashboard.chart_data ?? []).length > 0 ? (
+            <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
+          ) : (
+            <TextCard title="熱門關鍵詞">
+              <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+            </TextCard>
+          )}
 
           {/* 留言時間軸熱點 */}
-          <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+          {(timelineDashboard.chart_data ?? []).length > 0 ? (
+            <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
+          ) : (
+            <TextCard title="留言時間軸熱點">
+              <FallbackText>目前沒有可繪製的時間軸資料。</FallbackText>
+            </TextCard>
+          )}
 
           {/* 影片內容脈絡 */}
-          <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
+          {(videoContentDashboard.chapter_timeline ?? []).length > 0 ? (
+            <VideoChapterTimeline chapters={videoContentDashboard.chapter_timeline ?? []} />
+          ) : (
+            <TextCard title="影片內容脈絡">
+              <FallbackText>目前沒有影片章節脈絡資料。</FallbackText>
+            </TextCard>
+          )}
 
           <div className="grid gap-5 lg:grid-cols-2">
             {/* 創作者行動建議 */}
-            {creatorActions.length > 0 && (
-              <TextCard title="創作者行動建議" className="h-full">
+            <TextCard title="創作者行動建議" className="h-full">
+              {creatorActions.length > 0 ? (
                 <p className="whitespace-pre-line">{fmtList(creatorActions)}</p>
-              </TextCard>
-            )}
+              ) : (
+                <FallbackText>目前沒有創作者行動建議資料。</FallbackText>
+              )}
+            </TextCard>
 
             {/* 觀眾觀看提示 */}
-            {viewerTips.length > 0 && (
-              <TextCard title="觀眾觀看提示" className="h-full">
+            <TextCard title="觀眾觀看提示" className="h-full">
+              {viewerTips.length > 0 ? (
                 <p className="whitespace-pre-line">{fmtList(viewerTips)}</p>
-              </TextCard>
-            )}
-          </div>
-
-          {/* 資料品質提醒 */}
-          {dataQuality.length > 0 && (
-            <TextCard title="資料品質提醒" tone="amber">
-              <p className="whitespace-pre-line">{fmtList(dataQuality)}</p>
+              ) : (
+                <FallbackText>目前沒有觀眾觀看提示資料。</FallbackText>
+              )}
             </TextCard>
-          )}
+          </div>
 
           {/* 子分析來源狀態 */}
           <SourceStatusStrip sources={dataSources} />
@@ -229,32 +278,40 @@ export function AnalysisResultView({ result }) {
       </div>
 
       <div className="mt-6 space-y-5">
-        {result.summary_zh?.length > 0 && (
-          <TextCard title="中文摘要">
+        <TextCard title="中文摘要">
+          {result.summary_zh?.length > 0 ? (
             <p className="whitespace-pre-line">{fmtList(result.summary_zh)}</p>
-          </TextCard>
-        )}
+          ) : (
+            <FallbackText>目前沒有中文摘要資料。</FallbackText>
+          )}
+        </TextCard>
 
-        {result.summary_en?.length > 0 && (
-          <TextCard title="English summary">
+        <TextCard title="English summary">
+          {result.summary_en?.length > 0 ? (
             <p className="whitespace-pre-line">{fmtList(result.summary_en)}</p>
-          </TextCard>
-        )}
+          ) : (
+            <FallbackText>No English summary data is available.</FallbackText>
+          )}
+        </TextCard>
 
-        {result.keywords_zh?.length > 0 && (
-          <TextCard title="中文關鍵字">
+        <TextCard title="中文關鍵字">
+          {result.keywords_zh?.length > 0 ? (
             <p>{fmtKeywords(result.keywords_zh)}</p>
-          </TextCard>
-        )}
+          ) : (
+            <FallbackText>目前沒有中文關鍵字資料。</FallbackText>
+          )}
+        </TextCard>
 
-        {result.keywords_en?.length > 0 && (
-          <TextCard title="English keywords">
+        <TextCard title="English keywords">
+          {result.keywords_en?.length > 0 ? (
             <p>{fmtKeywords(result.keywords_en)}</p>
-          </TextCard>
-        )}
+          ) : (
+            <FallbackText>No English keyword data is available.</FallbackText>
+          )}
+        </TextCard>
 
-        {result.lang_ratio && (
-          <TextCard title="語言佔比">
+        <TextCard title="語言佔比">
+          {result.lang_ratio ? (
             <div className="grid gap-3 sm:grid-cols-3">
               <InfoTile label="中文" value={`${((result.lang_ratio.zh ?? 0) * 100).toFixed(1)}%`} />
               <InfoTile label="英文" value={`${((result.lang_ratio.en ?? 0) * 100).toFixed(1)}%`} />
@@ -263,8 +320,10 @@ export function AnalysisResultView({ result }) {
                 value={`${((result.lang_ratio.other ?? 0) * 100).toFixed(1)}%`}
               />
             </div>
-          </TextCard>
-        )}
+          ) : (
+            <FallbackText>目前沒有語言佔比資料。</FallbackText>
+          )}
+        </TextCard>
 
         <footer className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm font-semibold text-white/45">
           總留言數：{result.stats?.n_comments ?? 0}

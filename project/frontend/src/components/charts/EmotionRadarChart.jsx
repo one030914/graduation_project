@@ -10,34 +10,79 @@ import {
   Tooltip,
 } from "recharts";
 
-const EMOTION_LABELS = {
-  Joy: "喜悅",
-  Angry: "憤怒",
-  Sad: "悲傷",
-  Disgusted: "厭惡",
-  Surprised: "驚訝",
-  Fearful: "恐懼",
-  Neutral: "中性",
-};
+const EMOTIONS = [
+  { key: "Joy", label: "喜悅" },
+  { key: "Angry", label: "憤怒" },
+  { key: "Sad", label: "悲傷" },
+  { key: "Disgusted", label: "厭惡" },
+  { key: "Surprised", label: "驚訝" },
+  { key: "Fearful", label: "恐懼" },
+  { key: "Neutral", label: "中性" },
+];
 
-export function EmotionRadarChart({ data = [] }) {
-  const rawChartData = data
-    .map((item, index) => {
-      const rawName = item.label || item.emotion || item.name || `emotion-${index}`;
-      const count = Number(item.count ?? item.value ?? 0);
-      const rawRatio = Number(item.ratio ?? item.percent ?? 0);
-      const providedRatio = rawRatio > 1 ? rawRatio / 100 : rawRatio;
+const EMOTION_LABELS = Object.fromEntries(EMOTIONS.map((emotion) => [emotion.key, emotion.label]));
+const EMOTION_KEYS = EMOTIONS.map((emotion) => emotion.key);
 
-      return {
-        name: EMOTION_LABELS[rawName] || rawName,
-        count,
-        providedRatio,
-      };
-    })
-    .filter((item) => item.count > 0 || item.providedRatio > 0);
+function normalizeEmotionKey(value) {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return null;
 
-  const totalCount = rawChartData.reduce((sum, item) => sum + item.count, 0);
-  const chartData = rawChartData.map((item) => {
+  const directKey = EMOTION_KEYS.find((key) => key.toLowerCase() === rawValue.toLowerCase());
+  if (directKey) return directKey;
+
+  return EMOTIONS.find((emotion) => emotion.label === rawValue)?.key || rawValue;
+}
+
+function normalizeRatio(value) {
+  const ratio = Number(value || 0);
+  if (!Number.isFinite(ratio) || ratio <= 0) return 0;
+  return ratio > 1 ? ratio / 100 : ratio;
+}
+
+function normalizeCount(value) {
+  const count = Number(value || 0);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+function buildChartData(data) {
+  const emotionMap = new Map(
+    EMOTIONS.map((emotion) => [
+      emotion.key,
+      {
+        key: emotion.key,
+        name: emotion.label,
+        count: 0,
+        providedRatio: 0,
+      },
+    ]),
+  );
+
+  data.forEach((item, index) => {
+    const rawName = item.key || item.label || item.emotion || item.name || `emotion-${index}`;
+    const key = normalizeEmotionKey(rawName);
+    if (!key) return;
+
+    const existing = emotionMap.get(key) ?? {
+      key,
+      name: EMOTION_LABELS[key] || String(rawName),
+      count: 0,
+      providedRatio: 0,
+    };
+
+    emotionMap.set(key, {
+      ...existing,
+      count: existing.count + normalizeCount(item.count ?? item.total ?? item.value),
+      providedRatio: Math.max(existing.providedRatio, normalizeRatio(item.ratio ?? item.percent)),
+    });
+  });
+
+  const items = Array.from(emotionMap.values());
+  const hasData = items.some((item) => item.count > 0 || item.providedRatio > 0);
+  if (!hasData) return [];
+
+  const totalCount = items.reduce((sum, item) => sum + item.count, 0);
+
+  return items.map((item) => {
     const ratio = item.providedRatio > 0 ? item.providedRatio : item.count / Math.max(totalCount, 1);
 
     return {
@@ -46,7 +91,10 @@ export function EmotionRadarChart({ data = [] }) {
       score: ratio * 100,
     };
   });
+}
 
+export function EmotionRadarChart({ data = [] }) {
+  const chartData = buildChartData(data);
   if (chartData.length === 0) return null;
 
   const maxScore = Math.max(...chartData.map((item) => item.score), 1);

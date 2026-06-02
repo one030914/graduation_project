@@ -2,7 +2,7 @@
 
 import { OpinionGauge } from "@/components/charts/OpinionGauge";
 import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
-import { InfoTile, ResultFooter } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultFooter } from "@/components/results/ResultCards";
 
 const EMOTION_LABELS = {
   Joy: "喜悅",
@@ -92,7 +92,13 @@ function EmotionDistributionList({ data = [] }) {
     })
     .filter((item) => item.count > 0 || item.providedRatio > 0);
 
-  if (rawChartData.length === 0) return null;
+  if (rawChartData.length === 0) {
+    return (
+      <TextCard title="情緒分布明細">
+        <FallbackText>目前沒有情緒分布明細資料。</FallbackText>
+      </TextCard>
+    );
+  }
 
   const totalCount = rawChartData.reduce((sum, item) => sum + item.count, 0);
   const chartData = rawChartData
@@ -141,7 +147,13 @@ function RepresentativeComments({ commentsByEmotion = {} }) {
     .filter((item) => item.comments.length > 0)
     .slice(0, 4);
 
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <TextCard title="各情緒代表留言">
+        <FallbackText>目前沒有各情緒代表留言資料。</FallbackText>
+      </TextCard>
+    );
+  }
 
   return (
     <TextCard title="各情緒代表留言">
@@ -271,7 +283,13 @@ export function EmotionRecordView({ result }) {
           negative={result.negative_ratio ?? 0}
         />
 
-        <EmotionRadarChart data={chartData} />
+        {chartData.length > 0 ? (
+          <EmotionRadarChart data={chartData} />
+        ) : (
+          <TextCard title="情緒心理圖譜">
+            <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
+          </TextCard>
+        )}
 
         <EmotionDistributionList data={chartData} />
 

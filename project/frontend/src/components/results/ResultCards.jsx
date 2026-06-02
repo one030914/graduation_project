@@ -31,6 +31,15 @@ export function ResultCard({ title, children, tone = "indigo", className = "" })
   );
 }
 
+
+export function FallbackText({ children = "目前沒有可顯示的資料。" }) {
+  return (
+    <p className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold leading-6 text-white/48">
+      {children}
+    </p>
+  );
+}
+
 export function InfoTile({ label, value, tone = "default" }) {
   const toneClass = {
     amber: "border-amber-300/15 bg-amber-400/8 text-amber-200",

@@ -2,7 +2,7 @@
 
 import { clip, fmtList } from "@/lib/analysisFormat";
 import { CriticismChart } from "@/components/charts/CriticismChart";
-import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function severityLabel(level) {
   const map = { low: "低", medium: "中", high: "高" };
@@ -50,10 +50,16 @@ export function CriticismResultView({ result }) {
         {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
       </ResultCard>
 
-      {chartData.length > 0 && <CriticismChart data={chartData} />}
+      {chartData.length > 0 ? (
+        <CriticismChart data={chartData} />
+      ) : (
+        <ResultCard title="批評圖表" tone="red">
+          <FallbackText>目前沒有可繪製的批評類型圖表資料。</FallbackText>
+        </ResultCard>
+      )}
 
-      {chartData.length > 0 && (
-        <ResultCard title="批評類型分布" tone="red">
+      <ResultCard title="批評類型分布" tone="red">
+        {chartData.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {chartData.map((item) => (
               <span
@@ -64,40 +70,44 @@ export function CriticismResultView({ result }) {
               </span>
             ))}
           </div>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有批評類型分布資料。</FallbackText>
+        )}
+      </ResultCard>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {mainCriticisms.length > 0 && (
-          <ResultCard title="主要批評與抱怨痛點" tone="red" className="h-full">
+        <ResultCard title="主要批評與抱怨痛點" tone="red" className="h-full">
+          {mainCriticisms.length > 0 ? (
             <p className="whitespace-pre-line">{fmtList(mainCriticisms)}</p>
-          </ResultCard>
-        )}
-
-        {reasons.length > 0 && (
-          <ResultCard title="觀眾不滿原因" tone="amber" className="h-full">
-            <p className="whitespace-pre-line">{fmtList(reasons)}</p>
-          </ResultCard>
-        )}
-
-        {suggestions.length > 0 && (
-          <ResultCard title="觀眾提出的改進建議" tone="emerald" className="h-full">
-            <p className="whitespace-pre-line">{fmtList(suggestions)}</p>
-          </ResultCard>
-        )}
-
-        {actionItems.length > 0 && (
-          <ResultCard title="可轉換為創作者行動" className="h-full">
-            <p className="whitespace-pre-line">{fmtList(actionItems)}</p>
-          </ResultCard>
-        )}
-      </div>
-
-      {mainCriticisms.length === 0 && reasons.length === 0 && suggestions.length === 0 && (
-        <ResultCard title="批評結果">
-          <p>目前沒有形成明確批評、抱怨或改進建議。</p>
+          ) : (
+            <FallbackText>目前沒有主要批評與抱怨痛點資料。</FallbackText>
+          )}
         </ResultCard>
-      )}
+
+        <ResultCard title="觀眾不滿原因" tone="amber" className="h-full">
+          {reasons.length > 0 ? (
+            <p className="whitespace-pre-line">{fmtList(reasons)}</p>
+          ) : (
+            <FallbackText>目前沒有觀眾不滿原因資料。</FallbackText>
+          )}
+        </ResultCard>
+
+        <ResultCard title="觀眾提出的改進建議" tone="emerald" className="h-full">
+          {suggestions.length > 0 ? (
+            <p className="whitespace-pre-line">{fmtList(suggestions)}</p>
+          ) : (
+            <FallbackText>目前沒有改進建議資料。</FallbackText>
+          )}
+        </ResultCard>
+
+        <ResultCard title="可轉換為創作者行動" className="h-full">
+          {actionItems.length > 0 ? (
+            <p className="whitespace-pre-line">{fmtList(actionItems)}</p>
+          ) : (
+            <FallbackText>目前沒有可轉換為創作者行動的資料。</FallbackText>
+          )}
+        </ResultCard>
+      </div>
 
       <ResultFooter>Criticism：資料不足時不代表風向良好。</ResultFooter>
     </ResultShell>

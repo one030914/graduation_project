@@ -1,7 +1,7 @@
 "use client";
 
 import { clip, fmtList } from "@/lib/analysisFormat";
-import { InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 export function SummaryResultView({ result }) {
   if (!result) return null;
@@ -30,33 +30,41 @@ export function SummaryResultView({ result }) {
         {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
       </ResultCard>
 
-      {summaryPoints.length > 0 && (
-        <ResultCard title="留言摘要">
+      <ResultCard title="留言摘要">
+        {summaryPoints.length > 0 ? (
           <p className="whitespace-pre-line">{fmtList(summaryPoints)}</p>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有摘要重點資料。</FallbackText>
+        )}
+      </ResultCard>
 
-      {summaryPoints.length === 0 && summaryZh.length > 0 && (
-        <ResultCard title="中文摘要">
+      <ResultCard title="中文摘要">
+        {summaryZh.length > 0 ? (
           <p className="whitespace-pre-line">{fmtList(summaryZh)}</p>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有中文摘要資料。</FallbackText>
+        )}
+      </ResultCard>
 
-      {summaryPoints.length === 0 && summaryEn.length > 0 && (
-        <ResultCard title="English Summary">
+      <ResultCard title="English Summary">
+        {summaryEn.length > 0 ? (
           <p className="whitespace-pre-line">{fmtList(summaryEn)}</p>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>No English summary data is available.</FallbackText>
+        )}
+      </ResultCard>
 
-      {langRatio && (
-        <ResultCard title="語言佔比">
+      <ResultCard title="語言佔比">
+        {langRatio ? (
           <div className="grid gap-3 sm:grid-cols-3">
             <InfoTile label="中文" value={`${((langRatio.zh ?? 0) * 100).toFixed(1)}%`} />
             <InfoTile label="英文" value={`${((langRatio.en ?? 0) * 100).toFixed(1)}%`} />
             <InfoTile label="其他" value={`${((langRatio.other ?? 0) * 100).toFixed(1)}%`} />
           </div>
-        </ResultCard>
-      )}
+        ) : (
+          <FallbackText>目前沒有語言佔比資料。</FallbackText>
+        )}
+      </ResultCard>
 
       <ResultFooter>Summary：根據留言內容抽取代表性摘要。</ResultFooter>
     </ResultShell>
