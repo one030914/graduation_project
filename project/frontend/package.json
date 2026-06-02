@@ -5,6 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
+    "dev:docker": "CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

@@ -8,15 +8,24 @@ From `project/frontend`, start the Next.js development server with Bun:
 
 ```bash
 bun install
-bun run dev
+bun run dev # for local enviroment
+bun run dev:docker # for docker container
 ```
 
 ### Backend Interface
 
 Open a new terminal from the project root and start the FastAPI interface:
 
+***for local enviroment***
+
 ```bash
-uvicorn backend.interface:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.interface:app --reload
+```
+
+***for docker container***
+
+```bash
+./scripts/dev-backend.sh
 ```
 
 ## Backend Interface Usage
