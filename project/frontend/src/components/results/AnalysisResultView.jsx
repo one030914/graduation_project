@@ -154,7 +154,7 @@ function SourceStatusStrip({ sources }) {
   );
 }
 
-function AdviceToggleCard({
+function AdviceToggleContent({
   activeTab,
   creatorActions,
   viewerTips,
@@ -176,7 +176,7 @@ function AdviceToggleCard({
   };
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+    <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">建議</p>
@@ -209,7 +209,7 @@ function AdviceToggleCard({
           <FallbackText>{fallback}</FallbackText>
         )}
       </div>
-    </section>
+    </>
   );
 }
 
@@ -269,16 +269,6 @@ export function AnalysisResultView({ result }) {
             </div>
           </TextCard>
 
-          {/* 建議切換 */}
-          <AdviceToggleCard
-            activeTab={activeAdviceTab}
-            creatorActions={creatorActions}
-            viewerTips={viewerTips}
-            isCreatorLoading={isSourceLoading("criticism") || isSourceLoading("video_content")}
-            isViewerLoading={isSourceLoading("timeline")}
-            onTabChange={setActiveAdviceTab}
-          />
-
           {/* 資料品質提醒 */}
           {dataQuality.length > 0 && (
             <TextCard title="資料品質提醒" tone="amber">
@@ -312,42 +302,57 @@ export function AnalysisResultView({ result }) {
             )}
           </div>
 
-          {/* AI 智慧快報 */}
-          <TextCard title="AI 智慧快報">
-            {quickSummary.length > 0 ? (
-              <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
-            ) : isSourceLoading("summary") ? (
-              <SkeletonLines lines={4} />
+          {/* AI 智慧快報 + 建議 */}
+          <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
+            <h3 className="text-xl font-black tracking-normal text-indigo-200">AI 智慧快報</h3>
+            <div className="mt-4 text-base font-semibold leading-8 text-white/72">
+              {quickSummary.length > 0 ? (
+                <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
+              ) : isSourceLoading("summary") ? (
+                <SkeletonLines lines={4} />
+              ) : (
+                <FallbackText>目前沒有 AI 智慧快報資料。</FallbackText>
+              )}
+            </div>
+
+            <div className="mt-6 border-t border-white/10 pt-6">
+              <AdviceToggleContent
+                activeTab={activeAdviceTab}
+                creatorActions={creatorActions}
+                viewerTips={viewerTips}
+                isCreatorLoading={isSourceLoading("criticism") || isSourceLoading("video_content")}
+                isViewerLoading={isSourceLoading("timeline")}
+                onTabChange={setActiveAdviceTab}
+              />
+            </div>
+          </section>
+
+          {/* 情緒心理圖譜 + 批評與改善訊號 */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            {(emotionDashboard.chart_data ?? []).length > 0 ? (
+              <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
             ) : (
-              <FallbackText>目前沒有 AI 智慧快報資料。</FallbackText>
+              <TextCard title="情緒心理圖譜">
+                {isSourceLoading("emotion") ? (
+                  <SkeletonChart />
+                ) : (
+                  <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
+                )}
+              </TextCard>
             )}
-          </TextCard>
 
-          {/* 情緒心理圖譜 */}
-          {(emotionDashboard.chart_data ?? []).length > 0 ? (
-            <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
-          ) : (
-            <TextCard title="情緒心理圖譜">
-              {isSourceLoading("emotion") ? (
-                <SkeletonChart />
-              ) : (
-                <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
-              )}
-            </TextCard>
-          )}
-
-          {/* 批評與改善訊號 */}
-          {(criticismDashboard.chart_data ?? []).length > 0 ? (
-            <CriticismChart data={criticismDashboard.chart_data ?? []} />
-          ) : (
-            <TextCard title="批評與改善訊號">
-              {isSourceLoading("criticism") ? (
-                <SkeletonChart />
-              ) : (
-                <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
-              )}
-            </TextCard>
-          )}
+            {(criticismDashboard.chart_data ?? []).length > 0 ? (
+              <CriticismChart data={criticismDashboard.chart_data ?? []} />
+            ) : (
+              <TextCard title="批評與改善訊號">
+                {isSourceLoading("criticism") ? (
+                  <SkeletonChart />
+                ) : (
+                  <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
+                )}
+              </TextCard>
+            )}
+          </div>
 
           {/* 熱門關鍵詞 */}
           {(keywordDashboard.chart_data ?? []).length > 0 ? (

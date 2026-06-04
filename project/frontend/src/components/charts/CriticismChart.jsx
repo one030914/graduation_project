@@ -26,21 +26,26 @@ export function CriticismChart({ data = [] }) {
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.36)] ring-1 ring-indigo-300/5 backdrop-blur-md">
       <h3 className="text-xl font-black tracking-normal">批評與改善訊號</h3>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="mt-6 space-y-3">
         {chartData.map((item, index) => {
           const width = Math.max(8, Math.min(100, normalizeRatio(item.value) * 100));
           const tone = index === 0 ? "from-amber-400 to-orange-400" : "from-indigo-400 to-violet-400";
 
           return (
             <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 ring-1 ring-white/5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-base font-black text-white/72">{item.label}</p>
-                <span className="rounded-full bg-white/8 px-2 py-1 text-sm font-black text-white/45">
-                  {fmtPercent(item.value)}
-                </span>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 text-base font-black text-white/72">{item.label}</p>
+                  <span className="rounded-full bg-white/8 px-2 py-1 text-sm font-black text-white/45">
+                    {fmtPercent(item.value)}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-3xl font-black text-white">{item.count}</p>
+                  <p className="mt-1 text-sm font-bold text-white/42">相關留言數</p>
+                </div>
               </div>
-              <p className="mt-4 text-3xl font-black text-white">{item.count}</p>
-              <p className="mt-1 text-sm font-bold text-white/42">相關留言數</p>
 
               <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-800/80 ring-1 ring-white/5">
                 <div
