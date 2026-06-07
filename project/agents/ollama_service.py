@@ -48,12 +48,14 @@ class LocalLLMService:
         temperature: float = 0.1,
         num_predict: int = 1024,
         num_ctx: int = 8192,
+        json_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = self.client.generate(
             model=self.model_name,
             system=system_prompt,
             prompt=user_prompt,
-            format="json",
+            format=json_schema or "json",
+            think=False,
             options={
                 "temperature": temperature,
                 "num_predict": num_predict,
@@ -70,8 +72,11 @@ class LocalLLMService:
             json_text = self._extract_json_text(raw)
             data = json.loads(json_text)
         except Exception as exc:
+            hint = ""
+            if re.search(r'^[\s`]*\{?\s*"?thought', raw, flags=re.IGNORECASE):
+                hint = " Hint: model emitted a thought/reasoning field instead of the requested JSON schema."
             raise ValueError(
-                f"Failed to parse LLM JSON: {type(exc).__name__}: {exc}. "
+                f"Failed to parse LLM JSON: {type(exc).__name__}: {exc}.{hint} "
                 f"Raw preview={repr(raw[:500])}"
             )
 

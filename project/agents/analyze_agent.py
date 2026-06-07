@@ -22,6 +22,43 @@ class AnalyzeAgent(BaseAgent):
     }
     """
 
+    output_json_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "quick_summary",
+            "tags",
+            "creator_actions",
+            "viewer_tips",
+        ],
+        "properties": {
+            "quick_summary": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {"type": "string"},
+            },
+            "tags": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "items": {"type": "string"},
+            },
+            "creator_actions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {"type": "string"},
+            },
+            "viewer_tips": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {"type": "string"},
+            },
+        },
+    }
+
     def analyze(self, payload: dict) -> dict:
         user_prompt = f"""
         以下是系統已完成的 YouTube 留言結構化分析結果。

@@ -23,6 +23,7 @@ class BaseAgent:
     name: str = "base_agent"
     role: str = ""
     output_schema: str = ""
+    output_json_schema: dict | None = None
 
     def __init__(self, llm: LocalLLMService | None = None):
         self.llm = llm or LocalLLMService()
@@ -40,10 +41,11 @@ class BaseAgent:
         4. 不要輸出 Markdown。
         5. 不要輸出 ```json。
         6. 不要輸出任何解釋文字。
-        7. 不要捏造輸入資料中不存在的事實。
-        8. 如果資料不足，請在 JSON 欄位中說明資料不足。
-        9. 不要輸出「摘要1」、「標籤1」、「建議1」這種佔位文字。
-        10. JSON 格式必須符合以下結構：
+        7. 不要輸出 thought、thinking、reasoning、analysis、chain_of_thought 或任何推理過程欄位。
+        8. 不要捏造輸入資料中不存在的事實。
+        9. 如果資料不足，請在 JSON 欄位中說明資料不足。
+        10. 不要輸出「摘要1」、「標籤1」、「建議1」這種佔位文字。
+        11. JSON 格式必須符合以下結構：
 
         {self.output_schema}
         """
@@ -62,6 +64,7 @@ class BaseAgent:
             temperature=temperature,
             num_predict=num_predict,
             num_ctx=num_ctx,
+            json_schema=self.output_json_schema,
         )
 
         return to_traditional_zh(data)
