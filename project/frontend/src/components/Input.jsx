@@ -8,8 +8,8 @@ export function Input({ text, loading, activeAction, onTextChange, onSubmit }) {
     // { action: "keyword", label: "熱門關鍵詞", description: "詞頻", activeTone: "from-amber-500 to-orange-500", accent: "bg-amber-300" },
     { action: "topics", label: "熱門主題", description: "分布", activeTone: "from-sky-500 to-blue-500", accent: "bg-sky-300" },
     { action: "emotion", label: "情緒風向", description: "情緒", activeTone: "from-rose-500 to-pink-500", accent: "bg-rose-300" },
-    // { action: "criticism", label: "批評回饋", description: "問題", activeTone: "from-red-500 to-rose-500", accent: "bg-red-300" },
-    { action: "timeline", label: "時間軸熱點", description: "片段", activeTone: "from-cyan-500 to-teal-500", accent: "bg-cyan-300" },
+    { action: "criticism", label: "批評回饋", description: "問題", activeTone: "from-amber-500 to-orange-500", accent: "bg-amber-300" },
+    // { action: "timeline", label: "時間軸熱點", description: "片段", activeTone: "from-cyan-500 to-teal-500", accent: "bg-cyan-300" },
     { action: "videoContent", label: "影片內容脈絡", description: "章節", activeTone: "from-emerald-500 to-green-500", accent: "bg-emerald-300" },
   ];
 

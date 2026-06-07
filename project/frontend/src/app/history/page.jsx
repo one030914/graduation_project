@@ -8,7 +8,7 @@ const CATEGORIES = [
   { value: "analyze", label: "綜合分析" },
   { value: "topics", label: "熱門主題" },
   { value: "emotion", label: "情緒風向" },
-  { value: "timeline", label: "時間軸熱點" },
+  { value: "criticism", label: "批評回饋" },
   { value: "video_content", label: "影片內容脈絡" },
 ];
 
