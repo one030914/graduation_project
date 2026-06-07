@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from sentence_transformers import SentenceTransformer
 from transformers import BertConfig, BertTokenizer, BertModel, pipeline
+from huggingface_hub import snapshot_download
 
 from configs.settings import MODEL_DIR
 
@@ -116,20 +117,46 @@ def get_en_summary_model(
 def get_hf_device() -> int:
     return 0 if torch.cuda.is_available() else -1
 
+def _resolve_or_download_emotion_source(model_folder_name: str, fallback_model_name: str) -> str:
+    model_dir = MODEL_DIR / model_folder_name
+    if (model_dir / "config.json").exists():
+        return str(model_dir)
+
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot_download(
+        repo_id=fallback_model_name,
+        local_dir=str(model_dir),
+    )
+    return str(model_dir)
+
 @lru_cache(maxsize=1)
-def get_en_emotion_model():
+def get_en_emotion_model(
+    model_folder_name: str = "emotion_english_distilroberta_base",
+):
+    model_source = _resolve_or_download_emotion_source(
+        model_folder_name=model_folder_name,
+        fallback_model_name="j-hartmann/emotion-english-distilroberta-base",
+    )
     return pipeline(
         "text-classification",
-        model="j-hartmann/emotion-english-distilroberta-base",
-        device=get_hf_device()
+        model=model_source,
+        tokenizer=model_source,
+        device=get_hf_device(),
     )
 
 @lru_cache(maxsize=1)
-def get_zh_emotion_model():
+def get_zh_emotion_model(
+    model_folder_name: str = "emotion_chinese_small",
+):
+    model_source = _resolve_or_download_emotion_source(
+        model_folder_name=model_folder_name,
+        fallback_model_name="Johnson8187/Chinese-Emotion-Small",
+    )
     zh = pipeline(
         "text-classification",
-        model="Johnson8187/Chinese-Emotion-Small",
-        device=get_hf_device()
+        model=model_source,
+        tokenizer=model_source,
+        device=get_hf_device(),
     )
     
     # Johnson8187/Chinese-Emotion(-Small) 官方 label mapping
