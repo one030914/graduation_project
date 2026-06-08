@@ -13,9 +13,11 @@ export function Header({
             href="/"
             className="inline-flex items-center gap-2 text-3xl font-bold tracking-tight transition hover:text-indigo-200 sm:text-4xl"
           >
-            YouTube 分析平台
+            YouTube 留言 AI 綜合分析平台之設計與實作
           </Link>
-          <p className="mt-2 max-w-xl text-base text-white/70">綜合分析、熱門主題與情緒風向視覺化</p>
+          <p className="mt-2 max-w-xl text-base text-white/70">
+            綜合分析、熱門主題與情緒風向、批評回饋與影片內容脈絡之視覺化設計
+          </p>
         </div>
         {showAction && (
           <Link
