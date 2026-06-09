@@ -38,7 +38,7 @@ export function TimelineResultView({ result }) {
   return (
     <ResultShell
       label="Timeline"
-      title={`時間軸熱點分析：${clip(result.title || result.video_id, 256)}`}
+      title={clip(result.title || result.video_id || "時間軸熱點分析", 256)}
     >
       <ResultCard title="時間軸資料概況">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { clip } from "@/lib/analysisFormat";
-import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import {
+  FallbackText,
+  InfoTile,
+  ResultCard,
+  ResultFooter,
+  ResultShell,
+} from "@/components/results/ResultCards";
 
 function formatSource(source) {
   if (source === "caption") return "手動 CC 字幕";
@@ -100,26 +106,36 @@ export function VideoContentResultView({ result }) {
   }
 
   return (
-    <ResultShell label="Video Content" title={clip(safeResult.title || "影片內容分析", 256)}>
+    <ResultShell
+      label="Video Content"
+      title={clip(safeResult.title || safeResult.url || "影片內容分析", 256)}
+    >
       <ResultCard title="逐字稿資訊" tone="emerald">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <InfoTile
             label="逐字稿來源"
             value={formatSource(safeResult.transcript_source)}
             tone="emerald"
           />
-          <InfoTile label="語言" value={safeResult.language || "未知"} />
           <InfoTile label="逐字稿總字數" value={transcriptWordCount || "無資料"} />
         </div>
       </ResultCard>
       <ResultCard title="摘要" tone="emerald">
-        {summaryText ? <p>{summaryText}</p> : <FallbackText>目前沒有影片內容摘要資料。</FallbackText>}
+        {summaryText ? (
+          <p>{summaryText}</p>
+        ) : (
+          <FallbackText>目前沒有影片內容摘要資料。</FallbackText>
+        )}
       </ResultCard>
 
       <ResultCard title="結論與行動建議" tone="emerald">
         {finalConclusion || recommendedAudience || actionSuggestions.length > 0 ? (
           <div className="space-y-3">
-            {finalConclusion ? <p>{finalConclusion}</p> : <FallbackText>目前沒有結論資料。</FallbackText>}
+            {finalConclusion ? (
+              <p>{finalConclusion}</p>
+            ) : (
+              <FallbackText>目前沒有結論資料。</FallbackText>
+            )}
             {recommendedAudience ? (
               <p>
                 <span className="font-black text-white">適合對象：</span>
@@ -143,23 +159,19 @@ export function VideoContentResultView({ result }) {
         )}
       </ResultCard>
 
-      <ResultCard title="逐字稿品質提示" tone="emerald">
-        <p>
-          {getQualityNote(safeResult.transcript_source)}
-          {transcriptWordCount ? ` 目前可讀字數約 ${transcriptWordCount}。` : ""}
-        </p>
-      </ResultCard>
-
       <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h3 className="text-lg font-black tracking-normal text-emerald-200">章節時間軸</h3>
-              <p className="mt-1 text-base font-semibold text-white/45">
-                共 {chapters.length} 個章節{filteredChapters.length !== chapters.length ? `，顯示 ${filteredChapters.length} 個` : ""}
-              </p>
-            </div>
-            {chapters.length > 0 && (
-              <label className="w-full md:max-w-xs">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-lg font-black tracking-normal text-emerald-200">章節時間軸</h3>
+            <p className="mt-1 text-base font-semibold text-white/45">
+              共 {chapters.length} 個章節
+              {filteredChapters.length !== chapters.length
+                ? `，顯示 ${filteredChapters.length} 個`
+                : ""}
+            </p>
+          </div>
+          {chapters.length > 0 && (
+            <label className="w-full md:max-w-xs">
               <span className="sr-only">搜尋章節或關鍵字</span>
               <input
                 type="search"
@@ -168,88 +180,89 @@ export function VideoContentResultView({ result }) {
                 className="min-h-10 w-full rounded-xl border border-white/15 bg-white/8 px-3 text-base text-white outline-none placeholder:text-white/40 focus:ring-2 focus:ring-emerald-300/50"
                 placeholder="搜尋章節或關鍵字"
               />
-              </label>
-            )}
-          </div>
-          <div className="mt-4 space-y-3">
-              {chapters.length === 0 && <FallbackText>目前沒有章節時間軸資料。</FallbackText>}
-              {chapters.length > 0 && filteredChapters.map((chapter, index) => {
-                const start = Number(chapter.start_seconds) || 0;
-                const end = Number(chapter.end_seconds) || 0;
-                const timestampUrl = buildTimestampUrl(safeResult.url, start);
-                const timeLabel = `${formatTimestamp(start)} - ${formatTimestamp(end)}`;
-                const chapterKey = `${chapter.start_seconds}-${chapter.end_seconds}-${index}`;
+            </label>
+          )}
+        </div>
+        <div className="mt-4 space-y-3">
+          {chapters.length === 0 && <FallbackText>目前沒有章節時間軸資料。</FallbackText>}
+          {chapters.length > 0 &&
+            filteredChapters.map((chapter, index) => {
+              const start = Number(chapter.start_seconds) || 0;
+              const end = Number(chapter.end_seconds) || 0;
+              const timestampUrl = buildTimestampUrl(safeResult.url, start);
+              const timeLabel = `${formatTimestamp(start)} - ${formatTimestamp(end)}`;
+              const chapterKey = `${chapter.start_seconds}-${chapter.end_seconds}-${index}`;
 
-                return (
-                  <div
-                    key={chapterKey}
-                    className="border-l-4 border-emerald-400/70 bg-slate-950/45 px-4 py-3 ring-1 ring-white/10"
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {timestampUrl ? (
-                            <a
-                              href={timestampUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-base font-medium text-emerald-200 transition hover:text-emerald-100"
-                            >
-                              {timeLabel}
-                            </a>
-                          ) : (
-                            <p className="text-base font-medium text-emerald-200">{timeLabel}</p>
-                          )}
-                          <span
-                            className={`px-2 py-1 text-base font-medium ring-1 ${getImportanceClassName(chapter.importance)}`}
+              return (
+                <div
+                  key={chapterKey}
+                  className="border-l-4 border-emerald-400/70 bg-slate-950/45 px-4 py-3 ring-1 ring-white/10"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {timestampUrl ? (
+                          <a
+                            href={timestampUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-base font-medium text-emerald-200 transition hover:text-emerald-100"
                           >
-                            {getImportanceLabel(chapter.importance)}
-                          </span>
-                        </div>
-                        <h4 className="mt-1 font-semibold text-white">
-                          {clip(chapter.title || "重點片段", 120)}
-                        </h4>
-                      </div>
-                      {timestampUrl ? (
-                        <a
-                          href={timestampUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex min-h-8 items-center justify-center border border-white/15 bg-white/8 px-3 text-base font-medium text-white/80 transition hover:border-emerald-300/45 hover:bg-emerald-400/12 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                            {timeLabel}
+                          </a>
+                        ) : (
+                          <p className="text-base font-medium text-emerald-200">{timeLabel}</p>
+                        )}
+                        <span
+                          className={`px-2 py-1 text-base font-medium ring-1 ${getImportanceClassName(chapter.importance)}`}
                         >
-                          前往時間點
-                        </a>
-                      ) : (
-                        <span className="inline-flex min-h-8 items-center justify-center border border-white/10 bg-white/5 px-3 text-base font-medium text-white/35">
-                          無法跳轉
+                          {getImportanceLabel(chapter.importance)}
                         </span>
-                      )}
-                    </div>
-                    {chapter.summary && (
-                      <p className="mt-2 leading-6 text-white/80">{clip(chapter.summary, 500)}</p>
-                    )}
-                    {Array.isArray(chapter.keywords) && chapter.keywords.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {chapter.keywords.slice(0, 5).map((keyword, keywordIndex) => (
-                          <span
-                            key={`${keyword}-${keywordIndex}`}
-                            className="bg-emerald-400/10 px-2 py-1 text-base font-medium text-emerald-100 ring-1 ring-emerald-300/20"
-                          >
-                            {clip(keyword, 32)}
-                          </span>
-                        ))}
                       </div>
+                      <h4 className="mt-1 font-semibold text-white">
+                        {clip(chapter.title || "重點片段", 120)}
+                      </h4>
+                    </div>
+                    {timestampUrl ? (
+                      <a
+                        href={timestampUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-8 items-center justify-center border border-white/15 bg-white/8 px-3 text-base font-medium text-white/80 transition hover:border-emerald-300/45 hover:bg-emerald-400/12 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      >
+                        前往時間點
+                      </a>
+                    ) : (
+                      <span className="inline-flex min-h-8 items-center justify-center border border-white/10 bg-white/5 px-3 text-base font-medium text-white/35">
+                        無法跳轉
+                      </span>
                     )}
                   </div>
-                );
-              })}
-              {chapters.length > 0 && filteredChapters.length === 0 && (
-                <p className="border border-white/10 bg-slate-950/35 px-4 py-3 text-base text-white/65">
-                  沒有符合搜尋條件的章節。
-                </p>
-              )}
-          </div>
-        </section>
+                  {chapter.summary && (
+                    <p className="mt-2 leading-6 text-white/80">{clip(chapter.summary, 500)}</p>
+                  )}
+                  {Array.isArray(chapter.keywords) && chapter.keywords.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {chapter.keywords.slice(0, 5).map((keyword, keywordIndex) => (
+                        <span
+                          key={`${keyword}-${keywordIndex}`}
+                          className="bg-emerald-400/10 px-2 py-1 text-base font-medium text-emerald-100 ring-1 ring-emerald-300/20"
+                        >
+                          {clip(keyword, 32)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          {chapters.length > 0 && filteredChapters.length === 0 && (
+            <p className="border border-white/10 bg-slate-950/35 px-4 py-3 text-base text-white/65">
+              沒有符合搜尋條件的章節。
+            </p>
+          )}
+        </div>
+      </section>
 
       <ResultFooter>
         Video Content：根據 YouTube 字幕或 Whisper 逐字稿整理影片摘要、章節與建議。

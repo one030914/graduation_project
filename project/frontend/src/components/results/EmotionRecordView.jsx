@@ -2,7 +2,12 @@
 
 import { OpinionGauge } from "@/components/charts/OpinionGauge";
 import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
-import { FallbackText, InfoTile, ResultFooter } from "@/components/results/ResultCards";
+import {
+  FallbackText,
+  InfoTile,
+  ResultFooter,
+  ResultHeader,
+} from "@/components/results/ResultCards";
 
 const EMOTION_LABELS = {
   Joy: "喜悅",
@@ -22,6 +27,14 @@ function getEmotionLabel(key) {
   return EMOTION_LABELS[key] || key || "未知";
 }
 
+function getLanguageLabel(language) {
+  const normalized = String(language || "").toLowerCase();
+  if (normalized === "zh") return "中文";
+  if (normalized === "en") return "英文";
+  if (normalized === "mixed") return "混合";
+  return "混合";
+}
+
 function TextCard({ title, children, tone = "indigo" }) {
   const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";
 
@@ -33,7 +46,7 @@ function TextCard({ title, children, tone = "indigo" }) {
   );
 }
 
-function SentimentRatioCards({ positive = 0, neutral = 0, negative = 0 }) {
+function SentimentRatioCards({ positive = 0, neutral = 0, negative = 0, compact = false }) {
   const items = [
     {
       label: "正向比例",
@@ -53,16 +66,24 @@ function SentimentRatioCards({ positive = 0, neutral = 0, negative = 0 }) {
   ];
 
   return (
-    <section className="grid gap-4 sm:grid-cols-3">
+    <section className={compact ? "mt-5 grid gap-3" : "grid gap-4 sm:grid-cols-3"}>
       {items.map((item) => (
         <div
           key={item.label}
-          className={`rounded-2xl border p-5 shadow-[0_18px_48px_rgba(2,6,23,0.22)] ring-1 ring-white/5 ${item.className}`}
+          className={`rounded-2xl border ${compact ? "p-4" : "p-5"} shadow-[0_18px_48px_rgba(2,6,23,0.22)] ring-1 ring-white/5 ${item.className}`}
         >
           <p className="text-base font-black text-white/50">{item.label}</p>
-          <p className="mt-2 text-3xl font-black">{fmtPercent(item.value)}</p>
+          <p className={compact ? "mt-1 text-2xl font-black" : "mt-2 text-3xl font-black"}>
+            {fmtPercent(item.value)}
+          </p>
 
-          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">
+          <div
+            className={
+              compact
+                ? "mt-3 h-2 overflow-hidden rounded-full bg-white/10"
+                : "mt-4 h-2.5 overflow-hidden rounded-full bg-white/10"
+            }
+          >
             <div
               className="h-full rounded-full bg-current"
               style={{
@@ -94,8 +115,8 @@ function EmotionDistributionList({ data = [] }) {
 
   if (rawChartData.length === 0) {
     return (
-      <TextCard title="情緒分布明細">
-        <FallbackText>目前沒有情緒分布明細資料。</FallbackText>
+      <TextCard title="情緒分布">
+        <FallbackText>目前沒有情緒分布資料。</FallbackText>
       </TextCard>
     );
   }
@@ -109,7 +130,7 @@ function EmotionDistributionList({ data = [] }) {
     .sort((a, b) => b.count - a.count);
 
   return (
-    <TextCard title="情緒分布明細">
+    <TextCard title="情緒分布">
       <div className="space-y-3">
         {chartData.map((item) => {
           const width = item.ratio * 100;
@@ -226,17 +247,7 @@ export function EmotionRecordView({ result }) {
 
   return (
     <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
-      <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-        <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
-          Emotion Analysis
-        </p>
-        <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
-          情緒風向分析
-        </h2>
-        <p className="mt-2 text-base font-semibold text-white/50">
-          {result.title || result.url || "YouTube 留言情緒分析"}
-        </p>
-      </div>
+      <ResultHeader label="Emotion" title={result.title || result.url || "YouTube 留言情緒分析"} />
 
       <div className="mt-6 space-y-5">
         <TextCard title="分析概況">
@@ -247,7 +258,7 @@ export function EmotionRecordView({ result }) {
             />
             <InfoTile label="略過留言數" value={result.skipped_comments ?? 0} />
             <InfoTile label="主導情緒" value={dominantEmotion} />
-            <InfoTile label="主要語言" value={result.language || "mixed"} />
+            <InfoTile label="主要語言" value={getLanguageLabel(result.language)} />
           </div>
 
           {result.message && (
@@ -260,38 +271,41 @@ export function EmotionRecordView({ result }) {
         <div className="grid gap-4 lg:grid-cols-2">
           <OpinionGauge
             score={result.opinion_score ?? 50}
-            label={result.opinion_label ?? "中性 / 意見分歧"}
+            label={result.opinion_label ?? "中性/意見分歧"}
           />
 
           <TextCard title="風向摘要">
             <p>
               目前留言區整體風向為{" "}
               <span className="font-black text-indigo-100">
-                {result.opinion_label || "中性 / 意見分歧"}
+                {result.opinion_label || "中性/意見分歧"}
               </span>
               ，主導情緒為 <span className="font-black text-indigo-100">{dominantEmotion}</span>。
             </p>
             <p className="mt-3 text-white/58">
               此分數由正向、中性與負向情緒比例綜合計算，適合用來快速判斷留言區整體氣氛。
             </p>
+
+            <SentimentRatioCards
+              compact
+              positive={result.positive_ratio ?? 0}
+              neutral={result.neutral_ratio ?? 0}
+              negative={result.negative_ratio ?? 0}
+            />
           </TextCard>
         </div>
 
-        <SentimentRatioCards
-          positive={result.positive_ratio ?? 0}
-          neutral={result.neutral_ratio ?? 0}
-          negative={result.negative_ratio ?? 0}
-        />
+        <div className="grid gap-5 xl:grid-cols-2">
+          {chartData.length > 0 ? (
+            <EmotionRadarChart data={chartData} />
+          ) : (
+            <TextCard title="情緒心理圖譜">
+              <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
+            </TextCard>
+          )}
 
-        {chartData.length > 0 ? (
-          <EmotionRadarChart data={chartData} />
-        ) : (
-          <TextCard title="情緒心理圖譜">
-            <FallbackText>目前沒有可繪製的情緒圖表資料。</FallbackText>
-          </TextCard>
-        )}
-
-        <EmotionDistributionList data={chartData} />
+          <EmotionDistributionList data={chartData} />
+        </div>
 
         <RepresentativeComments commentsByEmotion={representativeComments} />
 

@@ -20,7 +20,10 @@ export function SummaryResultView({ result }) {
   const langRatio = result.lang_ratio ?? null;
 
   return (
-    <ResultShell label="Summary" title={`留言摘要：${clip(result.title || result.video_id, 256)}`}>
+    <ResultShell
+      label="Summary"
+      title={clip(result.title || result.video_id || "留言摘要", 256)}
+    >
       <ResultCard title="分析狀態">
         <div className="grid gap-3 sm:grid-cols-3">
           <InfoTile label="狀態" value={result.status || "ok"} />

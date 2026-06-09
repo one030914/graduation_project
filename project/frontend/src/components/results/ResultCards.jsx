@@ -1,12 +1,23 @@
 "use client";
 
-export function ResultShell({ label = "Result", title, children }) {
+export function ResultHeader({ label = "Result", title, subtitle }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+      <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">{label}</p>
+      <h2 className="mt-2 break-words text-2xl font-black leading-tight tracking-normal text-white">{title}</h2>
+      {subtitle && (
+        <p className="mt-2 break-words text-base font-semibold leading-7 text-white/50">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function ResultShell({ label = "Result", title, subtitle, children }) {
   return (
     <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
-      <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-        <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">{label}</p>
-        <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">{title}</h2>
-      </div>
+      <ResultHeader label={label} title={title} subtitle={subtitle} />
       <div className="mt-6 space-y-5">{children}</div>
     </article>
   );

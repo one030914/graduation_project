@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "YouTube 留言分析平台",
-  description: "YouTube 留言摘要、關鍵字、主題與情緒視覺化分析工具",
+  title: "YouTube 留言多模組分析平台",
+  description: "綜合、熱門主題、情緒風向、批評回饋與影片內容脈絡分析之視覺化工具",
 };
 
 export default function RootLayout({ children }) {

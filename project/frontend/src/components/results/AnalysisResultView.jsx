@@ -9,7 +9,7 @@ import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
 import { CriticismChart } from "@/components/charts/CriticismChart";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
 import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
-import { FallbackText, ResultFooter } from "@/components/results/ResultCards";
+import { FallbackText, ResultFooter, ResultHeader } from "@/components/results/ResultCards";
 
 function TextCard({ title, children, tone = "indigo", className = "" }) {
   const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";
@@ -24,16 +24,13 @@ function TextCard({ title, children, tone = "indigo", className = "" }) {
   );
 }
 
-
 function SkeletonLines({ lines = 3 }) {
   return (
     <div className="animate-pulse space-y-3" aria-hidden="true">
       {Array.from({ length: lines }).map((_, index) => (
         <div
           key={index}
-          className={`h-4 rounded-full bg-white/10 ${
-            index === lines - 1 ? "w-2/3" : "w-full"
-          }`}
+          className={`h-4 rounded-full bg-white/10 ${index === lines - 1 ? "w-2/3" : "w-full"}`}
         />
       ))}
     </div>
@@ -179,7 +176,9 @@ function AdviceToggleContent({
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">建議</p>
+          <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
+            建議
+          </p>
           <h3 className="mt-2 text-xl font-black tracking-normal text-indigo-200">{title}</h3>
         </div>
         <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.025] p-1">
@@ -249,14 +248,10 @@ export function AnalysisResultView({ result }) {
 
     return (
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
-        <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-          <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
-            YouTube 留言綜合分析
-          </p>
-          <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
-            標題：{clip(result.title || result.video_id, 256)}
-          </h2>
-        </div>
+        <ResultHeader
+          label="Analyze"
+          title={clip(result.title || result.video_id || "YouTube 留言綜合分析", 256)}
+        />
 
         <div className="mt-6 space-y-5">
           {/* 分析範圍 */}
@@ -327,7 +322,7 @@ export function AnalysisResultView({ result }) {
             </div>
           </section>
 
-          {/* 情緒心理圖譜 + 批評與改善訊號 */}
+          {/* 情緒心理圖譜 + 批評與改善比例 */}
           <div className="grid gap-5 lg:grid-cols-2">
             {(emotionDashboard.chart_data ?? []).length > 0 ? (
               <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
@@ -344,7 +339,7 @@ export function AnalysisResultView({ result }) {
             {(criticismDashboard.chart_data ?? []).length > 0 ? (
               <CriticismChart data={criticismDashboard.chart_data ?? []} />
             ) : (
-              <TextCard title="批評與改善訊號">
+              <TextCard title="批評與改善比例">
                 {isSourceLoading("criticism") ? (
                   <SkeletonChart />
                 ) : (
@@ -372,12 +367,12 @@ export function AnalysisResultView({ result }) {
             <TimelineLineChart
               data={timelineDashboard.chart_data ?? []}
               hotspot={topHotspot}
-              footer={(
+              footer={
                 <TagChips
                   tags={tags}
                   isLoading={isSourceLoading("keyword") || isSourceLoading("topics")}
                 />
-              )}
+              }
             />
           ) : (
             <TextCard title="留言時間軸熱點">
@@ -422,14 +417,10 @@ export function AnalysisResultView({ result }) {
 
   return (
     <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
-      <div className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
-        <p className="text-base font-black uppercase tracking-[0.14em] text-indigo-200/70">
-          Analysis Result
-        </p>
-        <h2 className="mt-2 text-2xl font-black leading-tight tracking-normal text-white">
-          標題：{clip(result.title || result.video_id, 256)}
-        </h2>
-      </div>
+      <ResultHeader
+        label="Analysis"
+        title={clip(result.title || result.video_id || "綜合分析結果", 256)}
+      />
 
       <div className="mt-6 space-y-5">
         <TextCard title="中文摘要">

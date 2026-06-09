@@ -1,13 +1,13 @@
 export function JobStatusPanel({ jobState }) {
   const actionLabels = {
-    analyze: "留言分析",
+    analyze: "綜合分析",
     summary: "摘要分析",
     keyword: "關鍵詞分析",
-    topics: "主題分析",
-    emotion: "情緒分析",
-    criticism: "批評分析",
+    topics: "熱門主題分析",
+    emotion: "情緒風向分析",
+    criticism: "批評回饋分析",
     timeline: "時間軸分析",
-    videoContent: "影片內容",
+    videoContent: "影片內容脈絡分析",
   };
 
   const statusLabel = {

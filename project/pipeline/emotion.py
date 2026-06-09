@@ -82,7 +82,7 @@ def _get_opinion_label(score: int) -> str:
     if score >= 65:
         return "正向偏高"
     if score >= 45:
-        return "中性 / 意見分歧"
+        return "中性/意見分歧"
     if score >= 30:
         return "負面偏高"
     return "高度負面"

@@ -28,7 +28,7 @@ export function KeywordResultView({ result }) {
   return (
     <ResultShell
       label="Keyword"
-      title={`關鍵詞分析：${clip(result.title || result.video_id, 256)}`}
+      title={clip(result.title || result.video_id || "關鍵詞分析", 256)}
     >
       <ResultCard title="分析狀態">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

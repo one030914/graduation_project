@@ -73,7 +73,7 @@ export function TopicsResultView({ result }) {
   return (
     <ResultShell
       label="Topics"
-      title={`主題分析：${result.title || result.video_id || "未命名影片"}`}
+      title={result.title || result.video_id || "未命名影片"}
     >
       <ResultCard title="分析概況">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -144,7 +144,6 @@ export function TopicsResultView({ result }) {
       <ResultFooter>
         Topics：根據留言語言與內容相似度整理主要討論群組。
         主題占比與代表留言可用來判斷留言區討論焦點；資料不足時結果僅供參考。
-        參與主題分析留言數：{result.total_comments ?? 0}。
       </ResultFooter>
     </ResultShell>
   );

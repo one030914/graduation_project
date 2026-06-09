@@ -2,11 +2,22 @@
 
 import { clip, fmtList } from "@/lib/analysisFormat";
 import { CriticismChart } from "@/components/charts/CriticismChart";
-import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
+import {
+  FallbackText,
+  InfoTile,
+  ResultCard,
+  ResultFooter,
+  ResultShell,
+} from "@/components/results/ResultCards";
 
 function severityLabel(level) {
   const map = { low: "低", medium: "中", high: "高" };
   return map[level] || level || "未知";
+}
+
+function severityTone(level) {
+  const map = { low: "emerald", medium: "amber", high: "red" };
+  return map[level] || "indigo";
 }
 
 function fmtPercent(value) {
@@ -31,18 +42,19 @@ export function CriticismResultView({ result }) {
   const chartData = result.chart_data ?? [];
 
   return (
-    <ResultShell
-      label="Criticism"
-      title={`批評與改善回饋：${clip(result.title || result.video_id, 256)}`}
-    >
-      <ResultCard title="批評訊號概況">
+    <ResultShell label="Criticism" title={clip(result.title || result.video_id, 256)}>
+      <ResultCard title="分析概況">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile label="分析狀態" value={result.status || "ok"} />
           <InfoTile
             label="分析留言數"
             value={`${result.analyzed_comments ?? 0} / ${result.total_comments ?? 0}`}
           />
-          <InfoTile label="批評強度" value={severityLabel(result.severity_level)} tone="red" />
+          <InfoTile
+            label="批評強度"
+            value={severityLabel(result.severity_level)}
+            tone={severityTone(result.severity_level)}
+          />
           <InfoTile label="主要批評" value={`${result.criticism_count ?? 0} 項`} />
           <InfoTile label="不滿原因" value={`${result.reason_count ?? 0} 項`} />
           <InfoTile label="改進建議" value={`${result.suggestion_count ?? 0} 項`} />
@@ -57,23 +69,6 @@ export function CriticismResultView({ result }) {
           <FallbackText>目前沒有可繪製的批評類型圖表資料。</FallbackText>
         </ResultCard>
       )}
-
-      <ResultCard title="批評類型分布" tone="red">
-        {chartData.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {chartData.map((item) => (
-              <span
-                key={item.key || item.label}
-                className="rounded-full border border-red-300/15 bg-red-400/10 px-3 py-1.5 text-base font-black text-red-100"
-              >
-                {item.label}：{item.count}（{fmtPercent(item.value)}）
-              </span>
-            ))}
-          </div>
-        ) : (
-          <FallbackText>目前沒有批評類型分布資料。</FallbackText>
-        )}
-      </ResultCard>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <ResultCard title="主要批評與抱怨痛點" tone="red" className="h-full">
@@ -109,7 +104,9 @@ export function CriticismResultView({ result }) {
         </ResultCard>
       </div>
 
-      <ResultFooter>Criticism：資料不足時不代表風向良好。</ResultFooter>
+      <ResultFooter>
+        Criticism：整理留言中的主要批評、不滿原因與改進建議，協助判斷觀眾對影片的負面回饋來源。資料不足時不代表風向良好。
+      </ResultFooter>
     </ResultShell>
   );
 }
