@@ -1,0 +1,42 @@
+# discord
+discord.py
+python-dotenv
+google-api-python-client
+
+# data
+emoji
+langid
+jieba
+beautifulsoup4
+opencc-python-reimplemented
+pandas
+contractions
+datasets
+youtube-transcript-api
+yt-dlp
+
+# tools
+matplotlib
+pydantic
+
+# model
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch
+torchvision
+torchaudio
+transformers[torch]
+sentence-transformers
+KeyBERT
+hdbscan
+tqdm
+faster-whisper
+google-genai
+ollama
+
+# backend interface
+fastapi
+uvicorn
+
+# database
+supabase

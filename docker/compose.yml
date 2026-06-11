@@ -1,0 +1,35 @@
+version: "3.9"
+services:
+    project:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile
+            args:
+                BASE: ${BASE:-pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime}
+                FILE: ${FILE:-docker/pt2.7-cu128.txt}
+        image: one030914/ai_project:${TAG:-cu128}
+        container_name: project
+        stdin_open: true
+        tty: true
+        command: bash
+        gpus: all
+        environment:
+            - NEXT_TELEMETRY_DISABLED=1
+            - OLLAMA_BASE_URL=http://host.docker.internal:11434
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        working_dir: /app
+        ports:
+            - "3000:3000"
+            - "8000:8000"
+        volumes:
+            - type: bind
+              source: ../project
+              target: /app
+
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        container_name: project-cloudflared
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+        depends_on:
+            - project
