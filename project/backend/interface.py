@@ -39,10 +39,12 @@ ALLOWED_JOB_MODES = {
     "timeline",
 }
 
+frontend_origin = [os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")]
+
 # 允許前端跨域請求
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=frontend_origin,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -53,8 +55,8 @@ def root():
 
 @app.get("/history")
 def history_page_redirect():
-    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
-    return RedirectResponse(f"{frontend_base_url}/history", status_code=307)
+    frontend_origin = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
+    return RedirectResponse(f"{frontend_origin}/history", status_code=307)
 
 # ----------------------
 # POST: 經佇列的分析
@@ -103,29 +105,6 @@ def get_job_status(job_id: str, request: Request):
         return JSONResponse({"error": "job_id not found or expired"}, status_code=404)
     return status
 
-@app.post("/jobs/{job_id}/cancel")
-def cancel_job(job_id: str, request: Request):
-    """Cancel a queued or running queue job."""
-    wq = request.app.state.web_queue
-    status = wq.get_status(job_id)
-    if status is None:
-        return JSONResponse({"error": "job_id not found or expired"}, status_code=404)
-
-    if status["status"] in ("completed", "failed", "cancelled"):
-        return {
-            "job_id": job_id,
-            "status": status["status"],
-            "cancelled": False,
-        }
-
-    cancelled = wq.cancel_job(job_id)
-    next_status = wq.get_status(job_id) or status
-    return {
-        "job_id": job_id,
-        "status": next_status["status"],
-        "cancelled": cancelled,
-    }
-
 @app.get("/jobs/{job_id}/result")
 def get_job_result(job_id: str, request: Request):
     """取得 queue job 結果；尚未完成會回 202。"""
@@ -138,12 +117,6 @@ def get_job_result(job_id: str, request: Request):
         return JSONResponse(
             {"job_id": job_id, "status": status["status"]},
             status_code=202,
-        )
-
-    if status["status"] == "cancelled":
-        return JSONResponse(
-            {"job_id": job_id, "status": "cancelled", "error": status.get("error")},
-            status_code=409,
         )
 
     if status["status"] == "failed":

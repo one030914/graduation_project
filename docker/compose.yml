@@ -26,3 +26,10 @@ services:
             - type: bind
               source: ../project
               target: /app
+
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        container_name: project-cloudflared
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+        depends_on:
+            - project
