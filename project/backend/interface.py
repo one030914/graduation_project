@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
+import hmac
 import os
 
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from configs.schema import Req
 from pipeline.queue import AnalysisQueue
@@ -39,24 +39,36 @@ ALLOWED_JOB_MODES = {
     "timeline",
 }
 
-frontend_origin = [os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")]
+inference_api_secret = os.getenv("INFERENCE_API_SECRET", "")
 
-# 允許前端跨域請求
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=frontend_origin,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def verify_inference_api_secret(request: Request, call_next):
+    protected_path = request.url.path in {"/queue", "/jobs", "/status"}
+    protected_path = protected_path or request.url.path.startswith("/jobs/")
+
+    if inference_api_secret and protected_path:
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not hmac.compare_digest(token, inference_api_secret):
+            return JSONResponse(
+                {"error": "Unauthorized inference request."},
+                status_code=401,
+            )
+
+    return await call_next(request)
 
 @app.get("/")
 def root():
     return {"message": "Topic API running"}
 
-@app.get("/history")
-def history_page_redirect():
-    frontend_origin = os.getenv("FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
-    return RedirectResponse(f"{frontend_origin}/history", status_code=307)
+@app.get("/status")
+def status(request: Request):
+    wq = request.app.state.web_queue
+    return {
+        "status": "ok",
+        "queue_size": wq.queue_size(),
+        "workers": wq.workers,
+    }
 
 # ----------------------
 # POST: 經佇列的分析

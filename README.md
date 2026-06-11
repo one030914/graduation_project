@@ -1,104 +1,276 @@
-# graduation_project
+# Design and Implementation of a Multi-Module YouTube Comment Analysis and Visualization System
 
-## Startup
+[繁體中文說明](README.zh-TW.md)
 
-### Docker build
+This project combines YouTube data collection, NLP pipelines, LLM inference, asynchronous job processing, a Discord bot, and a web application. Users submit a YouTube URL and receive topic, sentiment, criticism, video-context, and combined analysis results.
 
-Use these commands depending on your situation:
+## Architecture
 
-- Build or rebuild the image, then start the container:
+```text
+Local development
+Browser
+  -> Next.js /api/inference/*
+  -> http://127.0.0.1:8000
+  -> FastAPI -> AnalysisQueue -> inference pipelines
 
-```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --build
+Vercel deployment
+Browser
+  -> Vercel Next.js /api/inference/*
+  -> Tailscale Funnel HTTPS
+  -> local FastAPI :8000
+  -> AnalysisQueue -> inference pipelines
 ```
 
-- Start the container directly when the image already exists and nothing in the build config has changed:
+The browser never calls FastAPI directly. Local and Vercel deployments use the same Next.js proxy; only the server-side `INFERENCE_API_BASE` changes. Completed results are stored in PostgreSQL through Prisma.
 
-```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d
-```
+## Technology
 
-- Stop the container and remove volumes:
+- Backend: Python, FastAPI, Uvicorn
+- Inference: PyTorch, Ollama, Faster Whisper
+- Frontend: Next.js, React, Tailwind CSS, Recharts
+- Database: PostgreSQL, Prisma
+- Optional runtime: Docker with NVIDIA CUDA
+- Public ingress: Tailscale Funnel
+- Frontend hosting: Vercel
 
-```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml down -v
-```
+## Repository Layout
 
-CUDA variants:
-
-- Default uses image tag `cu128`, `pt2.7-cu128.txt`, and `pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime`
-- To switch variant in both `CMD` and `PowerShell`, use `--env-file`
-- `cu118` example:
-
-```bash
-docker compose --env-file ./docker/cu118.env -f ./docker/compose.yml up -d --build
-```
-
-- `cu128` example:
-
-```bash
-docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --build
-```
-
-### Run the bot
-
-cd to project folder and use command: `python -m bot.bot`.
-
-### Run the website
-[This README](https://github.com/one030914/graduation_project/tree/work/project/frontend#readme) explains how to set up the website.
-
-## Project Structure
-
-```
+```text
 graduation_project/
-├─ docker/                  # docker build and compose configuration
+├─ docker/                    # Dockerfile, Compose, and CUDA dependencies
 ├─ project/
-│  ├─ backend/              # the frontend bridge
-│  ├─ bot/
-│  │  ├─ cogs/              # bot feature modules
-│  │  ├─ core/
-│  │  │  └─ classes.py      # importing bot cogs
-│  │  ├─ utils/             # components
-│  │  └─ bot.py             # bot entry point
-│  ├─ configs/
-│  │  ├─ schema.py          # defining custom constants
-│  │  └─ settings.py        # constants and settings
-│  ├─ data/
-│  │  ├─ preprocess/        # comment preprocessing
-│  │  └─ youtube/
-│  │     └─ api.py          # youtube comment retrieval
-│  ├─ frontend/             # website interface
-│  ├─ model/
-│  │  ├─ models/            # model list
-│  │  └─ process/           # model processing
-│  ├─ pipeline/             # workflow pipeline
-│  ├─ scripts/              # helper scripts
-│  ├─ .env                  # environment variables
-│  └─ data.json             # persistent storage
-├─ .gitignore
+│  ├─ agents/                # LLM agents and Ollama integration
+│  ├─ backend/interface.py   # FastAPI interface
+│  ├─ bot/                   # Discord bot
+│  ├─ configs/               # Shared schemas and settings
+│  ├─ data/                  # YouTube access and preprocessing
+│  ├─ frontend/              # Next.js application
+│  ├─ model/                 # Model loading and processing
+│  ├─ pipeline/              # Analysis workflows and job queue
+│  ├─ scripts/               # Development launch scripts
+│  └─ .env                   # Local backend secrets; not committed
 └─ README.md
 ```
 
-# Todos
+## Requirements
 
-## Rebuilding project
--   [x] bot and cogs
--   [x] youtube api
--   [x] preprocess
--   [x] models
--   [x] pipeline
--   [x] multi-task
--   [x] rebuild enviroment (consider a lower GPU capable of supporting)
--   [ ] get datasets
--   [ ] retrain models
+Common requirements:
 
-## Add-ons
--   [x] frontend interface
--   [x] top
--   [x] topics
--   [x] emotion
--   [x] video analysis
--   [x] criticism
--   [x] timeline
--   [x] intent
--   [x] insight
+- Python with virtual environment support, or Docker
+- NVIDIA GPU and driver for GPU inference
+- Ollama when an analysis mode requires an LLM
+- Bun for frontend development
+- PostgreSQL for analysis history
+- Tailscale Funnel when Vercel must reach a backend running on your machine
+
+Docker GPU execution additionally requires Docker Compose and NVIDIA Container Toolkit. Native execution requires a PyTorch build compatible with your hardware and driver.
+
+## Backend Environment
+
+Copy `project/.env.template` to `project/.env`:
+
+```env
+INFERENCE_API_SECRET=generate-a-long-random-secret
+
+TOKEN=YOUR_DISCORD_BOT_TOKEN
+API_KEY=YOUR_YOUTUBE_API_KEY
+
+# Docker backend:
+OLLAMA_HOST=http://host.docker.internal:11434
+# Native backend:
+# OLLAMA_HOST=http://127.0.0.1:11434
+OLLAMA_MODEL=gemma3:12b
+
+WHISPER_MODEL_SIZE=small
+WHISPER_BEAM_SIZE=8
+WHISPER_BEST_OF=5
+WHISPER_PATIENCE=1.2
+WHISPER_CONDITION_ON_PREVIOUS_TEXT=True
+```
+
+`INFERENCE_API_SECRET` is a shared secret generated by you, not a Tailscale token. FastAPI verifies it against the Bearer token sent by the Next.js proxy.
+
+Generate one with PowerShell:
+
+```powershell
+$bytes = New-Object byte[] 32
+$rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+$rng.GetBytes($bytes)
+$rng.Dispose()
+[Convert]::ToBase64String($bytes)
+```
+
+## Run the Backend with Docker
+
+CUDA 12.8:
+
+```powershell
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml up -d --build
+```
+
+CUDA 11.8:
+
+```powershell
+docker compose --env-file ./docker/cu118.env -f ./docker/compose.yml up -d --build
+```
+
+Stop the service:
+
+```powershell
+docker compose --env-file ./docker/cu128.env -f ./docker/compose.yml down
+```
+
+## Run the Backend without Docker
+
+Run these commands from the repository root.
+
+### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r docker/pt2.7-cu128.txt
+Set-Location project
+python -m uvicorn backend.interface:app --reload --host 0.0.0.0 --port 8000
+```
+
+Use `docker/pt2.7-cu118.txt` instead when CUDA 11.8 is required.
+
+### Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r docker/pt2.7-cu128.txt
+cd project
+python -m uvicorn backend.interface:app --reload --host 0.0.0.0 --port 8000
+```
+
+For native execution, set `OLLAMA_HOST=http://127.0.0.1:11434` in `project/.env`. If the selected PyTorch dependency set does not match your GPU or CUDA driver, install the appropriate build from the official PyTorch instructions before starting FastAPI.
+
+## Verify the Backend
+
+The backend is available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Check its status:
+
+```powershell
+curl.exe -H "Authorization: Bearer YOUR_SECRET" http://127.0.0.1:8000/status
+```
+
+## Local Frontend
+
+See the [Frontend README](project/frontend/README.md) for installation, database setup, API routes, and troubleshooting.
+
+Core local settings:
+
+```env
+INFERENCE_API_BASE=http://127.0.0.1:8000
+INFERENCE_API_SECRET=the-same-value-as-project/.env
+```
+
+```text
+Browser -> localhost:3000/api/inference/* -> localhost:8000
+```
+
+## Vercel and Tailscale Funnel
+
+Tailscale Funnel exposes backend port `8000` through a public HTTPS URL. Enable MagicDNS, HTTPS, and Funnel for the tailnet, then run from an elevated PowerShell:
+
+```powershell
+tailscale funnel --bg 8000
+tailscale funnel status
+```
+
+The output contains a URL similar to:
+
+```text
+https://your-machine.your-tailnet.ts.net
+```
+
+Configure these Vercel project environment variables:
+
+```env
+INFERENCE_API_BASE=https://your-machine.your-tailnet.ts.net
+INFERENCE_API_SECRET=the-same-value-as-project/.env
+DATABASE_URL=YOUR_POSTGRES_RUNTIME_URL
+DIRECT_URL=YOUR_POSTGRES_DIRECT_URL
+```
+
+Do not use the `NEXT_PUBLIC_` prefix. Redeploy Vercel after changing environment variables.
+
+Reset the Funnel configuration:
+
+```powershell
+tailscale funnel reset
+```
+
+See the [Tailscale Funnel CLI documentation](https://tailscale.com/docs/reference/tailscale-cli/funnel).
+
+## Backend API
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Basic service information |
+| `GET` | `/status` | Service, worker, and queue status |
+| `POST` | `/jobs` | Create an asynchronous analysis job |
+| `GET` | `/jobs/{job_id}` | Read job status and partial results |
+| `GET` | `/jobs/{job_id}/result` | Read the completed result |
+| `POST` | `/queue` | Create a job and wait for its result |
+
+When `INFERENCE_API_SECRET` is configured, `/status`, `/jobs*`, and `/queue` require:
+
+```http
+Authorization: Bearer <INFERENCE_API_SECRET>
+```
+
+Supported job modes:
+
+```text
+analyze
+summary
+keyword
+topics
+emotion
+video_content
+criticism
+timeline
+```
+
+## Discord Bot
+
+From the `project` directory:
+
+```powershell
+python -m bot.bot
+```
+
+Configure `TOKEN`, `API_KEY`, and model settings in `project/.env` first.
+
+## Troubleshooting
+
+### Vercel reports that inference is offline
+
+1. Confirm that the Docker or native FastAPI process is running.
+2. Verify `http://127.0.0.1:8000/status`.
+3. Check `tailscale funnel status`.
+4. Verify the Vercel `INFERENCE_API_BASE`.
+5. Confirm that both environments use the same `INFERENCE_API_SECRET`.
+
+### FastAPI returns 401
+
+The Bearer token is missing or does not match. Restart the backend after changing `project/.env`, and redeploy Vercel after changing its environment variables.
+
+### Tailscale CLI returns Access denied on Windows
+
+Run the Funnel commands from an elevated PowerShell.
+
+### Ollama is unreachable
+
+Use `http://host.docker.internal:11434` from Docker and `http://127.0.0.1:11434` from a native backend.

@@ -107,7 +107,7 @@ export default function Page() {
     if (fromCache || hasFailedPayload(payload)) return;
 
     try {
-      const res = await fetch("/api/analysis", {
+      const res = await fetch("/api/analysis-records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
