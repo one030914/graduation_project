@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@prisma/adapter-pg", "pg", "postgres-array"],
+  turbopack: {},
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
