@@ -1,4 +1,3 @@
-version: "3.9"
 services:
     project:
         build:
@@ -11,7 +10,8 @@ services:
         container_name: project
         stdin_open: true
         tty: true
-        command: bash
+        command: bash ./scripts/dev-backend.sh
+        restart: unless-stopped
         gpus: all
         environment:
             - NEXT_TELEMETRY_DISABLED=1
@@ -26,10 +26,3 @@ services:
             - type: bind
               source: ../project
               target: /app
-
-    cloudflared:
-        image: cloudflare/cloudflared:latest
-        container_name: project-cloudflared
-        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-        depends_on:
-            - project
