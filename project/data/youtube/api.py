@@ -13,6 +13,31 @@ from urllib.parse import urlparse, parse_qs
 import os
 from dotenv import load_dotenv
 
+ISO_8601_DURATION_RE = re.compile(
+    r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
+)
+
+
+def parse_youtube_duration_seconds(value: str | None) -> int | None:
+    if not value:
+        return None
+
+    match = ISO_8601_DURATION_RE.match(str(value).strip())
+    if not match:
+        return None
+
+    parts = {key: int(raw) if raw else 0 for key, raw in match.groupdict().items()}
+    if not any(parts.values()):
+        return 0 if str(value).strip() == "PT0S" else None
+
+    return (
+        parts["days"] * 86400
+        + parts["hours"] * 3600
+        + parts["minutes"] * 60
+        + parts["seconds"]
+    )
+
+
 class API:
     def __init__(self):
         load_dotenv(verbose=True)
@@ -100,7 +125,7 @@ class API:
 
         youtube = build("youtube", "v3", developerKey=self.API_KEY)
         resp = youtube.videos().list(
-            part="snippet",
+            part="snippet,contentDetails",
             id=video_id
         ).execute()
 
@@ -109,8 +134,10 @@ class API:
             return None
 
         snippet = items[0]["snippet"]
+        content_details = items[0].get("contentDetails") or {}
         return {
             "title": snippet.get("title"),
             "channel": snippet.get("channelTitle"),
             "published_at": snippet.get("publishedAt"),
+            "duration_seconds": parse_youtube_duration_seconds(content_details.get("duration")),
         }

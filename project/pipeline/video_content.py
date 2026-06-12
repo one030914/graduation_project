@@ -47,6 +47,7 @@ def build_video_content(url: str) -> VideoContentResult:
 
     info = api.get_video_info(video_id)
     title = (info or {}).get("title") or video_id
+    video_duration_seconds = _coerce_duration_seconds((info or {}).get("duration_seconds"))
 
     try:
         transcript = fetch_video_transcript(url, video_id=video_id)
@@ -57,6 +58,7 @@ def build_video_content(url: str) -> VideoContentResult:
         transcript,
         title=title,
         url=url,
+        video_duration_seconds=video_duration_seconds,
     )
 
 
@@ -65,9 +67,14 @@ def build_video_content_from_transcript(
     *,
     title: str = "",
     url: str = "",
+    video_duration_seconds: int | None = None,
 ) -> VideoContentResult:
     transcript_word_count = _count_transcript_words(transcript)
     segments = _prepare_transcript_segments(transcript)
+    resolved_video_duration_seconds = _resolve_video_duration_seconds(
+        segments,
+        video_duration_seconds=video_duration_seconds,
+    )
     if not segments:
         return VideoContentResult(
             title=title,
@@ -85,6 +92,7 @@ def build_video_content_from_transcript(
             url=url,
             segments=segments,
             language=language,
+            video_duration_seconds=resolved_video_duration_seconds,
         )
     except Exception as exc:
         return VideoContentResult(
@@ -98,7 +106,10 @@ def build_video_content_from_transcript(
 
     resolved_language = "zh"
     summary_text = _ensure_terminal_punctuation(analysis.summary_text, language=resolved_language)
-    chapter_timeline = _normalize_chapter_timeline(analysis.chapter_timeline)
+    chapter_timeline = _normalize_chapter_timeline(
+        analysis.chapter_timeline,
+        video_duration_seconds=resolved_video_duration_seconds,
+    )
 
     result = VideoContentResult(
         title=title,
@@ -122,7 +133,12 @@ def build_video_content_from_transcript(
     return result
 
 
-def _agent_data_to_video_analysis(data: dict[str, Any], *, fallback_language: str) -> _VideoContentAnalysis:
+def _agent_data_to_video_analysis(
+    data: dict[str, Any],
+    *,
+    fallback_language: str,
+    segments: Sequence[TranscriptSegment] | None = None,
+) -> _VideoContentAnalysis:
     summary_text = _normalize_whitespace(data.get("summary_text") or "")
     if not summary_text:
         legacy_summary = data.get("summary") or []
@@ -137,7 +153,7 @@ def _agent_data_to_video_analysis(data: dict[str, Any], *, fallback_language: st
         final_conclusion=_normalize_whitespace(data.get("final_conclusion") or ""),
         recommended_audience=_normalize_whitespace(data.get("recommended_audience") or ""),
         action_suggestions=_coerce_string_list(data.get("action_suggestions") or []),
-        chapter_timeline=_parse_chapter_timeline(data.get("chapter_timeline") or []),
+        chapter_timeline=_parse_chapter_timeline(data.get("chapter_timeline") or [], segments=segments),
     )
 
 
@@ -177,6 +193,7 @@ def _analyze_transcript_with_llm(
     url: str,
     segments: Sequence[TranscriptSegment],
     language: str,
+    video_duration_seconds: int | None = None,
 ) -> _VideoContentAnalysis:
     chunks = _chunk_transcript(_format_transcript_lines(segments))
     agent = VideoContentAgent()
@@ -197,10 +214,12 @@ def _analyze_transcript_with_llm(
             url=url,
             transcript_text=chunks[0],
             language=language,
+            video_duration_seconds=video_duration_seconds,
         )
         return _agent_data_to_video_analysis(
             data,
             fallback_language=language,
+            segments=segments,
         )
 
     chunk_results: list[dict] = []
@@ -213,6 +232,7 @@ def _analyze_transcript_with_llm(
             language=language,
             chunk_index=index,
             total_chunks=total_chunks,
+            video_duration_seconds=video_duration_seconds,
         )
         chunk_results.append(data)
 
@@ -221,20 +241,24 @@ def _analyze_transcript_with_llm(
         url=url,
         language=language,
         chunk_results=chunk_results,
+        video_duration_seconds=video_duration_seconds,
     )
 
     return _agent_data_to_video_analysis(
         merged,
         fallback_language=language,
+        segments=segments,
     )
 
 
 def _format_transcript_lines(segments: Sequence[TranscriptSegment]) -> List[str]:
     lines: List[str] = []
-    for segment in segments:
+    for index, segment in enumerate(segments):
         start_seconds = max(0, int(segment.start or 0))
         end_seconds = max(start_seconds + 1, int((segment.start or 0) + (segment.duration or 0)))
-        lines.append(f"[{_format_timestamp(start_seconds)} - {_format_timestamp(end_seconds)}] {segment.text}")
+        lines.append(
+            f"[seg={index}][{_format_timestamp(start_seconds)} - {_format_timestamp(end_seconds)}] {segment.text}"
+        )
     return lines
 
 
@@ -300,7 +324,30 @@ def _count_transcript_words(transcript: TranscriptPayload) -> int:
     return len(CJK_CHAR_RE.findall(text)) + len(WORD_RE.findall(text))
 
 
-def _parse_chapter_timeline(items: Any) -> list[VideoChapterSegment]:
+def _resolve_video_duration_seconds(
+    segments: Sequence[TranscriptSegment],
+    *,
+    video_duration_seconds: int | None,
+) -> int | None:
+    provided = _coerce_duration_seconds(video_duration_seconds)
+    if provided is not None:
+        return provided
+
+    end_seconds = [
+        int((segment.start or 0) + (segment.duration or 0))
+        for segment in segments
+        if (segment.start or 0) + (segment.duration or 0) > 0
+    ]
+    if not end_seconds:
+        return None
+    return max(end_seconds)
+
+
+def _parse_chapter_timeline(
+    items: Any,
+    *,
+    segments: Sequence[TranscriptSegment] | None = None,
+) -> list[VideoChapterSegment]:
     if not isinstance(items, list):
         return []
 
@@ -309,8 +356,12 @@ def _parse_chapter_timeline(items: Any) -> list[VideoChapterSegment]:
         if not isinstance(item, dict):
             continue
 
-        start_seconds = _coerce_seconds(item.get("start_seconds"))
-        end_seconds = _coerce_seconds(item.get("end_seconds"))
+        segment_bounds = _chapter_seconds_from_segment_ids(item, segments=segments)
+        if segment_bounds is None:
+            start_seconds = _coerce_seconds(item.get("start_seconds"))
+            end_seconds = _coerce_seconds(item.get("end_seconds"))
+        else:
+            start_seconds, end_seconds = segment_bounds
         title = _normalize_whitespace(item.get("title") or "")
         summary = _normalize_whitespace(item.get("summary") or "")
         keywords = _normalize_chapter_keywords(item.get("keywords") or [])
@@ -336,12 +387,67 @@ def _parse_chapter_timeline(items: Any) -> list[VideoChapterSegment]:
     return _normalize_chapter_timeline(chapters)
 
 
-def _normalize_chapter_timeline(chapters: Sequence[VideoChapterSegment]) -> list[VideoChapterSegment]:
-    normalized = [
-        chapter
-        for chapter in chapters
-        if chapter.end_seconds > chapter.start_seconds and chapter.title.strip() and chapter.summary.strip()
-    ]
+def _chapter_seconds_from_segment_ids(
+    item: dict[str, Any],
+    *,
+    segments: Sequence[TranscriptSegment] | None,
+) -> tuple[int, int] | None:
+    if not segments:
+        return None
+
+    start_id = _coerce_segment_id(item.get("start_segment_id"))
+    end_id = _coerce_segment_id(item.get("end_segment_id"))
+    if start_id is None or end_id is None:
+        return None
+    if start_id > end_id:
+        return None
+    if start_id >= len(segments) or end_id >= len(segments):
+        return None
+
+    start_segment = segments[start_id]
+    end_segment = segments[end_id]
+    start_seconds = max(0, int(start_segment.start or 0))
+    end_seconds = max(
+        start_seconds + 1,
+        int((end_segment.start or 0) + (end_segment.duration or 0)),
+    )
+    return start_seconds, end_seconds
+
+
+def _normalize_chapter_timeline(
+    chapters: Sequence[VideoChapterSegment],
+    *,
+    video_duration_seconds: int | None = None,
+) -> list[VideoChapterSegment]:
+    duration = _coerce_duration_seconds(video_duration_seconds)
+    normalized: list[VideoChapterSegment] = []
+
+    for chapter in chapters:
+        if not chapter.title.strip() or not chapter.summary.strip():
+            continue
+
+        start_seconds = int(chapter.start_seconds)
+        end_seconds = int(chapter.end_seconds)
+
+        if duration is not None:
+            if start_seconds >= duration:
+                continue
+            end_seconds = min(end_seconds, duration)
+
+        if end_seconds <= start_seconds:
+            continue
+
+        normalized.append(
+            VideoChapterSegment(
+                start_seconds=start_seconds,
+                end_seconds=end_seconds,
+                title=chapter.title,
+                summary=chapter.summary,
+                keywords=chapter.keywords,
+                importance=chapter.importance,
+            )
+        )
+
     normalized.sort(key=lambda chapter: (chapter.start_seconds, chapter.end_seconds))
     return normalized[:CHAPTER_TOPK]
 
@@ -424,6 +530,23 @@ def _coerce_seconds(value: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     if seconds < 0:
+        return None
+    return seconds
+
+
+def _coerce_segment_id(value: Any) -> int | None:
+    try:
+        segment_id = int(float(value))
+    except (TypeError, ValueError):
+        return None
+    if segment_id < 0:
+        return None
+    return segment_id
+
+
+def _coerce_duration_seconds(value: Any) -> int | None:
+    seconds = _coerce_seconds(value)
+    if seconds is None or seconds <= 0:
         return None
     return seconds
 
