@@ -8,23 +8,10 @@ import {
   ResultFooter,
   ResultHeader,
 } from "@/components/results/ResultCards";
-
-const EMOTION_LABELS = {
-  Joy: "喜悅",
-  Angry: "憤怒",
-  Sad: "悲傷",
-  Disgusted: "厭惡",
-  Surprised: "驚訝",
-  Fearful: "恐懼",
-  Neutral: "中性",
-};
+import { getEmotionLabel } from "@/lib/emotionFormat";
 
 function fmtPercent(value) {
   return `${((Number(value) || 0) * 100).toFixed(1)}%`;
-}
-
-function getEmotionLabel(key) {
-  return EMOTION_LABELS[key] || key || "未知";
 }
 
 function getLanguageLabel(language) {
@@ -238,9 +225,9 @@ export function EmotionRecordView({ result }) {
 
   const dominantEmotion =
     result.dominant_emotion?.display_name ||
-    result.dominant_emotion?.label ||
-    getEmotionLabel(result.dominant_emotion?.emotion) ||
-    "未知";
+    getEmotionLabel(
+      result.dominant_emotion?.label || result.dominant_emotion?.emotion,
+    );
 
   const chartData = result.chart_data ?? result.radar_data ?? [];
   const representativeComments = result.representative_comments ?? {};

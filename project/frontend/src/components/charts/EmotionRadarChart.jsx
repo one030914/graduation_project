@@ -9,29 +9,10 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-
-const EMOTIONS = [
-  { key: "Joy", label: "喜悅" },
-  { key: "Angry", label: "憤怒" },
-  { key: "Sad", label: "悲傷" },
-  { key: "Disgusted", label: "厭惡" },
-  { key: "Surprised", label: "驚訝" },
-  { key: "Fearful", label: "恐懼" },
-  { key: "Neutral", label: "中性" },
-];
-
-const EMOTION_LABELS = Object.fromEntries(EMOTIONS.map((emotion) => [emotion.key, emotion.label]));
-const EMOTION_KEYS = EMOTIONS.map((emotion) => emotion.key);
-
-function normalizeEmotionKey(value) {
-  const rawValue = String(value || "").trim();
-  if (!rawValue) return null;
-
-  const directKey = EMOTION_KEYS.find((key) => key.toLowerCase() === rawValue.toLowerCase());
-  if (directKey) return directKey;
-
-  return EMOTIONS.find((emotion) => emotion.label === rawValue)?.key || rawValue;
-}
+import {
+  EMOTION_DEFINITIONS,
+  normalizeEmotionKey,
+} from "@/lib/emotionFormat";
 
 function normalizeRatio(value) {
   const ratio = Number(value || 0);
@@ -46,7 +27,7 @@ function normalizeCount(value) {
 
 function buildChartData(data) {
   const emotionMap = new Map(
-    EMOTIONS.map((emotion) => [
+    EMOTION_DEFINITIONS.map((emotion) => [
       emotion.key,
       {
         key: emotion.key,
@@ -58,21 +39,20 @@ function buildChartData(data) {
   );
 
   data.forEach((item, index) => {
-    const rawName = item.key || item.label || item.emotion || item.name || `emotion-${index}`;
+    const rawName = item.key || item.emotion || item.name || item.label || `emotion-${index}`;
     const key = normalizeEmotionKey(rawName);
     if (!key) return;
 
-    const existing = emotionMap.get(key) ?? {
-      key,
-      name: EMOTION_LABELS[key] || String(rawName),
-      count: 0,
-      providedRatio: 0,
-    };
+    const existing = emotionMap.get(key);
+    if (!existing) return;
 
     emotionMap.set(key, {
       ...existing,
-      count: existing.count + normalizeCount(item.count ?? item.total ?? item.value),
-      providedRatio: Math.max(existing.providedRatio, normalizeRatio(item.ratio ?? item.percent)),
+      count: existing.count + normalizeCount(item.count ?? item.total),
+      providedRatio: Math.max(
+        existing.providedRatio,
+        normalizeRatio(item.ratio ?? item.percent ?? item.value),
+      ),
     });
   });
 
