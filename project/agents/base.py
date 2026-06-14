@@ -57,6 +57,7 @@ class BaseAgent:
         temperature: float = 0.1,
         num_predict: int = 1024,
         num_ctx: int = 8192,
+        json_schema: dict | None = None,
     ) -> dict:
         data = self.llm.generate_json(
             system_prompt=self.build_system_prompt(),
@@ -64,7 +65,7 @@ class BaseAgent:
             temperature=temperature,
             num_predict=num_predict,
             num_ctx=num_ctx,
-            json_schema=self.output_json_schema,
+            json_schema=json_schema or self.output_json_schema,
         )
 
         return to_traditional_zh(data)

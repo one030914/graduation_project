@@ -12,8 +12,17 @@ import {
 
 function formatSource(source) {
   if (source === "caption") return "手動 CC 字幕";
+  if (source === "caption_manual") return "人工 CC 字幕";
+  if (source === "caption_manual_translated") return "人工 CC 字幕（YouTube 自動翻譯）";
+  if (source === "caption_generated") return "YouTube 自動字幕";
+  if (source === "caption_generated_translated") return "YouTube 自動字幕（自動翻譯）";
   if (source === "whisper") return "Whisper 逐字稿";
   return "未知";
+}
+
+function formatTranslationProvider(provider) {
+  if (provider === "youtube") return "YouTube 自動翻譯";
+  return "未翻譯";
 }
 
 function formatCount(value) {
@@ -111,13 +120,25 @@ export function VideoContentResultView({ result }) {
       title={clip(safeResult.title || safeResult.url || "影片內容分析", 256)}
     >
       <ResultCard title="逐字稿資訊" tone="emerald">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile
             label="逐字稿來源"
             value={formatSource(safeResult.transcript_source)}
             tone="emerald"
           />
           <InfoTile label="逐字稿總字數" value={transcriptWordCount || "無資料"} />
+          <InfoTile
+            label="原始語言"
+            value={safeResult.transcript_source_language || safeResult.language || "未知"}
+          />
+          <InfoTile
+            label="翻譯方式"
+            value={
+              safeResult.transcript_translated
+                ? formatTranslationProvider(safeResult.transcript_translation_provider)
+                : "未翻譯（直接分析原文）"
+            }
+          />
         </div>
       </ResultCard>
       <ResultCard title="摘要" tone="emerald">

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, List, Sequence
 
@@ -81,6 +82,9 @@ def build_video_content_from_transcript(
             url=url,
             transcript_word_count=transcript_word_count,
             transcript_source=transcript.source,
+            transcript_source_language=transcript.source_language or transcript.language,
+            transcript_translated=transcript.translated,
+            transcript_translation_provider=transcript.translation_provider,
             error="No usable transcript text found.",
         )
 
@@ -101,6 +105,9 @@ def build_video_content_from_transcript(
             language=language,
             transcript_word_count=transcript_word_count,
             transcript_source=transcript.source,
+            transcript_source_language=transcript.source_language or transcript.language,
+            transcript_translated=transcript.translated,
+            transcript_translation_provider=transcript.translation_provider,
             error=f"VideoContentAgent analysis failed: {exc}",
         )
 
@@ -122,6 +129,9 @@ def build_video_content_from_transcript(
         transcript_word_count=transcript_word_count,
         chapter_timeline=chapter_timeline,
         transcript_source=transcript.source,
+        transcript_source_language=transcript.source_language or transcript.language,
+        transcript_translated=transcript.translated,
+        transcript_translation_provider=transcript.translation_provider,
     )
 
     if summary_text:
@@ -153,7 +163,10 @@ def _agent_data_to_video_analysis(
         final_conclusion=_normalize_whitespace(data.get("final_conclusion") or ""),
         recommended_audience=_normalize_whitespace(data.get("recommended_audience") or ""),
         action_suggestions=_coerce_string_list(data.get("action_suggestions") or []),
-        chapter_timeline=_parse_chapter_timeline(data.get("chapter_timeline") or [], segments=segments),
+        chapter_timeline=_parse_chapter_timeline(
+            data.get("chapter_timeline") or [],
+            segments=segments,
+        ),
     )
 
 
@@ -253,11 +266,15 @@ def _analyze_transcript_with_llm(
 
 def _format_transcript_lines(segments: Sequence[TranscriptSegment]) -> List[str]:
     lines: List[str] = []
-    for index, segment in enumerate(segments):
-        start_seconds = max(0, int(segment.start or 0))
-        end_seconds = max(start_seconds + 1, int((segment.start or 0) + (segment.duration or 0)))
+    for segment in segments:
+        start_seconds = max(0, math.floor(segment.start or 0))
+        end_seconds = max(
+            start_seconds + 1,
+            math.ceil((segment.start or 0) + (segment.duration or 0)),
+        )
         lines.append(
-            f"[seg={index}][{_format_timestamp(start_seconds)} - {_format_timestamp(end_seconds)}] {segment.text}"
+            f"[{_format_timestamp(start_seconds)} - {_format_timestamp(end_seconds)}] "
+            f"({start_seconds}s - {end_seconds}s) {segment.text}"
         )
     return lines
 
@@ -351,22 +368,23 @@ def _parse_chapter_timeline(
     if not isinstance(items, list):
         return []
 
+    valid_starts, valid_ends = _source_timestamp_boundaries(segments)
     chapters: list[VideoChapterSegment] = []
     for item in items:
         if not isinstance(item, dict):
             continue
 
-        segment_bounds = _chapter_seconds_from_segment_ids(item, segments=segments)
-        if segment_bounds is None:
-            start_seconds = _coerce_seconds(item.get("start_seconds"))
-            end_seconds = _coerce_seconds(item.get("end_seconds"))
-        else:
-            start_seconds, end_seconds = segment_bounds
+        start_seconds = _coerce_seconds(item.get("start_seconds"))
+        end_seconds = _coerce_seconds(item.get("end_seconds"))
         title = _normalize_whitespace(item.get("title") or "")
         summary = _normalize_whitespace(item.get("summary") or "")
         keywords = _normalize_chapter_keywords(item.get("keywords") or [])
         importance = _normalize_importance(item.get("importance"))
         if start_seconds is None or end_seconds is None:
+            continue
+        if valid_starts and start_seconds not in valid_starts:
+            continue
+        if valid_ends and end_seconds not in valid_ends:
             continue
         if end_seconds <= start_seconds:
             continue
@@ -387,31 +405,23 @@ def _parse_chapter_timeline(
     return _normalize_chapter_timeline(chapters)
 
 
-def _chapter_seconds_from_segment_ids(
-    item: dict[str, Any],
-    *,
+def _source_timestamp_boundaries(
     segments: Sequence[TranscriptSegment] | None,
-) -> tuple[int, int] | None:
+) -> tuple[set[int], set[int]]:
     if not segments:
-        return None
+        return set(), set()
 
-    start_id = _coerce_segment_id(item.get("start_segment_id"))
-    end_id = _coerce_segment_id(item.get("end_segment_id"))
-    if start_id is None or end_id is None:
-        return None
-    if start_id > end_id:
-        return None
-    if start_id >= len(segments) or end_id >= len(segments):
-        return None
-
-    start_segment = segments[start_id]
-    end_segment = segments[end_id]
-    start_seconds = max(0, int(start_segment.start or 0))
-    end_seconds = max(
-        start_seconds + 1,
-        int((end_segment.start or 0) + (end_segment.duration or 0)),
-    )
-    return start_seconds, end_seconds
+    starts: set[int] = set()
+    ends: set[int] = set()
+    for segment in segments:
+        start_seconds = max(0, math.floor(segment.start or 0))
+        end_seconds = max(
+            start_seconds + 1,
+            math.ceil((segment.start or 0) + (segment.duration or 0)),
+        )
+        starts.add(start_seconds)
+        ends.add(end_seconds)
+    return starts, ends
 
 
 def _normalize_chapter_timeline(
@@ -532,16 +542,6 @@ def _coerce_seconds(value: Any) -> int | None:
     if seconds < 0:
         return None
     return seconds
-
-
-def _coerce_segment_id(value: Any) -> int | None:
-    try:
-        segment_id = int(float(value))
-    except (TypeError, ValueError):
-        return None
-    if segment_id < 0:
-        return None
-    return segment_id
 
 
 def _coerce_duration_seconds(value: Any) -> int | None:

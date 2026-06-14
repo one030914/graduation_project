@@ -50,37 +50,58 @@ class LocalLLMService:
         num_ctx: int = 8192,
         json_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        response = self.client.generate(
-            model=self.model_name,
-            system=system_prompt,
-            prompt=user_prompt,
-            format=json_schema or "json",
-            think=False,
-            options={
-                "temperature": temperature,
-                "num_predict": num_predict,
-                "num_ctx": num_ctx,
-            },
-        )
-
-        raw = response.get("response", "")
-        print("=== LLM RAW RESPONSE START ===")
-        print(repr(raw[:1000]))
-        print("=== LLM RAW RESPONSE END ===")
-
-        try:
-            json_text = self._extract_json_text(raw)
-            data = json.loads(json_text)
-        except Exception as exc:
-            hint = ""
-            if re.search(r'^[\s`]*\{?\s*"?thought', raw, flags=re.IGNORECASE):
-                hint = " Hint: model emitted a thought/reasoning field instead of the requested JSON schema."
-            raise ValueError(
-                f"Failed to parse LLM JSON: {type(exc).__name__}: {exc}.{hint} "
-                f"Raw preview={repr(raw[:500])}"
+        prompts = [user_prompt]
+        if json_schema is not None:
+            prompts.append(
+                f"{user_prompt}\n\n"
+                "前一次輸出不是完整有效的 JSON。請重新輸出一次，內容保持精簡，"
+                "嚴格符合指定 JSON Schema，不可新增欄位，並確認所有括號、引號與陣列都完整閉合。"
             )
 
-        if not isinstance(data, dict):
-            raise ValueError(f"LLM result must be JSON object, got {type(data).__name__}")
+        last_error: Exception | None = None
+        last_raw = ""
+        last_done_reason = ""
 
-        return data
+        for attempt, prompt in enumerate(prompts, start=1):
+            response = self.client.generate(
+                model=self.model_name,
+                system=system_prompt,
+                prompt=prompt,
+                format=json_schema or "json",
+                think=False,
+                options={
+                    "temperature": 0.0 if attempt > 1 else temperature,
+                    "num_predict": num_predict,
+                    "num_ctx": num_ctx,
+                },
+            )
+
+            raw = response.get("response", "")
+            done_reason = str(response.get("done_reason", "") or "")
+            print(f"=== LLM RAW RESPONSE ATTEMPT {attempt} START ===")
+            print(repr(raw[:1000]))
+            print(f"=== LLM RAW RESPONSE ATTEMPT {attempt} END ===")
+
+            try:
+                json_text = self._extract_json_text(raw)
+                data = json.loads(json_text)
+                if not isinstance(data, dict):
+                    raise ValueError(
+                        f"LLM result must be JSON object, got {type(data).__name__}"
+                    )
+                return data
+            except Exception as exc:
+                last_error = exc
+                last_raw = raw
+                last_done_reason = done_reason
+
+        hint = ""
+        if re.search(r'^[\s`]*\{?\s*"?thought', last_raw, flags=re.IGNORECASE):
+            hint = " Hint: model emitted a thought/reasoning field instead of the requested JSON schema."
+        if last_done_reason:
+            hint += f" Ollama done_reason={last_done_reason}."
+        raise ValueError(
+            f"Failed to parse LLM JSON after {len(prompts)} attempt(s): "
+            f"{type(last_error).__name__}: {last_error}.{hint} "
+            f"Raw preview={repr(last_raw[:500])}"
+        )

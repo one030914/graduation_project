@@ -148,7 +148,14 @@ class SummaryResult:
 # Video Content
 # ========================================
 
-TranscriptSource = Literal["caption", "whisper"]
+TranscriptSource = Literal[
+    "caption",
+    "caption_manual",
+    "caption_manual_translated",
+    "caption_generated",
+    "caption_generated_translated",
+    "whisper",
+]
 
 @dataclass(slots=True)
 class VideoChapterSegment:
@@ -176,6 +183,9 @@ class VideoContentResult:
     keywords_en: List[str] = field(default_factory=list)
     highlights: List[str] = field(default_factory=list)
     transcript_source: Optional[TranscriptSource] = None
+    transcript_source_language: str = ""
+    transcript_translated: bool = False
+    transcript_translation_provider: str = ""
     error: Optional[str] = None
 
 # ========================================
@@ -319,6 +329,9 @@ class TranscriptPayload:
     language: str
     source: str
     segments: List[TranscriptSegment]
+    source_language: str = ""
+    translated: bool = False
+    translation_provider: str = ""
 
 # ========================================
 # Critisism
