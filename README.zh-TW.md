@@ -87,14 +87,24 @@ API_KEY=YOUR_YOUTUBE_API_KEY
 OLLAMA_HOST=http://host.docker.internal:11434
 # 不使用 Docker 時改為：
 # OLLAMA_HOST=http://127.0.0.1:11434
-OLLAMA_MODEL=gemma3:12b
+OLLAMA_MODEL=gemma4:12b
+OLLAMA_KEEP_ALIVE=30m
+OLLAMA_PROFILE=auto
+# 選用的手動覆寫：
+# OLLAMA_NUM_CTX=8192
+# OLLAMA_MAX_NUM_PREDICT=2200
+# VIDEO_TRANSCRIPT_CHUNK_CHARS=6000
 
 WHISPER_MODEL_SIZE=small
+WHISPER_BATCH_SIZE=16
 WHISPER_BEAM_SIZE=8
-WHISPER_BEST_OF=5
 WHISPER_PATIENCE=1.2
 WHISPER_CONDITION_ON_PREVIOUS_TEXT=True
 ```
+
+使用 `OLLAMA_PROFILE=auto` 時，`llama3.2:3b` 會採用 8192 context 與較短的
+逐字稿分段，`gemma4:12b` 則採用 12000 context。只有設備資源較受限時，
+才需要設定上方的手動覆寫值。
 
 `INFERENCE_API_SECRET` 是自行產生的共享密鑰，不是 Tailscale token。FastAPI 會驗證 Next.js Proxy 傳入的 Bearer token。
 

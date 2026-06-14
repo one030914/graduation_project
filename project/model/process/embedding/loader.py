@@ -117,6 +117,9 @@ def get_en_summary_model(
 def get_hf_device() -> int:
     return 0 if torch.cuda.is_available() else -1
 
+def get_hf_inference_dtype() -> torch.dtype:
+    return torch.float16 if torch.cuda.is_available() else torch.float32
+
 def _resolve_or_download_emotion_source(model_folder_name: str, fallback_model_name: str) -> str:
     model_dir = MODEL_DIR / model_folder_name
     if (model_dir / "config.json").exists():
@@ -142,6 +145,7 @@ def get_en_emotion_model(
         model=model_source,
         tokenizer=model_source,
         device=get_hf_device(),
+        torch_dtype=get_hf_inference_dtype(),
     )
 
 @lru_cache(maxsize=1)
@@ -157,6 +161,7 @@ def get_zh_emotion_model(
         model=model_source,
         tokenizer=model_source,
         device=get_hf_device(),
+        torch_dtype=get_hf_inference_dtype(),
     )
     
     # Johnson8187/Chinese-Emotion(-Small) 官方 label mapping

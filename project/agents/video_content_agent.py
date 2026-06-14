@@ -10,7 +10,6 @@ def _video_content_json_schema(*, max_chapters: int) -> dict:
         "type": "object",
         "additionalProperties": False,
         "required": [
-            "language",
             "summary_text",
             "final_conclusion",
             "recommended_audience",
@@ -18,28 +17,24 @@ def _video_content_json_schema(*, max_chapters: int) -> dict:
             "chapter_timeline",
         ],
         "properties": {
-            "language": {
-                "type": "string",
-                "enum": ["zh"],
-            },
             "summary_text": {
                 "type": "string",
-                "maxLength": 900,
+                "maxLength": 500,
             },
             "final_conclusion": {
                 "type": "string",
-                "maxLength": 300,
+                "maxLength": 160,
             },
             "recommended_audience": {
                 "type": "string",
-                "maxLength": 300,
+                "maxLength": 160,
             },
             "action_suggestions": {
                 "type": "array",
                 "maxItems": 4,
                 "items": {
                     "type": "string",
-                    "maxLength": 240,
+                    "maxLength": 120,
                 },
             },
             "chapter_timeline": {
@@ -67,11 +62,11 @@ def _video_content_json_schema(*, max_chapters: int) -> dict:
                         },
                         "title": {
                             "type": "string",
-                            "maxLength": 120,
+                            "maxLength": 60,
                         },
                         "summary": {
                             "type": "string",
-                            "maxLength": 500,
+                            "maxLength": 180,
                         },
                         "keywords": {
                             "type": "array",
@@ -92,8 +87,34 @@ def _video_content_json_schema(*, max_chapters: int) -> dict:
     }
 
 
-FULL_VIDEO_CONTENT_JSON_SCHEMA = _video_content_json_schema(max_chapters=8)
-CHUNK_VIDEO_CONTENT_JSON_SCHEMA = _video_content_json_schema(max_chapters=3)
+def _chunk_video_content_json_schema() -> dict:
+    full_schema = _video_content_json_schema(max_chapters=2)
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["chapter_timeline"],
+        "properties": {
+            "chapter_timeline": full_schema["properties"]["chapter_timeline"],
+        },
+    }
+
+
+FULL_VIDEO_CONTENT_JSON_SCHEMA = _video_content_json_schema(max_chapters=6)
+CHUNK_VIDEO_CONTENT_JSON_SCHEMA = _chunk_video_content_json_schema()
+CHUNK_OUTPUT_SCHEMA = """
+{
+  "chapter_timeline": [
+    {
+      "start_seconds": 0,
+      "end_seconds": 120,
+      "title": "繁體中文重點片段標題",
+      "summary": "繁體中文片段重點說明",
+      "keywords": ["繁體中文短關鍵字"],
+      "importance": "high 或 medium 或 low"
+    }
+  ]
+}
+"""
 
 
 def _format_video_duration_instruction(video_duration_seconds: int | None) -> str:
@@ -128,7 +149,6 @@ class VideoContentAgent(BaseAgent):
 
     output_schema = """
     {
-      "language": "zh",
       "summary_text": "繁體中文單段文章摘要",
       "final_conclusion": "繁體中文影片最終結論",
       "recommended_audience": "繁體中文適合觀看對象",
@@ -150,7 +170,6 @@ class VideoContentAgent(BaseAgent):
         self,
         *,
         title: str,
-        url: str,
         transcript_text: str,
         language: str,
         video_duration_seconds: int | None = None,
@@ -162,26 +181,22 @@ class VideoContentAgent(BaseAgent):
         輸出要求：
         1. 只能根據逐字稿內容分析，不要引用外部資料，不要捏造逐字稿沒有支持的資訊。
         2. 逐字稿每行包含來源字幕的 [開始時間 - 結束時間]；chapter_timeline 必須直接採用可見時間戳的秒數輸出 start_seconds 與 end_seconds，不可使用段落編號回推或自行估算時間。
-        3. language 固定輸出 "zh"。
-        4. summary_text、章節 title、章節 summary、章節 keywords 都必須使用繁體中文；外文專有名詞、品牌、人名、產品型號保留原文。
-        5. summary_text 請寫成一段自然的簡要文章摘要，不要用條列，約 120 到 220 字。
-        6. final_conclusion 請用 1 句話整理影片最終結論。
-        7. recommended_audience 請用 1 句話說明這支影片適合誰看。
-        8. action_suggestions 請列出 2 到 4 個看完後可以採取的具體行動。
-        9. chapter_timeline 只放真正重要的片段，預設 3 到 8 段；不需要連續覆蓋整支影片，可以跳過低資訊量區間。
-        10. 重要片段包含：核心論點、關鍵示範、重要結論、明顯轉折、爭議說明、實用步驟或高資訊密度段落。
-        11. 每個章節 title 要短而具體，summary 用 1 到 2 句說明該片段重點。
-        12. 每個章節可包含 keywords，請提供 0 到 5 個繁體中文短詞；沒有明確關鍵字時可輸出空陣列，不要硬補。
-        13. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
-        14. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
-        15. 請輸出單一 JSON object。
-        16. 頂層欄位名稱只能使用 output schema 定義的名稱；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
+        3. summary_text、章節 title、章節 summary、章節 keywords 都必須使用繁體中文；外文專有名詞、品牌、人名、產品型號保留原文。
+        4. summary_text 請寫成一段自然的簡要文章摘要，不要用條列，約 120 到 180 字。
+        5. final_conclusion 請用 1 句話整理影片最終結論，控制在 60 字內。
+        6. recommended_audience 請用 1 句話說明這支影片適合誰看，控制在 60 字內。
+        7. action_suggestions 請列出 2 到 4 個看完後可以採取的具體行動，每項控制在 50 字內。
+        8. chapter_timeline 只放真正重要的片段，預設 3 到 6 段；不需要連續覆蓋整支影片，可以跳過低資訊量區間。
+        9. 重要片段包含：核心論點、關鍵示範、重要結論、明顯轉折、爭議說明、實用步驟或高資訊密度段落。
+        10. 每個章節 title 控制在 24 字內，summary 用 1 句、80 字內說明該片段重點。
+        11. 每個章節可包含 keywords，請提供 0 到 5 個繁體中文短詞；沒有明確關鍵字時可輸出空陣列，不要硬補。
+        12. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
+        13. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
+        14. 請輸出單一 JSON object。
+        15. 頂層欄位名稱只能使用 output schema 定義的名稱；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
 
         影片標題：
         {title}
-
-        影片網址：
-        {url}
 
         偵測到的逐字稿語言：
         {language}
@@ -217,17 +232,14 @@ class VideoContentAgent(BaseAgent):
 
         輸出要求：
         1. 只能根據此分段內容分析，不要補充外部資訊。
-        2. language 固定輸出 "zh"。
-        3. summary_text 請用 1 段繁體中文概括此分段的高可信重點。
-        4. final_conclusion、recommended_audience、action_suggestions 可針對此分段暫時整理，最終會再整合。
-        5. chapter_timeline 請列出此分段中最值得保留的 0 到 3 個重點片段；若此分段沒有明確重點，可輸出空陣列。
-        6. 每個章節必須直接採用逐字稿中可見的來源時間戳作為 start_seconds 與 end_seconds，且 end_seconds 必須大於 start_seconds，不可自行估算時間。
-        7. 每個章節 title、summary、keywords 都必須使用繁體中文；外文專有名詞、品牌、人名、產品型號保留原文。
-        8. 每個章節可包含 keywords，請提供 0 到 5 個短詞；沒有明確關鍵字時可輸出空陣列，不要硬補。
-        9. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
-        10. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
-        11. 請輸出單一 JSON object。
-        12. 頂層欄位名稱只能使用 output schema 定義的名稱；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
+        2. 頂層只能輸出 chapter_timeline，不要輸出分段摘要、final_conclusion、recommended_audience 或 action_suggestions。
+        3. chapter_timeline 請列出此分段中最值得保留的 0 到 2 個重點片段；若此分段沒有明確重點，可輸出空陣列。
+        4. 每個章節必須直接採用逐字稿中可見的來源時間戳作為 start_seconds 與 end_seconds，且 end_seconds 必須大於 start_seconds，不可自行估算時間。
+        5. 每個章節 title 控制在 18 字內，summary 只能用 1 句、50 字內說明重點；內容使用繁體中文，外文專有名詞保留原文。
+        6. 每個章節最多提供 3 個短 keywords；沒有明確關鍵字時輸出空陣列。
+        7. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
+        8. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
+        9. 請輸出單一 JSON object；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
 
         影片標題：
         {title}
@@ -248,16 +260,16 @@ class VideoContentAgent(BaseAgent):
         return self.run(
             user_prompt,
             temperature=0.1,
-            num_predict=1200,
-            num_ctx=10000,
+            num_predict=1000,
+            num_ctx=12000,
             json_schema=CHUNK_VIDEO_CONTENT_JSON_SCHEMA,
+            output_schema=CHUNK_OUTPUT_SCHEMA,
         )
 
     def synthesize_chunks(
         self,
         *,
         title: str,
-        url: str,
         language: str,
         chunk_results: list[dict],
         video_duration_seconds: int | None = None,
@@ -267,27 +279,23 @@ class VideoContentAgent(BaseAgent):
         請將多個逐字稿分段的分析結果整合成整支 YouTube 影片的內容摘要與精選章節時間軸。
 
         輸出要求：
-        1. language 固定輸出 "zh"。
-        2. summary_text 請寫成一段自然的繁體中文簡要文章摘要，不要用條列，約 120 到 220 字。
-        3. final_conclusion 請用 1 句話整理影片最終結論。
-        4. recommended_audience 請用 1 句話說明這支影片適合誰看。
-        5. action_suggestions 請列出 2 到 4 個看完後可以採取的具體行動。
-        6. chapter_timeline 請從各分段候選片段中選出全片最重要的 3 到 8 段。
-        7. 章節時間軸不需要連續覆蓋影片，可以跳過低資訊量區間；請依 start_seconds 由小到大排序。
-        8. start_seconds 與 end_seconds 必須沿用分段分析結果中、源自字幕的時間戳，不可重新估算或擴張時間範圍。
-        9. 合併高度重複或內容相近的片段，保留資訊量最高、最能代表影片重點者。
-        10. 每個章節 title、summary、keywords 都必須使用繁體中文；外文專有名詞、品牌、人名、產品型號保留原文。
-        11. 每個章節可包含 keywords，請提供 0 到 5 個短詞；沒有明確關鍵字時可輸出空陣列，不要硬補。
-        12. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
-        13. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
-        14. 請輸出單一 JSON object。
-        15. 頂層欄位名稱只能使用 output schema 定義的名稱；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
+        1. summary_text 請寫成一段自然的繁體中文簡要文章摘要，不要用條列，約 120 到 180 字。
+        2. final_conclusion 請用 1 句話整理影片最終結論，控制在 60 字內。
+        3. recommended_audience 請用 1 句話說明這支影片適合誰看，控制在 60 字內。
+        4. action_suggestions 請列出 2 到 4 個看完後可以採取的具體行動，每項控制在 50 字內。
+        5. chapter_timeline 請從各分段候選片段中選出全片最重要的 3 到 6 段。
+        6. 章節時間軸不需要連續覆蓋影片，可以跳過低資訊量區間；請依 start_seconds 由小到大排序。
+        7. start_seconds 與 end_seconds 必須沿用分段分析結果中、源自字幕的時間戳，不可重新估算或擴張時間範圍。
+        8. 合併高度重複或內容相近的片段，保留資訊量最高、最能代表影片重點者。
+        9. 每個章節 title 控制在 24 字內，summary 用 1 句、80 字內說明重點；內容使用繁體中文，外文專有名詞保留原文。
+        10. 每個章節可包含 keywords，請提供 0 到 5 個短詞；沒有明確關鍵字時可輸出空陣列，不要硬補。
+        11. 每個章節必須包含 importance，值只能是 "high"、"medium"、"low"。
+        12. 不要輸出全影片層級 keywords、highlights、代表片段或 Markdown。
+        13. 請輸出單一 JSON object。
+        14. 頂層欄位名稱只能使用 output schema 定義的名稱；章節陣列欄位只能命名為 chapter_timeline，禁止輸出 chapters。
 
         影片標題：
         {title}
-
-        影片網址：
-        {url}
 
         偵測到的逐字稿語言：
         {language}

@@ -33,7 +33,7 @@ def _batch_probs(
         )
         enc = {k: v.to(device) for k, v in enc.items()}
 
-        with torch.no_grad():
+        with torch.inference_mode():
             if use_amp:
                 with amp.autocast(device_type="cuda"):
                     logits = model(enc["input_ids"], enc["attention_mask"])

@@ -3,11 +3,40 @@ from __future__ import annotations
 import json
 import re
 import os
+import time
 from typing import Any
 from dotenv import load_dotenv
 from ollama import Client
 
 load_dotenv(verbose=True)
+
+
+MODEL_PROFILES = {
+    "small": {
+        "num_ctx": 8192,
+        "max_num_predict": 2200,
+    },
+    "large": {
+        "num_ctx": 12000,
+        "max_num_predict": 4096,
+    },
+    "standard": {
+        "num_ctx": 8192,
+        "max_num_predict": 3072,
+    },
+}
+
+
+def _env_positive_int(name: str) -> int | None:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
 
 class LocalLLMService:
     def __init__(
@@ -17,6 +46,34 @@ class LocalLLMService:
     ):
         self.model_name = model_name
         self.client = Client(host=host)
+        self.keep_alive = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+        self.profile_name = self._resolve_profile_name()
+
+    def _resolve_profile_name(self) -> str:
+        configured = str(os.getenv("OLLAMA_PROFILE", "auto")).strip().lower()
+        if configured in MODEL_PROFILES:
+            return configured
+
+        normalized_model = self.model_name.lower()
+        if "llama3.2:3b" in normalized_model:
+            return "small"
+        if "gemma4:12b" in normalized_model:
+            return "large"
+        return "standard"
+
+    def _resolve_generation_options(
+        self,
+        *,
+        num_predict: int,
+    ) -> tuple[int, int]:
+        profile = MODEL_PROFILES[self.profile_name]
+        resolved_num_ctx = _env_positive_int("OLLAMA_NUM_CTX") or profile["num_ctx"]
+        max_num_predict = (
+            _env_positive_int("OLLAMA_MAX_NUM_PREDICT")
+            or profile["max_num_predict"]
+        )
+        resolved_num_predict = min(max(1, num_predict), max_num_predict)
+        return resolved_num_ctx, resolved_num_predict
 
     def _extract_json_text(self, raw: str) -> str:
         raw = (raw or "").strip()
@@ -61,27 +118,59 @@ class LocalLLMService:
         last_error: Exception | None = None
         last_raw = ""
         last_done_reason = ""
+        resolved_num_ctx, initial_num_predict = self._resolve_generation_options(
+            num_predict=num_predict,
+        )
 
         for attempt, prompt in enumerate(prompts, start=1):
+            attempt_num_predict = initial_num_predict
+            if attempt > 1 and last_done_reason == "length":
+                profile_max = (
+                    _env_positive_int("OLLAMA_MAX_NUM_PREDICT")
+                    or MODEL_PROFILES[self.profile_name]["max_num_predict"]
+                )
+                attempt_num_predict = min(
+                    max(initial_num_predict + 512, int(initial_num_predict * 1.5)),
+                    profile_max,
+                )
+                prompt += (
+                    "\n前一次輸出因長度上限而中斷。這次請進一步縮短文字，"
+                    "每個陣列只保留最重要的項目，並務必完成整個 JSON。"
+                )
+
+            started_at = time.perf_counter()
             response = self.client.generate(
                 model=self.model_name,
                 system=system_prompt,
                 prompt=prompt,
                 format=json_schema or "json",
                 think=False,
+                keep_alive=self.keep_alive,
                 options={
                     "temperature": 0.0 if attempt > 1 else temperature,
-                    "num_predict": num_predict,
-                    "num_ctx": num_ctx,
+                    "num_predict": attempt_num_predict,
+                    "num_ctx": resolved_num_ctx,
                 },
             )
+            elapsed = time.perf_counter() - started_at
 
             raw = response.get("response", "")
             done_reason = str(response.get("done_reason", "") or "")
-            print(f"=== LLM RAW RESPONSE ATTEMPT {attempt} START ===")
-            print(repr(raw[:1000]))
-            print(f"=== LLM RAW RESPONSE ATTEMPT {attempt} END ===")
-
+            eval_count = int(response.get("eval_count", 0) or 0)
+            eval_duration = int(response.get("eval_duration", 0) or 0)
+            prompt_eval_count = int(response.get("prompt_eval_count", 0) or 0)
+            load_seconds = int(response.get("load_duration", 0) or 0) / 1_000_000_000
+            eval_seconds = eval_duration / 1_000_000_000
+            tokens_per_second = eval_count / eval_seconds if eval_seconds > 0 else 0.0
+            print(
+                "=== LLM METRICS "
+                f"model={self.model_name} profile={self.profile_name} "
+                f"ctx={resolved_num_ctx} predict={attempt_num_predict} "
+                f"attempt={attempt} elapsed={elapsed:.2f}s load={load_seconds:.2f}s "
+                f"prompt_tokens={prompt_eval_count} output_tokens={eval_count} "
+                f"output_speed={tokens_per_second:.2f}tok/s "
+                f"done_reason={done_reason or 'unknown'} ==="
+            )
             try:
                 json_text = self._extract_json_text(raw)
                 data = json.loads(json_text)

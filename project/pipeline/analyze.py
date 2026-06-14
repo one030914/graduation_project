@@ -622,7 +622,7 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
             "label": "留言摘要",
             "purpose": "提供留言區整體討論脈絡。",
             "status": _result_status(summary),
-            "summary_points": getattr(summary, "summary_points", [])[:5],
+            "summary_points": getattr(summary, "summary_points", [])[:3],
         },
         "emotion_context": {
             "label": "情緒與風向",
@@ -644,9 +644,9 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
                         or getattr(t, "chart_label", "")
                         or " / ".join(getattr(t, "keywords", [])[:2])
                     ),
-                    "keywords": getattr(t, "keywords", [])[:5],
+                    "keywords": getattr(t, "keywords", [])[:3],
                     "ratio": getattr(t, "ratio", 0.0),
-                    "representative_comments": getattr(t, "representative_comments", [])[:2],
+                    "representative_comments": getattr(t, "representative_comments", [])[:1],
                 }
                 for t in getattr(topics, "topics", [])[:3]
             ] if not getattr(topics, "error", None) else [],
@@ -657,17 +657,16 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
             "purpose": "整理留言中的批評、不滿原因與可改善方向。",
             "status": _result_status(criticism),
             "severity_level": getattr(criticism, "severity_level", "low"),
-            "main_criticisms": getattr(criticism, "main_criticisms", [])[:5],
-            "discontent_reasons": getattr(criticism, "discontent_reasons", [])[:5],
-            "suggestions": getattr(criticism, "suggestions", [])[:5],
-            "action_items": getattr(criticism, "action_items", [])[:5],
+            "main_criticisms": getattr(criticism, "main_criticisms", [])[:3],
+            "discontent_reasons": getattr(criticism, "discontent_reasons", [])[:3],
+            "suggestions": getattr(criticism, "suggestions", [])[:3],
+            "action_items": getattr(criticism, "action_items", [])[:3],
         },
         "keyword_context": {
             "label": "熱門關鍵詞與標籤",
             "purpose": "提供標籤、文字雲與熱門詞依據。",
             "status": _result_status(keyword),
-            "top_tags": getattr(keyword, "top_tags", [])[:10],
-            "chart_data": getattr(keyword, "chart_data", [])[:10],
+            "top_tags": getattr(keyword, "top_tags", [])[:6],
         },
         "timeline_context": {
             "label": "時間軸熱點",
@@ -680,7 +679,7 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
                 {
                     "time_label": getattr(h, "time_label", ""),
                     "count": getattr(h, "count", 0),
-                    "representative_comments": getattr(h, "representative_comments", [])[:2],
+                    "representative_comments": getattr(h, "representative_comments", [])[:1],
                 }
                 for h in getattr(timeline, "hotspots", [])[:3]
             ],
@@ -692,17 +691,14 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
             "summary_text": getattr(video_content, "summary_text", ""),
             "final_conclusion": getattr(video_content, "final_conclusion", ""),
             "recommended_audience": getattr(video_content, "recommended_audience", ""),
-            "action_suggestions": getattr(video_content, "action_suggestions", [])[:5],
+            "action_suggestions": getattr(video_content, "action_suggestions", [])[:3],
             "chapter_timeline": [
                 {
-                    "start_seconds": getattr(chapter, "start_seconds", 0),
-                    "end_seconds": getattr(chapter, "end_seconds", 0),
                     "title": getattr(chapter, "title", ""),
                     "summary": getattr(chapter, "summary", ""),
-                    "keywords": getattr(chapter, "keywords", [])[:5],
                     "importance": getattr(chapter, "importance", "medium"),
                 }
-                for chapter in getattr(video_content, "chapter_timeline", [])[:5]
+                for chapter in getattr(video_content, "chapter_timeline", [])[:3]
             ],
         }
     }

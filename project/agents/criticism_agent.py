@@ -18,19 +18,53 @@ class CriticismAgent(BaseAgent):
     "suggestions": ["觀眾提出或可推導出的具體改進建議"]
     }
     """
+    output_json_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "main_criticisms",
+            "discontent_reasons",
+            "suggestions",
+        ],
+        "properties": {
+            key: {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                    "type": "string",
+                    "maxLength": 120,
+                },
+            }
+            for key in (
+                "main_criticisms",
+                "discontent_reasons",
+                "suggestions",
+            )
+        },
+    }
 
     def analyze(
         self,
         *,
         title: str,
         comments: list[str],
-        max_comments: int = 180,
+        max_comments: int = 80,
+        max_comment_chars: int = 500,
     ) -> dict:
-        sampled_comments = [
-            str(c).strip()
-            for c in comments
-            if str(c).strip()
-        ][:max_comments]
+        sampled_comments = []
+        seen = set()
+        for comment in comments:
+            text = str(comment).strip()
+            if not text:
+                continue
+            text = text[:max_comment_chars]
+            dedup_key = text.casefold()
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            sampled_comments.append(text)
+            if len(sampled_comments) >= max_comments:
+                break
 
         payload = {
             "video_title": title,
@@ -53,13 +87,6 @@ class CriticismAgent(BaseAgent):
         10. 每個陣列最多 5 項。
         11. 所有輸出內容請使用台灣繁體中文，即使原始留言是英文，也請翻譯成自然的繁體中文。
 
-        請嚴格輸出以下格式：
-        {{
-        "main_criticisms": ["具體批評點"],
-        "discontent_reasons": ["觀眾不滿或質疑的底層原因"],
-        "suggestions": ["觀眾提出或可推導出的具體改進建議"]
-        }}
-
         原始結構化資料：
         {json.dumps(payload, ensure_ascii=False)}
         """
@@ -67,6 +94,6 @@ class CriticismAgent(BaseAgent):
         return self.run(
             user_prompt,
             temperature=0.1,
-            num_predict=2048,
-            num_ctx=8192,
+            num_predict=1200,
+            num_ctx=12000,
         )

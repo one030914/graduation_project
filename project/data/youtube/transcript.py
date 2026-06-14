@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import gc
+import json
 import os
 import shutil
 import tempfile
+import time
+import urllib.request
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
@@ -47,12 +51,24 @@ def fetch_video_transcript(url: str, *, video_id: str) -> TranscriptPayload:
     caption_error: Optional[Exception] = None
 
     try:
-        return _fetch_caption_transcript(video_id)
+        started_at = time.perf_counter()
+        payload = _fetch_caption_transcript(video_id)
+        print(
+            f"[transcript] YouTube captions source={payload.source} "
+            f"elapsed={time.perf_counter() - started_at:.2f}s"
+        )
+        return payload
     except Exception as exc:
         caption_error = exc
+        print(f"[transcript] captions unavailable, using Whisper: {type(exc).__name__}: {exc}")
 
     try:
-        return _transcribe_audio(url)
+        if _get_env_bool("WHISPER_UNLOAD_OLLAMA_BEFORE_TRANSCRIBE", True):
+            _unload_ollama_model()
+        started_at = time.perf_counter()
+        payload = _transcribe_audio(url)
+        print(f"[transcript] Whisper total: {time.perf_counter() - started_at:.2f}s")
+        return payload
     except Exception as exc:
         if caption_error is not None:
             raise RuntimeError(
@@ -218,20 +234,24 @@ def _to_segments(fetched: FetchedTranscript) -> List[TranscriptSegment]:
     return segments
 
 def _transcribe_audio(url: str) -> TranscriptPayload:
+    download_started_at = time.perf_counter()
     audio_path, temp_dir = _download_audio(url)
+    print(f"[transcript] audio download: {time.perf_counter() - download_started_at:.2f}s")
     try:
+        model_started_at = time.perf_counter()
         model = _get_whisper_model()
+        print(f"[transcript] Whisper model ready: {time.perf_counter() - model_started_at:.2f}s")
         batch_model = BatchedInferencePipeline(model=model)
+        batch_size = _get_env_int("WHISPER_BATCH_SIZE", 16)
         beam_size = _get_env_int("WHISPER_BEAM_SIZE", 8)
-        best_of = _get_env_int("WHISPER_BEST_OF", 5)
         patience = _get_env_float("WHISPER_PATIENCE", 1.2)
         condition_on_previous_text = _get_env_bool("WHISPER_CONDITION_ON_PREVIOUS_TEXT", True)
+        inference_started_at = time.perf_counter()
         segments_iter, info = batch_model.transcribe(
             audio_path,
-            batch_size=32,
+            batch_size=max(1, batch_size),
             vad_filter=True,
             beam_size=max(1, beam_size),
-            best_of=max(1, best_of),
             patience=max(1.0, patience),
             temperature=0.0,
             without_timestamps=False,
@@ -246,6 +266,7 @@ def _transcribe_audio(url: str) -> TranscriptPayload:
             for segment in segments_iter
             if str(segment.text).strip()
         ]
+        print(f"[transcript] Whisper inference: {time.perf_counter() - inference_started_at:.2f}s")
         if not segments:
             raise RuntimeError("Whisper produced no transcript segments")
         language = str(getattr(info, "language", "") or "unknown")
@@ -256,6 +277,18 @@ def _transcribe_audio(url: str) -> TranscriptPayload:
             source_language=language,
         )
     finally:
+        if _get_env_bool("WHISPER_RELEASE_MODEL_AFTER_TRANSCRIBE", True):
+            try:
+                del batch_model
+            except UnboundLocalError:
+                pass
+            try:
+                del model
+            except UnboundLocalError:
+                pass
+            _get_whisper_model.cache_clear()
+            gc.collect()
+            print("[transcript] Whisper model cache released")
         try:
             Path(audio_path).unlink(missing_ok=True)
         except Exception:
@@ -328,6 +361,36 @@ def _get_env_bool(name: str, default: bool) -> bool:
     if raw in {"0", "false", "no", "n", "off"}:
         return False
     return default
+
+
+def _unload_ollama_model() -> None:
+    host = str(os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434")).rstrip("/")
+    model = str(os.getenv("OLLAMA_MODEL", "gemma3:12b")).strip()
+    if not model:
+        return
+
+    body = json.dumps(
+        {
+            "model": model,
+            "keep_alive": 0,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"{host}/api/generate",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15):
+            pass
+        print(f"[transcript] unloaded Ollama model before Whisper: {model}")
+    except Exception as exc:
+        print(
+            f"[transcript] unable to unload Ollama before Whisper: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
 
 @lru_cache(maxsize=1)
 def _get_whisper_model() -> WhisperModel:

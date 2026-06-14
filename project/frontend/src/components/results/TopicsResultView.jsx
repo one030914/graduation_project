@@ -69,6 +69,12 @@ export function TopicsResultView({ result }) {
 
   const chartData = result.chart_data ?? [];
   const topics = result.topics ?? [];
+  const languageLabel =
+    result.language === "zh" ? "中文" : result.language === "en" ? "英文" : "中英混合";
+  const coverageRatio = Number(result.coverage_ratio || 0);
+  const coverageLabel = `${(coverageRatio * 100).toFixed(1)}%`;
+  const statusLabel =
+    result.status === "ok" ? "正常" : result.status === "insufficient_data" ? "資料不足" : "錯誤";
 
   return (
     <ResultShell
@@ -76,12 +82,20 @@ export function TopicsResultView({ result }) {
       title={result.title || result.video_id || "未命名影片"}
     >
       <ResultCard title="分析概況">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <InfoTile label="主要語言" value={result.language === "zh" ? "中文" : "英文"} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <InfoTile label="主要語言" value={languageLabel} />
           <InfoTile label="主題數" value={topics.length} />
-          <InfoTile label="參與留言數" value={result.total_comments ?? 0} />
+          <InfoTile label="可分析留言" value={result.analyzed_comments ?? 0} />
+          <InfoTile label="分群覆蓋率" value={coverageLabel} />
+          <InfoTile label="分析狀態" value={statusLabel} />
         </div>
       </ResultCard>
+
+      {result.message ? (
+        <ResultCard title="資料品質提醒">
+          <p>{result.message}</p>
+        </ResultCard>
+      ) : null}
 
       {chartData.length > 0 ? (
         <TopicsBarChart data={chartData} />

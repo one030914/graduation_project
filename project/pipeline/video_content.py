@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+import os
 import re
+import time
 from typing import Any, List, Sequence
 
 from agents.video_content_agent import VideoContentAgent
@@ -14,8 +16,7 @@ CHAPTER_TOPK = 8
 CHAPTER_KEYWORD_TOPK = 5
 MAX_CHAPTER_KEYWORD_LENGTH = 18
 MAX_TRANSCRIPT_SEGMENTS = 2400
-TRANSCRIPT_CHUNK_CHAR_LIMIT = 12_000
-MAX_TRANSCRIPT_CHUNKS = 18
+DEFAULT_TRANSCRIPT_CHUNK_CHAR_LIMIT = 8_000
 
 CJK_CHAR_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]")
 WORD_RE = re.compile(r"[A-Za-z0-9]+(?:[._'-][A-Za-z0-9]+)*")
@@ -25,14 +26,12 @@ class _VideoContentAnalysis:
     def __init__(
         self,
         *,
-        language: str,
         summary_text: str,
         final_conclusion: str,
         recommended_audience: str,
         action_suggestions: list[str],
         chapter_timeline: list[VideoChapterSegment],
     ):
-        self.language = language
         self.summary_text = summary_text
         self.final_conclusion = final_conclusion
         self.recommended_audience = recommended_audience
@@ -41,17 +40,25 @@ class _VideoContentAnalysis:
 
 
 def build_video_content(url: str) -> VideoContentResult:
+    started_at = time.perf_counter()
     api = API()
     video_id = api.extract_video_id(url)
     if not video_id:
         return VideoContentResult(url=url, error="Invalid YouTube URL / video_id not found.")
 
     info = api.get_video_info(video_id)
+    print(f"[video_content] video metadata: {time.perf_counter() - started_at:.2f}s")
     title = (info or {}).get("title") or video_id
     video_duration_seconds = _coerce_duration_seconds((info or {}).get("duration_seconds"))
 
     try:
+        transcript_started_at = time.perf_counter()
         transcript = fetch_video_transcript(url, video_id=video_id)
+        print(
+            f"[video_content] transcript source={transcript.source} "
+            f"segments={len(transcript.segments)} "
+            f"elapsed={time.perf_counter() - transcript_started_at:.2f}s"
+        )
     except Exception as exc:
         return VideoContentResult(title=title, url=url, error=str(exc))
 
@@ -91,13 +98,14 @@ def build_video_content_from_transcript(
     language = _resolve_main_language(transcript, segments)
 
     try:
+        llm_started_at = time.perf_counter()
         analysis = _analyze_transcript_with_llm(
             title=title,
-            url=url,
             segments=segments,
             language=language,
             video_duration_seconds=resolved_video_duration_seconds,
         )
+        print(f"[video_content] LLM analysis: {time.perf_counter() - llm_started_at:.2f}s")
     except Exception as exc:
         return VideoContentResult(
             title=title,
@@ -135,10 +143,7 @@ def build_video_content_from_transcript(
     )
 
     if summary_text:
-        if resolved_language == "zh":
-            result.summary_zh = [summary_text]
-        else:
-            result.summary_en = [summary_text]
+        result.summary_zh = [summary_text]
 
     return result
 
@@ -146,7 +151,6 @@ def build_video_content_from_transcript(
 def _agent_data_to_video_analysis(
     data: dict[str, Any],
     *,
-    fallback_language: str,
     segments: Sequence[TranscriptSegment] | None = None,
 ) -> _VideoContentAnalysis:
     summary_text = _normalize_whitespace(data.get("summary_text") or "")
@@ -158,7 +162,6 @@ def _agent_data_to_video_analysis(
             )
 
     return _VideoContentAnalysis(
-        language=_normalize_language(str(data.get("language") or fallback_language), fallback=fallback_language),
         summary_text=summary_text,
         final_conclusion=_normalize_whitespace(data.get("final_conclusion") or ""),
         recommended_audience=_normalize_whitespace(data.get("recommended_audience") or ""),
@@ -203,17 +206,19 @@ def _resolve_main_language(transcript: TranscriptPayload, segments: Sequence[Tra
 def _analyze_transcript_with_llm(
     *,
     title: str,
-    url: str,
     segments: Sequence[TranscriptSegment],
     language: str,
     video_duration_seconds: int | None = None,
 ) -> _VideoContentAnalysis:
     chunks = _chunk_transcript(_format_transcript_lines(segments))
     agent = VideoContentAgent()
+    print(
+        f"[video_content] prepared {len(segments)} transcript segments "
+        f"as {len(chunks)} LLM chunk(s)"
+    )
 
     if not chunks:
         return _VideoContentAnalysis(
-            language=language,
             summary_text="",
             final_conclusion="",
             recommended_audience="",
@@ -224,14 +229,12 @@ def _analyze_transcript_with_llm(
     if len(chunks) == 1:
         data = agent.analyze_full_transcript(
             title=title,
-            url=url,
             transcript_text=chunks[0],
             language=language,
             video_duration_seconds=video_duration_seconds,
         )
         return _agent_data_to_video_analysis(
             data,
-            fallback_language=language,
             segments=segments,
         )
 
@@ -239,27 +242,44 @@ def _analyze_transcript_with_llm(
     total_chunks = len(chunks)
 
     for index, chunk_text in enumerate(chunks, start=1):
-        data = agent.analyze_chunk(
-            title=title,
-            chunk_text=chunk_text,
-            language=language,
-            chunk_index=index,
-            total_chunks=total_chunks,
-            video_duration_seconds=video_duration_seconds,
+        chunk_started_at = time.perf_counter()
+        try:
+            data = agent.analyze_chunk(
+                title=title,
+                chunk_text=chunk_text,
+                language=language,
+                chunk_index=index,
+                total_chunks=total_chunks,
+                video_duration_seconds=video_duration_seconds,
+            )
+            chunk_results.append(data)
+        except Exception as exc:
+            print(
+                f"[video_content] LLM chunk {index}/{total_chunks} skipped: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        print(
+            f"[video_content] LLM chunk {index}/{total_chunks}: "
+            f"{time.perf_counter() - chunk_started_at:.2f}s"
         )
-        chunk_results.append(data)
 
+    if not chunk_results:
+        raise RuntimeError("All transcript chunk analyses failed.")
+
+    synthesis_started_at = time.perf_counter()
     merged = agent.synthesize_chunks(
         title=title,
-        url=url,
         language=language,
         chunk_results=chunk_results,
         video_duration_seconds=video_duration_seconds,
     )
+    print(
+        f"[video_content] LLM synthesis: "
+        f"{time.perf_counter() - synthesis_started_at:.2f}s"
+    )
 
     return _agent_data_to_video_analysis(
         merged,
-        fallback_language=language,
         segments=segments,
     )
 
@@ -283,11 +303,7 @@ def _chunk_transcript(lines: Sequence[str]) -> List[str]:
     if not lines:
         return []
 
-    total_chars = sum(len(line) + 1 for line in lines)
-    char_limit = max(
-        TRANSCRIPT_CHUNK_CHAR_LIMIT,
-        (total_chars // MAX_TRANSCRIPT_CHUNKS) + 1,
-    )
+    char_limit = _transcript_chunk_char_limit()
 
     chunks: List[str] = []
     current_parts: List[str] = []
@@ -309,6 +325,22 @@ def _chunk_transcript(lines: Sequence[str]) -> List[str]:
         chunks.append("\n".join(current_parts))
 
     return chunks
+
+
+def _transcript_chunk_char_limit() -> int:
+    configured = str(os.getenv("VIDEO_TRANSCRIPT_CHUNK_CHARS", "")).strip()
+    if configured:
+        try:
+            return max(2_000, int(configured))
+        except ValueError:
+            pass
+
+    model_name = str(os.getenv("OLLAMA_MODEL", "")).lower()
+    if "llama3.2:3b" in model_name:
+        return 6_000
+    if "gemma4:12b" in model_name:
+        return 12_000
+    return DEFAULT_TRANSCRIPT_CHUNK_CHAR_LIMIT
 
 
 def _split_long_text(text: str, char_limit: int) -> List[str]:

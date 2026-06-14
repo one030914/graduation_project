@@ -175,7 +175,7 @@ def analyze_comment_criticism_from_dataset(comments) -> CommentCriticismResult:
         data = CriticismAgent().analyze(
             title=comments.title,
             comments=comment_texts,
-            max_comments=120,
+            max_comments=80,
         )
 
         main_criticisms = _clean_items(

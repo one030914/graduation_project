@@ -18,7 +18,7 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
         for comment in df_lang["clean_text"].tolist()
         if len(str(comment).strip()) >= 6
     ]
-    if not comments:
+    if len(comments) < 2:
         return []
 
     st_model = get_en_embedder()
@@ -29,10 +29,16 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
         comments,
         device=device,
         batch_size=64,
-        show_progress_bar=False
+        show_progress_bar=False,
+        normalize_embeddings=True,
     )
 
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=3, min_samples=1, metric="euclidean")
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size=2 if len(comments) < 30 else 3,
+        min_samples=1,
+        metric="euclidean",
+        allow_single_cluster=True,
+    )
     labels = clusterer.fit_predict(embeddings)
 
     valid_labels = [lb for lb in set(labels) if lb != -1]

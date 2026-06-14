@@ -18,7 +18,7 @@ def build_topics_zh(df_lang) -> List[TopicCluster]:
         for row in df_lang.itertuples(index=False)
         if len(str(row.clean_text).strip()) >= 2
     ]
-    if not rows:
+    if len(rows) < 2:
         return []
 
     comments = [comment for comment, _ in rows]
@@ -32,10 +32,16 @@ def build_topics_zh(df_lang) -> List[TopicCluster]:
         comments,
         device=device,
         batch_size=64,
-        show_progress_bar=False
+        show_progress_bar=False,
+        normalize_embeddings=True,
     )
 
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=3, min_samples=1, metric="euclidean")
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size=2 if len(comments) < 30 else 3,
+        min_samples=1,
+        metric="euclidean",
+        allow_single_cluster=True,
+    )
     labels = clusterer.fit_predict(embeddings)
 
     valid_labels = [lb for lb in set(labels) if lb != -1]
