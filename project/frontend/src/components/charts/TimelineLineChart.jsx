@@ -17,25 +17,61 @@ function getHighlightLabel(index) {
   return "延伸討論點";
 }
 
+function formatTimelineTick(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const secs = value % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+function buildTimelineTicks(maxSeconds, targetTickCount = 7) {
+  const intervals = [30, 60, 120, 180, 300, 600, 900, 1800, 3600];
+  const idealInterval = Math.max(30, maxSeconds / Math.max(1, targetTickCount - 1));
+  const interval =
+    intervals.find((candidate) => candidate >= idealInterval) ??
+    intervals[intervals.length - 1];
+
+  const ticks = [];
+  for (let seconds = 0; seconds <= maxSeconds; seconds += interval) {
+    ticks.push(seconds);
+  }
+  return ticks;
+}
+
+function TimelineDot({ cx, cy, payload }) {
+  if (!payload || (payload.count <= 0 && payload.seconds !== 0)) return null;
+  return <circle cx={cx} cy={cy} r={5} fill="#818cf8" stroke="#070d20" strokeWidth={2} />;
+}
+
 export function TimelineLineChart({ data = [], hotspot = null, footer = null }) {
-  const chartData = data
+  const timelineData = data
     .map((item) => ({
       time: item.time_label || String(item.seconds ?? ""),
       seconds: Number(item.seconds ?? 0),
       count: Number(item.count ?? 0),
       ratio: Number(item.ratio ?? 0),
     }))
-    .filter((item) => item.count > 0)
+    .filter((item) => Number.isFinite(item.seconds) && item.seconds >= 0)
     .sort((a, b) => a.seconds - b.seconds);
+  const chartData = timelineData.filter((item) => item.seconds === 0 || item.count > 0);
 
-  if (chartData.length === 0) return null;
+  const activeData = chartData.filter((item) => item.count > 0);
+  if (activeData.length === 0) return null;
 
-  const highlights = [...chartData]
+  const highlights = [...activeData]
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
     .map((item, index) => ({ ...item, label: getHighlightLabel(index) }))
     .sort((a, b) => a.seconds - b.seconds);
   const peak = highlights.reduce((best, item) => (item.count > best.count ? item : best), highlights[0]);
+  const maxSeconds = timelineData.at(-1)?.seconds ?? 0;
+  const timelineTicks = buildTimelineTicks(maxSeconds);
+  const domainPadding = Math.max(15, Math.min(60, maxSeconds * 0.02));
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.36)] ring-1 ring-indigo-300/5 backdrop-blur-md">
@@ -52,8 +88,12 @@ export function TimelineLineChart({ data = [], hotspot = null, footer = null }) 
             </defs>
             <CartesianGrid stroke="#334155" vertical={false} opacity={0.48} />
             <XAxis
-              dataKey="time"
-              tick={{ fill: "#94a3b8", fontSize: 14, fontWeight: 700 }}
+              dataKey="seconds"
+              type="number"
+              domain={[-domainPadding, maxSeconds]}
+              ticks={timelineTicks}
+              tickFormatter={formatTimelineTick}
+              tick={{ fill: "#94a3b8", fontSize: 18, fontWeight: 700 }}
               tickLine={false}
               axisLine={{ stroke: "#334155" }}
             />
@@ -66,13 +106,14 @@ export function TimelineLineChart({ data = [], hotspot = null, footer = null }) 
                 borderRadius: 12,
                 boxShadow: "0 18px 40px rgba(2, 6, 23, 0.32)",
                 color: "#e2e8f0",
-                fontSize: 14,
+                fontSize: 18,
               }}
               formatter={(value, name) => {
                 if (name === "count") return [value, "提及次數"];
                 return [value, name];
               }}
-              labelStyle={{ color: "#e2e8f0", fontSize: 14, fontWeight: 800 }}
+              labelFormatter={formatTimelineTick}
+              labelStyle={{ color: "#e2e8f0", fontSize: 18, fontWeight: 800 }}
             />
             <Area
               type="monotone"
@@ -80,12 +121,12 @@ export function TimelineLineChart({ data = [], hotspot = null, footer = null }) 
               fill="url(#timelineCountFill)"
               stroke="#818cf8"
               strokeWidth={4}
-              dot={{ r: 5, fill: "#818cf8", stroke: "#070d20", strokeWidth: 2 }}
+              dot={<TimelineDot />}
               activeDot={{ r: 7, fill: "#a5b4fc", stroke: "#ffffff", strokeWidth: 3 }}
             />
             {peak && (
               <ReferenceDot
-                x={peak.time}
+                x={peak.seconds}
                 y={peak.count}
                 r={7}
                 fill="#f59e0b"

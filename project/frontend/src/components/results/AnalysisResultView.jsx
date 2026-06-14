@@ -362,18 +362,9 @@ export function AnalysisResultView({ result }) {
             </TextCard>
           )}
 
-          {/* 留言時間軸熱點 + 留言區標籤 */}
+          {/* 留言時間軸熱點 */}
           {(timelineDashboard.chart_data ?? []).length > 0 ? (
-            <TimelineLineChart
-              data={timelineDashboard.chart_data ?? []}
-              hotspot={topHotspot}
-              footer={
-                <TagChips
-                  tags={tags}
-                  isLoading={isSourceLoading("keyword") || isSourceLoading("topics")}
-                />
-              }
-            />
+            <TimelineLineChart data={timelineDashboard.chart_data ?? []} hotspot={topHotspot} />
           ) : (
             <TextCard title="留言時間軸熱點">
               {isSourceLoading("timeline") ? (
@@ -381,12 +372,6 @@ export function AnalysisResultView({ result }) {
               ) : (
                 <FallbackText>目前沒有可繪製的時間軸資料。</FallbackText>
               )}
-              <div className="mt-6 border-t border-white/10 pt-5">
-                <TagChips
-                  tags={tags}
-                  isLoading={isSourceLoading("keyword") || isSourceLoading("topics")}
-                />
-              </div>
             </TextCard>
           )}
 
