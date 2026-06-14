@@ -5,6 +5,29 @@ import json
 from agents.base import BaseAgent
 
 
+def _format_video_duration_instruction(video_duration_seconds: int | None) -> str:
+    segment_rule = (
+        "Transcript lines include stable ids like [seg=42]. For every chapter_timeline "
+        "item, return start_segment_id and end_segment_id from those ids. The backend "
+        "will derive start_seconds and end_seconds from the selected transcript "
+        "segments. Do not invent segment ids or time ranges."
+    )
+    if not video_duration_seconds:
+        return (
+            f"{segment_rule} Video duration is unknown. Use only transcript line "
+            "timestamps for fallback start_seconds and end_seconds; do not invent "
+            "time ranges beyond the visible transcript timestamps."
+        )
+
+    return (
+        f"{segment_rule} Video duration: {video_duration_seconds} seconds. Every chapter_timeline "
+        f"item must satisfy 0 <= start_seconds < end_seconds <= {video_duration_seconds}. "
+        "Do not extend the final chapter beyond this duration. If a transcript segment "
+        "is near the end, use the last valid transcript time or the video duration as "
+        "the maximum end_seconds."
+    )
+
+
 class VideoContentAgent(BaseAgent):
     name = "video_content_agent"
 
@@ -23,6 +46,8 @@ class VideoContentAgent(BaseAgent):
       "action_suggestions": ["繁體中文看完後可以採取的行動"],
       "chapter_timeline": [
         {
+          "start_segment_id": 0,
+          "end_segment_id": 12,
           "start_seconds": 0,
           "end_seconds": 120,
           "title": "繁體中文重點片段標題",
@@ -41,7 +66,9 @@ class VideoContentAgent(BaseAgent):
         url: str,
         transcript_text: str,
         language: str,
+        video_duration_seconds: int | None = None,
     ) -> dict:
+        duration_instruction = _format_video_duration_instruction(video_duration_seconds)
         user_prompt = f"""
         請分析以下 YouTube 影片逐字稿，輸出影片內容摘要與精選章節時間軸。
 
@@ -71,6 +98,9 @@ class VideoContentAgent(BaseAgent):
         偵測到的逐字稿語言：
         {language}
 
+        Time bounds:
+        {duration_instruction}
+
         逐字稿：
         {transcript_text}
         """
@@ -90,7 +120,9 @@ class VideoContentAgent(BaseAgent):
         language: str,
         chunk_index: int,
         total_chunks: int,
+        video_duration_seconds: int | None = None,
     ) -> dict:
+        duration_instruction = _format_video_duration_instruction(video_duration_seconds)
         user_prompt = f"""
         請分析這一段 YouTube 影片逐字稿，整理候選重點片段。
 
@@ -116,6 +148,9 @@ class VideoContentAgent(BaseAgent):
         偵測到的逐字稿語言：
         {language}
 
+        Time bounds:
+        {duration_instruction}
+
         逐字稿 chunk：
         {chunk_text}
         """
@@ -134,7 +169,9 @@ class VideoContentAgent(BaseAgent):
         url: str,
         language: str,
         chunk_results: list[dict],
+        video_duration_seconds: int | None = None,
     ) -> dict:
+        duration_instruction = _format_video_duration_instruction(video_duration_seconds)
         user_prompt = f"""
         請將多個逐字稿 chunk 的分析結果整合成整支 YouTube 影片的內容摘要與精選章節時間軸。
 
@@ -161,6 +198,9 @@ class VideoContentAgent(BaseAgent):
 
         偵測到的逐字稿語言：
         {language}
+
+        Time bounds:
+        {duration_instruction}
 
         chunk 分析結果：
         {json.dumps(chunk_results, ensure_ascii=False, indent=2)}
