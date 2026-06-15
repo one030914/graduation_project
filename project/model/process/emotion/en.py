@@ -3,7 +3,7 @@ from model.process.embedding.loader import get_en_emotion_model
 EN_LABEL_MAP = {
     "anger": "Angry",
     "disgust": "Disgusted",
-    "fear": "Neutral",
+    "fear": "Other",
     "joy": "Joy",
     "neutral": "Neutral",
     "sadness": "Sad",
@@ -17,6 +17,6 @@ def analyze_emotion_en(comments: list[str]) -> list[str]:
     labels = []
     for r in results:
         raw = str(r["label"]).strip().lower()
-        labels.append(EN_LABEL_MAP.get(raw, "Neutral"))
+        labels.append(EN_LABEL_MAP.get(raw, "Other"))
 
     return labels

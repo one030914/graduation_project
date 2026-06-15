@@ -62,16 +62,18 @@ function buildChartData(data) {
 
   const totalCount = items.reduce((sum, item) => sum + item.count, 0);
 
-  return items.map((item) => {
-    const ratio =
-      item.providedRatio > 0 ? item.providedRatio : item.count / Math.max(totalCount, 1);
+  return items
+    .map((item) => {
+      const ratio =
+        item.providedRatio > 0 ? item.providedRatio : item.count / Math.max(totalCount, 1);
 
-    return {
-      ...item,
-      ratio,
-      score: ratio * 100,
-    };
-  });
+      return {
+        ...item,
+        ratio,
+        score: ratio * 100,
+      };
+    })
+    .filter((item) => item.count > 0 || item.ratio > 0);
 }
 
 export function EmotionRadarChart({ data = [] }) {

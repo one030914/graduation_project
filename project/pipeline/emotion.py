@@ -15,6 +15,7 @@ EMOTION_CLASSES = [
     "Surprised",
     "Disgusted",
     "Neutral",
+    "Other",
 ]
 
 EMOTION_DISPLAY_NAMES = {
@@ -24,6 +25,18 @@ EMOTION_DISPLAY_NAMES = {
     "Surprised": "驚訝",
     "Disgusted": "反感/強烈不滿",
     "Neutral": "中性",
+    "Other": "其他/無法判定",
+}
+
+EMOTION_ALIASES = {
+    "joy": "Joy",
+    "angry": "Angry",
+    "sad": "Sad",
+    "surprised": "Surprised",
+    "disgusted": "Disgusted",
+    "neutral": "Neutral",
+    "other": "Other",
+    "others": "Other",
 }
 
 SUPPORT_KEYWORDS = [
@@ -41,6 +54,16 @@ def _safe_int(value: Any) -> int:
         return int(value)
     except Exception:
         return 0
+
+def _normalize_emotion_label(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "Other"
+
+    if text in EMOTION_CLASSES:
+        return text
+
+    return EMOTION_ALIASES.get(text.lower(), "Other")
 
 def _build_emotion_ratios(emotions: dict[str, int], total: int) -> dict[str, float]:
     denominator = max(1, total)
@@ -274,7 +297,10 @@ def build_emotion_from_dataset(comments) -> EmotionResult:
         df_zh = df_zh[
             df_zh["clean_text"].astype(str).str.strip().str.len() >= 2
         ].copy()
-        zh_labels = analyze_emotion_zh(df_zh["clean_text"].tolist())
+        zh_labels = [
+            _normalize_emotion_label(label)
+            for label in analyze_emotion_zh(df_zh["clean_text"].tolist())
+        ]
         df_zh = df_zh.iloc[:len(zh_labels)].copy()
         analyzed_frames.append(df_zh)
         labels.extend(zh_labels)
@@ -284,7 +310,10 @@ def build_emotion_from_dataset(comments) -> EmotionResult:
         df_en = df_en[
             df_en["clean_text"].astype(str).str.strip().str.split().str.len() >= 1
         ].copy()
-        en_labels = analyze_emotion_en(df_en["clean_text"].tolist())
+        en_labels = [
+            _normalize_emotion_label(label)
+            for label in analyze_emotion_en(df_en["clean_text"].tolist())
+        ]
         df_en = df_en.iloc[:len(en_labels)].copy()
         analyzed_frames.append(df_en)
         labels.extend(en_labels)

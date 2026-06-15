@@ -270,7 +270,7 @@ export function EmotionRecordView({ result }) {
               ，主導情緒為 <span className="font-black text-indigo-100">{dominantEmotion}</span>。
             </p>
             <p className="mt-3 text-white/58">
-              此分數由正向、中性與負向情緒比例綜合計算，適合用來快速判斷留言區整體氣氛。
+              此分數由正向、中性與負向情緒比例綜合計算；其他/無法判定會保留在分布中，但不推動風向分數。
             </p>
 
             <SentimentRatioCards

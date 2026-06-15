@@ -166,15 +166,17 @@ def get_zh_emotion_model(
     
     # Johnson8187/Chinese-Emotion(-Small) 官方 label mapping
     # 0: 平淡語氣, 1: 關切語調, 2: 開心語調, 3: 憤怒語調,
-    # 4: 悲傷語調, 5: 疑問語調, 6: 驚奇語調, 7: 厭惡語調
+    # 4: 悲傷語調, 5: 疑問語調, 6: 驚奇語調, 7: 厭惡語調.
+    # Only labels shared with the English emotion model are normalized.
+    # Chinese-only tone labels are kept as Other instead of Neutral.
 
     id2label = {
         0: "Neutral",
-        1: "Neutral",
+        1: "Other",
         2: "Joy",
         3: "Angry",
         4: "Sad",
-        5: "Neutral",
+        5: "Other",
         6: "Surprised",
         7: "Disgusted",
     }
