@@ -189,7 +189,7 @@ def bucket_seconds(seconds: int, bucket_size: int = 30) -> int:
 def build_timeline(
     url: str,
     *,
-    pages: int = 100,
+    pages: int = 15,
     page_size: int = 100,
     min_likes: int = 0,
     bucket_size: int = 30,

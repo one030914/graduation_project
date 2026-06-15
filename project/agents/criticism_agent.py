@@ -91,9 +91,11 @@ class CriticismAgent(BaseAgent):
         {json.dumps(payload, ensure_ascii=False)}
         """
 
-        return self.run(
+        result = self.run(
             user_prompt,
             temperature=0.1,
             num_predict=1200,
             num_ctx=12000,
         )
+        result["_analyzed_comment_count"] = len(sampled_comments)
+        return result

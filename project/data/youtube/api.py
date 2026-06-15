@@ -43,55 +43,190 @@ class API:
         load_dotenv(verbose=True)
         self.API_KEY = os.getenv('API_KEY')     # 你的 API 金鑰
 
-    def get_comments(self, url: str, page_size: int = 100, pages: int = 5, min_likes: int = 1, order: str = "relevance") -> list:
+    @staticmethod
+    def _comment_row(
+        comment: dict,
+        *,
+        thread_id: str,
+        parent_comment_id: str | None = None,
+        sample_order: str = "relevance",
+    ) -> dict:
+        snippet = comment.get("snippet") or {}
+        is_reply = parent_comment_id is not None
+        return {
+            "comment_id": comment.get("id"),
+            "thread_id": thread_id,
+            "parent_comment_id": parent_comment_id,
+            "is_reply": is_reply,
+            "sample_order": sample_order,
+            "author": snippet.get("authorDisplayName"),
+            "raw_text": snippet.get("textDisplay", ""),
+            "like_count": snippet.get("likeCount", 0),
+            "reply_count": 0 if is_reply else None,
+            "published_at": snippet.get("publishedAt"),
+        }
+
+    def _get_thread_replies(
+        self,
+        youtube,
+        *,
+        parent_comment_id: str,
+        thread_id: str,
+        limit: int,
+        sample_order: str,
+    ) -> list[dict]:
+        if limit <= 0:
+            return []
+
+        response = (
+            youtube.comments()
+                .list(
+                    part="snippet",
+                    parentId=parent_comment_id,
+                    maxResults=min(100, limit),
+                    textFormat="plainText",
+                )
+                .execute()
+        )
+        return [
+            self._comment_row(
+                item,
+                thread_id=thread_id,
+                parent_comment_id=parent_comment_id,
+                sample_order=sample_order,
+            )
+            for item in response.get("items", [])[:limit]
+        ]
+
+    def get_comments(
+        self,
+        url: str,
+        page_size: int = 100,
+        pages: int = 15,
+        min_likes: int = 1,
+        order: str = "relevance",
+        recent_pages: int = 5,
+        include_replies: bool = True,
+        max_replies_per_thread: int = 5,
+        max_reply_threads: int = 30,
+        max_total_replies: int = 300,
+    ) -> list:
         VIDEO_ID = self.extract_video_id(url)
         if not VIDEO_ID:
             return []  # 或 raise ValueError("Invalid YouTube URL")
 
         page_size = max(1, min(100, int(page_size)))
+        pages = max(0, int(pages))
+        recent_pages = max(0, int(recent_pages))
+        max_replies_per_thread = max(0, int(max_replies_per_thread))
+        max_reply_threads = max(0, int(max_reply_threads))
+        max_total_replies = max(0, int(max_total_replies))
 
         http = httplib2.Http(timeout=10)
         youtube = build("youtube", "v3", developerKey=self.API_KEY, http=http)
 
         comments = []
-        next_page_token = None
+        seen_comment_ids = set()
+        processed_reply_threads = set()
+        expanded_reply_threads = 0
+        total_replies = 0
+        sampling_plans = [(order, pages)]
+        if order != "time" and recent_pages > 0:
+            sampling_plans.append(("time", recent_pages))
 
-        for page_count in range(1, pages + 1):
-            try:
-                response = (
-                    youtube.commentThreads()
-                        .list(
-                            part="snippet",
-                            videoId=VIDEO_ID,
-                            maxResults=page_size,
-                            order=order,
-                            pageToken=next_page_token,
-                            textFormat="plainText"
+        for sample_order, page_limit in sampling_plans:
+            next_page_token = None
+
+            for _ in range(page_limit):
+                try:
+                    response = (
+                        youtube.commentThreads()
+                            .list(
+                                part="snippet,replies" if include_replies else "snippet",
+                                videoId=VIDEO_ID,
+                                maxResults=page_size,
+                                order=sample_order,
+                                pageToken=next_page_token,
+                                textFormat="plainText"
+                            )
+                            .execute()
+                    )
+                except Exception as e:
+                    print(f"抓取失敗 ({sample_order})：{e}")
+                    break
+
+                for item in response.get("items", []):
+                    top = item["snippet"]["topLevelComment"]
+                    s = top["snippet"]
+                    likes = s.get("likeCount", 0)
+                    thread_id = item.get("id") or top.get("id")
+                    top_comment_id = top.get("id")
+
+                    if likes >= min_likes and top_comment_id not in seen_comment_ids:
+                        row = self._comment_row(
+                            top,
+                            thread_id=thread_id,
+                            sample_order=sample_order,
                         )
-                        .execute()
-                )
-            except Exception as e:
-                print(f"抓取失敗：{e}")
-                break
+                        row["reply_count"] = item["snippet"].get("totalReplyCount", 0)
+                        comments.append(row)
+                        seen_comment_ids.add(top_comment_id)
 
-            for item in response.get("items", []):
-                top = item["snippet"]["topLevelComment"]
-                s = top["snippet"]
-                likes = s.get("likeCount", 0)
+                    if (
+                        not include_replies
+                        or total_replies >= max_total_replies
+                        or thread_id in processed_reply_threads
+                    ):
+                        continue
+                    processed_reply_threads.add(thread_id)
 
-                if likes >= min_likes:
-                    comments.append({
-                        "comment_id": top.get("id"),
-                        "author": s.get("authorDisplayName"),
-                        "raw_text": s.get("textDisplay", ""),
-                        "like_count": likes,
-                        "reply_count": item["snippet"].get("totalReplyCount", 0),
-                        "published_at": s.get("publishedAt", None),
-                    })
+                    reply_limit = min(
+                        max_replies_per_thread,
+                        max_total_replies - total_replies,
+                    )
+                    embedded_replies = (item.get("replies") or {}).get("comments", [])
+                    thread_replies = [
+                        self._comment_row(
+                            reply,
+                            thread_id=thread_id,
+                            parent_comment_id=top_comment_id,
+                            sample_order=sample_order,
+                        )
+                        for reply in embedded_replies[:reply_limit]
+                    ]
 
-            next_page_token = response.get("nextPageToken")
-            if not next_page_token:
-                break
+                    total_reply_count = item["snippet"].get("totalReplyCount", 0)
+                    should_expand = (
+                        total_reply_count > len(thread_replies)
+                        and expanded_reply_threads < max_reply_threads
+                        and reply_limit > len(thread_replies)
+                    )
+                    if should_expand:
+                        try:
+                            thread_replies = self._get_thread_replies(
+                                youtube,
+                                parent_comment_id=top_comment_id,
+                                thread_id=thread_id,
+                                limit=reply_limit,
+                                sample_order=sample_order,
+                            )
+                            expanded_reply_threads += 1
+                        except Exception as e:
+                            print(f"回覆補抓失敗 ({top_comment_id})：{e}")
+
+                    for reply in thread_replies:
+                        reply_id = reply.get("comment_id")
+                        if reply_id in seen_comment_ids:
+                            continue
+                        comments.append(reply)
+                        seen_comment_ids.add(reply_id)
+                        total_replies += 1
+                        if total_replies >= max_total_replies:
+                            break
+
+                next_page_token = response.get("nextPageToken")
+                if not next_page_token:
+                    break
 
         return comments
 

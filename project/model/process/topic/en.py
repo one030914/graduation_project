@@ -1,4 +1,3 @@
-import hdbscan
 import numpy as np
 import pandas as pd
 from typing import List
@@ -7,7 +6,7 @@ from keybert import KeyBERT
 
 from configs.schema import TopicCluster
 from model.process.embedding.loader import get_en_embedder, get_device_str
-from model.process.keyword.en import extract_keywords_en
+from model.process.topic.clustering import build_topic_clusterer
 
 def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
@@ -33,12 +32,7 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
         normalize_embeddings=True,
     )
 
-    clusterer = hdbscan.HDBSCAN(
-        min_cluster_size=2 if len(comments) < 30 else 3,
-        min_samples=1,
-        metric="euclidean",
-        allow_single_cluster=True,
-    )
+    clusterer = build_topic_clusterer(len(comments))
     labels = clusterer.fit_predict(embeddings)
 
     valid_labels = [lb for lb in set(labels) if lb != -1]
@@ -55,10 +49,19 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
         joined = ". ".join(cluster_comments)
         kws = kw_model.extract_keywords(
             joined,
-            top_n=5,
-            stop_words="english"
+            keyphrase_ngram_range=(1, 1),
+            top_n=8,
+            stop_words="english",
+            use_mmr=True,
+            diversity=0.5,
         )
-        keywords = [w for w, _ in kws][:5]
+        keywords = [
+            word
+            for word, _ in kws
+            if len(word.strip()) >= 3
+            and not word.strip().isdigit()
+            and len(word.split()) == 1
+        ][:5]
 
         cluster_emb = np.array([embeddings[i] for i in idxs])
         centroid = cluster_emb.mean(axis=0)

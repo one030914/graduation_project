@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from configs.schema import AnalyzeResult
+from configs.schema import AnalyzeResult, CommentDataset
 from pipeline.collect import collect_comments
 
 from pipeline.emotion import build_emotion_from_dataset
@@ -181,6 +181,15 @@ def _build_dashboard_data(
             "emotion_ratios": getattr(emotion, "emotion_ratios", {}) or {},
         },
         "topics": {
+            "status": _result_status(topics),
+            "message": getattr(topics, "message", None),
+            "total_comments": getattr(topics, "total_comments", 0),
+            "analyzed_comments": getattr(topics, "analyzed_comments", 0),
+            "filtered_comments": getattr(topics, "filtered_comments", 0),
+            "clustered_comments": getattr(topics, "clustered_comments", 0),
+            "noise_count": getattr(topics, "noise_count", 0),
+            "coverage_ratio": getattr(topics, "coverage_ratio", 0.0),
+            "noise_ratio": getattr(topics, "noise_ratio", 0.0),
             "chart_data": getattr(topics, "chart_data", []) or [],
             "top_keywords": getattr(topics, "top_keywords", []) or [],
             "topics": [
@@ -454,36 +463,36 @@ def _build_analyze_result(
 def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None = None) -> AnalyzeResult:
     timer = Timer()
     
-    dataset = collect_comments(
+    timeline_dataset = collect_comments(
         url,
-        pages=100,
+        pages=15,
         page_size=100,
         min_likes=0,
         order="relevance",
+        recent_pages=5,
+        duplicate=True,
     )
     
     timer.mark("collect_comments")
 
-    if dataset.error:
+    if timeline_dataset.error:
         return AnalyzeResult(
-            video_id=dataset.video_id,
-            title=dataset.title,
+            video_id=timeline_dataset.video_id,
+            title=timeline_dataset.title,
             url=url,
             status="error",
-            message=dataset.error,
-            error=dataset.error,
+            message=timeline_dataset.error,
+            error=timeline_dataset.error,
         )
 
-    timeline_dataset = collect_comments(
-        url,
-        pages=100,
-        page_size=100,
-        min_likes=0,
-        order="relevance",
-        duplicate=True,
+    dataset = CommentDataset(
+        video_id=timeline_dataset.video_id,
+        title=timeline_dataset.title,
+        url=timeline_dataset.url,
+        df=timeline_dataset.df.drop_duplicates(subset=["clean_text"]).copy(),
+        error=None,
     )
-
-    timer.mark("collect_timeline_comments")
+    timer.mark("prepare_analysis_dataset")
 
     summary = None
     keyword = None
@@ -608,6 +617,7 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
                 "不要重新分類留言",
                 "不要捏造資料中沒有的批評、問題或影片內容",
                 "不要把資料不足解讀成風向良好",
+                "不要在主題分析資料不足或覆蓋率偏低時，硬推論完整留言區主題共識",
             ],
             "output_usage": {
                 "quick_summary": "給 Discord 主分析智慧快報使用",
@@ -637,6 +647,17 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
             "label": "熱門討論主題",
             "purpose": "指出留言區最主要的討論焦點。",
             "status": _result_status(topics),
+            "message": getattr(topics, "message", None),
+            "total_comments": getattr(topics, "total_comments", 0),
+            "analyzed_comments": getattr(topics, "analyzed_comments", 0),
+            "filtered_comments": getattr(topics, "filtered_comments", 0),
+            "clustered_comments": getattr(topics, "clustered_comments", 0),
+            "coverage_ratio": getattr(topics, "coverage_ratio", 0.0),
+            "noise_ratio": getattr(topics, "noise_ratio", 0.0),
+            "guidance": (
+                "若 status 不是 ok，或 coverage_ratio 偏低，"
+                "主分析只能保守引用主題結果，不能把它當成完整留言區共識。"
+            ),
             "top_topics": [
                 {
                     "topic_name": (

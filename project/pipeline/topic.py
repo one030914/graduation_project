@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import Counter
+import re
 
 from .collect import collect_comments
 from configs.schema import TopicsResult, TopicCluster
@@ -7,6 +8,7 @@ from model.process.topic.zh import build_topics_zh
 from model.process.topic.en import build_topics_en
 
 MIN_TOPIC_COMMENTS = 8
+MIN_TOP_LEVEL_TOPIC_COMMENTS = 30
 HIGH_NOISE_RATIO = 0.90
 
 def get_topic_language(df) -> str:
@@ -30,8 +32,43 @@ def _build_topic_name(keywords: list[str], fallback: str = "未命名主題") ->
 
 LOW_VALUE_COMMENTS = {
     "讚", "好", "嗯", "+1", "推", "笑死", "哈哈", "哈哈哈",
-    "ok", "nice", "good", "lol"
+    "ok", "nice", "good", "lol", "wow", "xd", "irl", "first",
 }
+
+LONG_IDENTIFIER_RE = re.compile(
+    r"\b(?:0x[a-fA-F0-9]{16,}|[a-fA-F0-9]{24,}|[A-Za-z0-9]{32,})\b"
+)
+
+def _prepare_topic_comments(df):
+    supported = df[df["language"].isin(("zh", "en"))].copy()
+    supported = supported[
+        supported["clean_text"].astype(str).str.strip().ne("")
+    ]
+    supported = supported[
+        ~supported["clean_text"].astype(str).str.lower().isin(
+            LOW_VALUE_COMMENTS
+        )
+    ]
+    supported = supported[
+        ~supported["clean_text"].astype(str).str.contains(
+            LONG_IDENTIFIER_RE,
+            regex=True,
+            na=False,
+        )
+    ]
+
+    preferred = supported
+    if "is_reply" in supported.columns:
+        preferred = preferred[~preferred["is_reply"].fillna(False)].copy()
+    if "sample_order" in preferred.columns:
+        relevance = preferred[preferred["sample_order"] == "relevance"].copy()
+        if len(relevance) >= MIN_TOP_LEVEL_TOPIC_COMMENTS:
+            preferred = relevance
+    if len(preferred) >= MIN_TOP_LEVEL_TOPIC_COMMENTS:
+        supported = preferred
+
+    supported = supported.drop_duplicates(subset=["clean_text"]).copy()
+    return supported
 
 def _clean_representative_comments(
     comments: list[str],
@@ -146,9 +183,9 @@ def _get_topics_status(
 def build_topics(
     url: str,
     *,
-    pages: int = 100,
+    pages: int = 15,
     page_size: int = 100,
-    min_likes: int = 1,
+    min_likes: int = 0,
 ) -> TopicsResult:
     comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
     return build_topics_from_dataset(comments)
@@ -176,14 +213,11 @@ def build_topics_from_dataset(comments) -> TopicsResult:
             error="No comments found",
         )
 
-    df_supported = (
-        df[df["language"].isin(("zh", "en"))]
-        .drop_duplicates(subset=["clean_text"])
-        .copy()
-    )
+    df_supported = _prepare_topic_comments(df)
     topic_language = get_topic_language(df_supported)
 
     analyzed_comments = len(df_supported)
+    filtered_comments = max(0, len(df) - analyzed_comments)
 
     if analyzed_comments < MIN_TOPIC_COMMENTS:
         return TopicsResult(
@@ -191,6 +225,7 @@ def build_topics_from_dataset(comments) -> TopicsResult:
             title=comments.title,
             total_comments=len(df),
             analyzed_comments=analyzed_comments,
+            filtered_comments=filtered_comments,
             language=topic_language,
             status="insufficient_data",
             message=(
@@ -205,6 +240,7 @@ def build_topics_from_dataset(comments) -> TopicsResult:
             title=comments.title,
             total_comments=len(df),
             analyzed_comments=analyzed_comments,
+            filtered_comments=filtered_comments,
             language=topic_language,
             status="error",
             message="Cannot analyze this language",
@@ -224,6 +260,7 @@ def build_topics_from_dataset(comments) -> TopicsResult:
             title=comments.title,
             total_comments=len(df),
             analyzed_comments=analyzed_comments,
+            filtered_comments=filtered_comments,
             language=topic_language,
             status="insufficient_data",
             message="留言內容過於分散，未形成明確主題。",
@@ -255,6 +292,7 @@ def build_topics_from_dataset(comments) -> TopicsResult:
         title=comments.title,
         total_comments=len(df),
         analyzed_comments=analyzed_comments,
+        filtered_comments=filtered_comments,
         clustered_comments=quality["clustered_comments"],
         noise_count=quality["noise_count"],
         noise_ratio=quality["noise_ratio"],

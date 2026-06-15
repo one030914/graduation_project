@@ -73,6 +73,9 @@ export function TopicsResultView({ result }) {
     result.language === "zh" ? "中文" : result.language === "en" ? "英文" : "中英混合";
   const coverageRatio = Number(result.coverage_ratio || 0);
   const coverageLabel = `${(coverageRatio * 100).toFixed(1)}%`;
+  const analyzedCount = Number(result.analyzed_comments ?? 0);
+  const filteredCount = Number(result.filtered_comments ?? 0);
+  const totalCount = Number(result.total_comments ?? analyzedCount + filteredCount);
   const statusLabel =
     result.status === "ok" ? "正常" : result.status === "insufficient_data" ? "資料不足" : "錯誤";
 
@@ -82,10 +85,11 @@ export function TopicsResultView({ result }) {
       title={result.title || result.video_id || "未命名影片"}
     >
       <ResultCard title="分析概況">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <InfoTile label="主要語言" value={languageLabel} />
           <InfoTile label="主題數" value={topics.length} />
-          <InfoTile label="可分析留言" value={result.analyzed_comments ?? 0} />
+          <InfoTile label="分析留言數" value={`${analyzedCount} / ${totalCount}`} />
+          <InfoTile label="略過留言數" value={filteredCount} />
           <InfoTile label="分群覆蓋率" value={coverageLabel} />
           <InfoTile label="分析狀態" value={statusLabel} />
         </div>

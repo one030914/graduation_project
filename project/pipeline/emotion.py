@@ -1,6 +1,8 @@
 from collections import Counter
 from typing import Any
 
+import pandas as pd
+
 from .collect import collect_comments
 from configs.schema import EmotionResult, EmotionStats
 from model.process.emotion.zh import analyze_emotion_zh
@@ -216,19 +218,24 @@ def _build_representative_comments(df) -> dict[str, list[dict[str, Any]]]:
         for label in EMOTION_CLASSES
     }
 
-def get_main_language(df) -> str:
+def get_emotion_language(df) -> str:
     counts = df["language"].value_counts().to_dict()
     zh = counts.get("zh", 0)
     en = counts.get("en", 0)
-    unknown = counts.get("unknown", 0)
-    return "zh" if zh >= en and zh >= unknown else "en" if en >= zh and en >= unknown else "unknown"
+    if zh > 0 and en > 0:
+        return "mixed"
+    if zh > 0:
+        return "zh"
+    if en > 0:
+        return "en"
+    return "unknown"
 
 def build_emotion(
     url: str,
     *,
-    pages: int = 5,
+    pages: int = 15,
     page_size: int = 100,
-    min_likes: int = 1,
+    min_likes: int = 0,
 ) -> EmotionResult:
     comments = collect_comments(url=url, pages=pages, page_size=page_size, min_likes=min_likes)
     return build_emotion_from_dataset(comments)
@@ -258,31 +265,38 @@ def build_emotion_from_dataset(comments) -> EmotionResult:
             error="No comments found",
         )
 
-    main_lang = get_main_language(df)
-    df_lang = df[df["language"] == main_lang].copy()
+    language = get_emotion_language(df)
+    analyzed_frames = []
+    labels = []
 
-    if main_lang == "zh":
-        df_lang = df_lang[
-            df_lang["clean_text"].astype(str).str.strip().str.len() >= 2
+    df_zh = df[df["language"] == "zh"].copy()
+    if not df_zh.empty:
+        df_zh = df_zh[
+            df_zh["clean_text"].astype(str).str.strip().str.len() >= 2
         ].copy()
-        texts = df_lang["clean_text"].tolist()
-        labels = analyze_emotion_zh(texts)
+        zh_labels = analyze_emotion_zh(df_zh["clean_text"].tolist())
+        df_zh = df_zh.iloc[:len(zh_labels)].copy()
+        analyzed_frames.append(df_zh)
+        labels.extend(zh_labels)
 
-    elif main_lang == "en":
-        df_lang = df_lang[
-            df_lang["clean_text"].astype(str).str.strip().str.split().str.len() >= 1
+    df_en = df[df["language"] == "en"].copy()
+    if not df_en.empty:
+        df_en = df_en[
+            df_en["clean_text"].astype(str).str.strip().str.split().str.len() >= 1
         ].copy()
-        texts = df_lang["clean_text"].tolist()
-        labels = analyze_emotion_en(texts)
+        en_labels = analyze_emotion_en(df_en["clean_text"].tolist())
+        df_en = df_en.iloc[:len(en_labels)].copy()
+        analyzed_frames.append(df_en)
+        labels.extend(en_labels)
 
-    else:
+    if language == "unknown":
         return EmotionResult(
             url=comments.url,
             title=comments.title,
             total_comments=len(df),
             analyzed_comments=0,
             skipped_comments=len(df),
-            language=main_lang,
+            language=language,
             status="error",
             message="Cannot analyze this language",
             error="Cannot analyze this language",
@@ -295,13 +309,13 @@ def build_emotion_from_dataset(comments) -> EmotionResult:
             total_comments=len(df),
             analyzed_comments=0,
             skipped_comments=len(df),
-            language=main_lang,
+            language=language,
             status="error",
             message="No comments for emotion analysis",
             error="No comments for emotion analysis",
         )
 
-    df_lang = df_lang.iloc[:len(labels)].copy()
+    df_lang = pd.concat(analyzed_frames, ignore_index=True)
     df_lang["emotion_label"] = labels
 
     counter = Counter(labels)
@@ -338,7 +352,7 @@ def build_emotion_from_dataset(comments) -> EmotionResult:
         total_comments=len(df),
         analyzed_comments=analyzed_comments,
         skipped_comments=skipped_comments,
-        language=main_lang,
+        language=language,
         status=status,
         message=message,
         stats=stats,

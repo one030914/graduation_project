@@ -247,6 +247,7 @@ class TopicsResult:
     title: str = ""
     total_comments: int = 0
     analyzed_comments: int = 0
+    filtered_comments: int = 0
     clustered_comments: int = 0
     noise_count: int = 0
     noise_ratio: float = 0.0

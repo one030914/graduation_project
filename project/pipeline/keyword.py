@@ -169,7 +169,7 @@ def _get_keyword_status(
 def build_keyword(
     video_url: str,
     *,
-    pages: int = 100,
+    pages: int = 15,
     page_size: int = 100,
     min_likes: int = 0,
     keyword_topk: int = 10,

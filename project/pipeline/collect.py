@@ -9,11 +9,16 @@ from configs.schema import CommentDataset
 def collect_comments(
     url: str,
     *,
-    pages: int = 5,
+    pages: int = 15,
     page_size: int = 100,
     min_likes: int = 0,
     order: str = "relevance",
+    recent_pages: int = 5,
     duplicate: bool = False,
+    include_replies: bool = True,
+    max_replies_per_thread: int = 5,
+    max_reply_threads: int = 30,
+    max_total_replies: int = 300,
 ) -> CommentDataset:
     api = API()
 
@@ -36,6 +41,11 @@ def collect_comments(
         pages=pages,
         min_likes=min_likes,
         order=order,
+        recent_pages=recent_pages,
+        include_replies=include_replies,
+        max_replies_per_thread=max_replies_per_thread,
+        max_reply_threads=max_reply_threads,
+        max_total_replies=max_total_replies,
     )
 
     if not comments:

@@ -27,3 +27,8 @@ datasets/
 runlogs/
 **/runlogs/
 *.log
+
+# test files
+tests/
+test/
+**/tests/

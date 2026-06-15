@@ -115,7 +115,7 @@ def _build_action_items(
 
 def analyze_comment_criticism(
     video_url: str,
-    pages: int = 100,
+    pages: int = 15,
     page_size: int = 100,
     min_likes: int = 0,
 ) -> CommentCriticismResult:
@@ -177,6 +177,7 @@ def analyze_comment_criticism_from_dataset(comments) -> CommentCriticismResult:
             comments=comment_texts,
             max_comments=80,
         )
+        analyzed_comments = int(data.pop("_analyzed_comment_count", 0))
 
         main_criticisms = _clean_items(
             data.get("main_criticisms", []) or [],
@@ -198,7 +199,7 @@ def analyze_comment_criticism_from_dataset(comments) -> CommentCriticismResult:
         suggestion_count = len(suggestions)
 
         status, message = _get_criticism_status(
-            analyzed_comments=len(comment_texts),
+            analyzed_comments=analyzed_comments,
             main_criticisms=main_criticisms,
             discontent_reasons=discontent_reasons,
             suggestions=suggestions,
@@ -228,7 +229,7 @@ def analyze_comment_criticism_from_dataset(comments) -> CommentCriticismResult:
             url=comments.url,
 
             total_comments=len(df),
-            analyzed_comments=len(comment_texts),
+            analyzed_comments=analyzed_comments,
 
             status=status,
             message=message,

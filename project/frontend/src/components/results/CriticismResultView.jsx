@@ -55,9 +55,6 @@ export function CriticismResultView({ result }) {
             value={severityLabel(result.severity_level)}
             tone={severityTone(result.severity_level)}
           />
-          <InfoTile label="主要批評" value={`${result.criticism_count ?? 0} 項`} />
-          <InfoTile label="不滿原因" value={`${result.reason_count ?? 0} 項`} />
-          <InfoTile label="改進建議" value={`${result.suggestion_count ?? 0} 項`} />
         </div>
         {result.message && <p className="mt-3 text-amber-200">{result.message}</p>}
       </ResultCard>

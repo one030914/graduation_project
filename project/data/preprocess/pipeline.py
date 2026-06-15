@@ -21,6 +21,10 @@ def batch_preprocess_comments(json_data: List[Dict[str, Any]], duplicate: bool =
 
         rows.append({
             "comment_id": entry.get("comment_id"),
+            "thread_id": entry.get("thread_id"),
+            "parent_comment_id": entry.get("parent_comment_id"),
+            "is_reply": bool(entry.get("is_reply", False)),
+            "sample_order": entry.get("sample_order", "relevance"),
             "author": entry.get("author"),
             "language": proc.language,
             "raw_text": proc.raw_text,

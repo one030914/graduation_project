@@ -67,7 +67,7 @@ def _language_payload_from_dataset(comments):
 def build_summary(
     video_url: str,
     *,
-    pages: int = 100,
+    pages: int = 15,
     page_size: int = 100,
     min_likes: int = 0,
     summary_topk: int = 5,
