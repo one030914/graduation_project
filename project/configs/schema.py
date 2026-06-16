@@ -194,7 +194,7 @@ class VideoContentResult:
 
 @dataclass(slots=True)
 class JobStatus:
-    status: str  # queued | running | completed | failed | cancelled
+    status: str  # queued | running | completed | failed
     video_id: str
     mode: str
     created_at: datetime

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from configs.schema import Req
-from pipeline.queue import AnalysisQueue
+from pipeline.queue import AnalysisQueue, AnalysisQueueFull
 
 load_dotenv(verbose=True)
 
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
         workers=2,
         cache_ttl_minutes=10,
         max_queue_size=50,
+        max_job_results_size=100,
     )
     await wq.start()
     app.state.web_queue = wq
@@ -67,6 +68,11 @@ def status(request: Request):
     return {
         "status": "ok",
         "queue_size": wq.queue_size(),
+        "cache_size": wq.cache_size(),
+        "cache_sizes_by_mode": wq.cache_sizes_by_mode(),
+        "max_cache_size": wq.max_cache_size,
+        "stored_result_size": wq.stored_result_size(),
+        "max_job_results_size": wq.max_job_results_size,
         "workers": wq.workers,
     }
 
@@ -89,6 +95,8 @@ async def queue(req: Req, request: Request):
         # 等待任務完成
         result = await wq.wait_for_result(job_id, timeout=30)
         return {"result": result}
+    except AnalysisQueueFull as e:
+        return JSONResponse({"error": str(e)}, status_code=429)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -104,7 +112,15 @@ async def create_job(req: Req, request: Request):
         )
     try:
         job_id = await wq.submit(req.video_url, mode=mode)
-        return {"job_id": job_id, "status": "queued", "mode": mode}
+        status = wq.get_status(job_id) or {}
+        return {
+            "job_id": job_id,
+            "status": status.get("status", "queued"),
+            "mode": status.get("mode", mode),
+            "from_cache": status.get("from_cache"),
+        }
+    except AnalysisQueueFull as e:
+        return JSONResponse({"error": str(e)}, status_code=429)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

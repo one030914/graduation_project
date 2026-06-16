@@ -18,6 +18,7 @@ yt-dlp
 # tools
 matplotlib
 pydantic
+cachetools
 
 # model
 --index-url https://pypi.org/simple

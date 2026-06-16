@@ -31,6 +31,7 @@ class MyBot(commands.Bot):
             workers=4,
             cache_ttl_minutes=10,
             max_queue_size=50,
+            max_job_results_size=100,
         )
         await self.analysis_queue.start()
 
