@@ -26,7 +26,7 @@ export function TopicsBarChart({ data = [] }) {
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.36)] ring-1 ring-indigo-300/5 backdrop-blur-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black tracking-normal">熱門討論焦點</h3>
+          <h3 className="text-xl font-black tracking-normal text-indigo-200">熱門討論焦點</h3>
           <p className="mt-2 text-base font-semibold text-white/45">留言區最常被提到的主軸</p>
         </div>
         <span className="rounded-full bg-indigo-400/10 px-3 py-1 text-base font-black text-indigo-200 ring-1 ring-indigo-300/15">

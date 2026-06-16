@@ -75,7 +75,7 @@ export function TimelineLineChart({ data = [], hotspot = null, footer = null }) 
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.36)] ring-1 ring-indigo-300/5 backdrop-blur-md">
-      <h3 className="text-xl font-black tracking-normal">留言時間軸熱點</h3>
+      <h3 className="text-xl font-black tracking-normal text-indigo-200">留言時間軸熱點</h3>
 
       <div className="mt-6 h-72 min-h-72 min-w-0">
         <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={240}>

@@ -13,6 +13,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
+    "@visx/wordcloud": "^4.0.0",
     "next": "16.2.2",
     "pg": "^8.20.0",
     "react": "19.2.4",

@@ -128,13 +128,38 @@ export default function Page() {
     }
   };
 
-  const pollJobUntilDone = async (jobId, action, url) => {
+  const completeJob = async (jobId, action, url, statusData) => {
+    const resultData = await fetchJobResult(jobId);
+    const result = resultData.result ?? null;
+
+    updateResult(action, result);
+    void saveAnalysisRecord({
+      jobId,
+      mode: resultData.mode || statusData.mode || JOB_MODE[action],
+      url,
+      payload: result,
+      fromCache: Boolean(statusData.from_cache),
+    });
+
+    setJobState((prev) =>
+      prev && prev.jobId === jobId
+        ? { ...prev, status: "completed", fromCache: statusData.from_cache }
+        : prev,
+    );
+  };
+
+  const pollJobUntilDone = async (jobId, action, url, { usePartialResult = false } = {}) => {
     while (activeJobRef.current === jobId) {
       const statusRes = await fetch(`${API_BASE}/jobs/${jobId}`);
       const statusData = await statusRes.json();
 
       if (!statusRes.ok) {
         throw new Error(statusData.error || "Failed to fetch job status.");
+      }
+
+      // 綜合分析會在每個子流程完成後回傳 partial_result，讓畫面能先顯示已完成的區塊。
+      if (usePartialResult && statusData.partial_result) {
+        updateResult(action, statusData.partial_result);
       }
 
       setJobState({
@@ -147,87 +172,12 @@ export default function Page() {
       });
 
       if (statusData.status === "completed") {
-        const resultData = await fetchJobResult(jobId);
-        const result = resultData.result ?? null;
-        updateResult(action, result);
-        void saveAnalysisRecord({
-          jobId,
-          mode: resultData.mode || statusData.mode || JOB_MODE[action],
-          url,
-          payload: result,
-          fromCache: Boolean(statusData.from_cache),
-        });
-        setJobState((prev) =>
-          prev && prev.jobId === jobId
-            ? { ...prev, status: "completed", fromCache: statusData.from_cache }
-            : prev,
-        );
+        await completeJob(jobId, action, url, statusData);
         return;
       }
 
       if (statusData.status === "failed") {
         throw new Error(statusData.error || "Job failed.");
-      }
-
-      await sleep(POLL_INTERVAL_MS);
-    }
-  };
-
-  const handleProgressiveAnalyze = async (url) => {
-    const createData = await createJob(url, MODE.analyze);
-    const jobId = createData.job_id;
-    activeJobRef.current = jobId;
-    setJobState({
-      jobId,
-      action: MODE.analyze,
-      status: createData.status || "queued",
-      mode: createData.mode || JOB_MODE.analyze,
-      fromCache: false,
-      error: null,
-    });
-
-    while (activeJobRef.current === jobId) {
-      const statusRes = await fetch(`${API_BASE}/jobs/${jobId}`);
-      const statusData = await statusRes.json();
-
-      if (!statusRes.ok) {
-        throw new Error(statusData.error || "Failed to fetch analyze status.");
-      }
-
-      if (statusData.partial_result) {
-        updateResult(MODE.analyze, statusData.partial_result);
-      }
-
-      setJobState({
-        jobId,
-        action: MODE.analyze,
-        status: statusData.status,
-        mode: statusData.mode,
-        fromCache: statusData.from_cache,
-        error: statusData.error || null,
-      });
-
-      if (statusData.status === "completed") {
-        const resultData = await fetchJobResult(jobId);
-        const result = resultData.result ?? null;
-        updateResult(MODE.analyze, result);
-        void saveAnalysisRecord({
-          jobId,
-          mode: resultData.mode || statusData.mode || JOB_MODE.analyze,
-          url,
-          payload: result,
-          fromCache: Boolean(statusData.from_cache),
-        });
-        setJobState((prev) =>
-          prev && prev.jobId === jobId
-            ? { ...prev, status: "completed", fromCache: statusData.from_cache }
-            : prev,
-        );
-        return;
-      }
-
-      if (statusData.status === "failed") {
-        throw new Error(statusData.error || "Analyze job failed.");
       }
 
       await sleep(POLL_INTERVAL_MS);
@@ -252,11 +202,6 @@ export default function Page() {
     });
 
     try {
-      if (action === MODE.analyze) {
-        await handleProgressiveAnalyze(trimmedText);
-        return;
-      }
-
       const createData = await createJob(trimmedText, action);
       const jobId = createData.job_id;
       activeJobRef.current = jobId;
@@ -269,7 +214,9 @@ export default function Page() {
         error: null,
       });
 
-      await pollJobUntilDone(jobId, action, trimmedText);
+      await pollJobUntilDone(jobId, action, trimmedText, {
+        usePartialResult: action === MODE.analyze,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Job failed.";
       setJobState((prev) => ({

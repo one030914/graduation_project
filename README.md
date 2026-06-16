@@ -232,9 +232,8 @@ See the [Tailscale Funnel CLI documentation](https://tailscale.com/docs/referenc
 | `POST` | `/jobs` | Create an asynchronous analysis job |
 | `GET` | `/jobs/{job_id}` | Read job status and partial results |
 | `GET` | `/jobs/{job_id}/result` | Read the completed result |
-| `POST` | `/queue` | Create a job and wait for its result |
 
-When `INFERENCE_API_SECRET` is configured, `/status`, `/jobs*`, and `/queue` require:
+When `INFERENCE_API_SECRET` is configured, `/status` and `/jobs*` require:
 
 ```http
 Authorization: Bearer <INFERENCE_API_SECRET>

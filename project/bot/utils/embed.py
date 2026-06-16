@@ -203,17 +203,6 @@ def build_keyword_embed(result: KeywordResult) -> discord.Embed:
             inline=False,
         )
 
-    wordcloud_data = getattr(result, "wordcloud_data", []) or []
-    if wordcloud_data:
-        embed.add_field(
-            name="☁️ 文字雲資料",
-            value=(
-                f"已產生 `{len(wordcloud_data)}` 個文字雲詞項，"
-                "可供 Web 前端繪製文字雲。"
-            ),
-            inline=False,
-        )
-
     embed.set_footer(
         text="Keyword Analysis：關鍵詞 count 代表出現於多少則留言中"
     )
@@ -359,8 +348,6 @@ def build_topics_embed(result: TopicsResult) -> discord.Embed:
 # Emotion Embed
 # -------------------------
 
-from bot.utils.chart import build_emotion_radar_chart
-
 EMOTION_ORDER = ["Joy", "Angry", "Sad", "Surprised", "Disgusted", "Neutral"]
 
 EMOTION_DISPLAY_NAMES = {
@@ -407,11 +394,11 @@ def _format_emotion_distribution(result: EmotionResult) -> str:
 
     return "\n".join(lines)
 
-def _format_radar_text(result: EmotionResult) -> str:
+def _format_emotion_ratio_text(result: EmotionResult) -> str:
     radar_data = getattr(result, "radar_data", []) or []
 
     if not radar_data:
-        return "（尚無雷達資料）"
+        return "（尚無情緒比例資料）"
 
     lines = []
     for item in radar_data[:6]:
@@ -459,19 +446,16 @@ def _format_representative_comments(result: EmotionResult, limit_per_emotion: in
 
     return "\n\n".join(lines[:5])
 
-def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.File | None]:
+def build_emotion_embed(result: EmotionResult) -> discord.Embed:
     status = getattr(result, "status", "ok")
     error = getattr(result, "error", None)
     message = getattr(result, "message", None)
 
     if status == "error" or error:
-        return (
-            discord.Embed(
-                title="⚠️ Emotion 分析失敗",
-                description=_clip(error or message or "情緒分析發生未知錯誤。", 4096),
-                color=0xED4245,
-            ),
-            None,
+        return discord.Embed(
+            title="⚠️ Emotion 分析失敗",
+            description=_clip(error or message or "情緒分析發生未知錯誤。", 4096),
+            color=0xED4245,
         )
 
     score = int(getattr(result, "opinion_score", 50) or 50)
@@ -525,8 +509,8 @@ def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.F
     )
 
     embed.add_field(
-        name="🕸️ 雷達圖文字版",
-        value=_clip(_format_radar_text(result), 1024),
+        name="情緒比例摘要",
+        value=_clip(_format_emotion_ratio_text(result), 1024),
         inline=False,
     )
 
@@ -552,7 +536,7 @@ def build_emotion_embed(result: EmotionResult) -> tuple[discord.Embed, discord.F
         )
     )
 
-    return embed, None
+    return embed
 
 # -------------------------
 # Criticism Embed
@@ -947,7 +931,7 @@ def build_timeline_embed(result: TimelineResult) -> discord.Embed:
 
     embed.set_footer(
         text=(
-            "Timeline Analysis：series / chart_data 可供 Web 前端繪製時間軸曲線。"
+            "Timeline Analysis：統計留言中被觀眾主動提及的影片時間點。"
         )
     )
 

@@ -24,7 +24,7 @@ export function CriticismChart({ data = [] }) {
 
   return (
     <section className="rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.36)] ring-1 ring-indigo-300/5 backdrop-blur-md">
-      <h3 className="text-xl font-black tracking-normal">批評與改善比例</h3>
+      <h3 className="text-xl font-black tracking-normal text-indigo-200">批評與改善比例</h3>
 
       <div className="mt-6 space-y-3">
         {chartData.map((item, index) => {

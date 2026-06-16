@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
 from configs.schema import AnalyzeResult, CommentDataset
@@ -15,6 +16,8 @@ from pipeline.video_content import build_video_content
 from agents.analyze_agent import AnalyzeAgent
 
 from scripts.timestamp import Timer
+
+logger = logging.getLogger(__name__)
 
 def _calc_opinion_score(emotion_result) -> int:
     if not emotion_result or not getattr(emotion_result, "stats", None):
@@ -462,7 +465,8 @@ def _build_analyze_result(
 
 def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None = None) -> AnalyzeResult:
     timer = Timer()
-    
+
+    # 時間軸需要保留重複留言中的時間戳訊號；其他分析則使用去重後資料避免同一句話放大權重。
     timeline_dataset = collect_comments(
         url,
         pages=15,
@@ -513,6 +517,7 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
     }
 
     def publish_partial() -> None:
+        # 綜合分析耗時較長，先把已完成的子分析包成同一種 AnalyzeResult 給前端漸進顯示。
         if on_partial is None:
             return
         on_partial(
@@ -566,27 +571,13 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
     try:
         video_content = build_video_content(url)
     except Exception as exc:
-        print(f"VideoContent failed: {exc}")
+        logger.exception("Video content analysis failed: %s", exc)
     pending_sources.discard("video_content")
     timer.mark("build_video_content")
     publish_partial()
 
-    title = (
-        dataset.title
-        or getattr(emotion, "title", "")
-        or getattr(topics, "title", "")
-        or getattr(summary, "title", "")
-        or getattr(keyword, "title", "")
-        or getattr(criticism, "title", "")
-        or getattr(timeline, "title", "")
-    )
-
-    video_id = dataset.video_id
     score = _calc_opinion_score(emotion)
     opinion_label = getattr(emotion, "opinion_label", "") or _opinion_label(score)
-
-    top_topics = _build_top_topics(topics, limit=5)
-    top_hotspot = _build_top_hotspot(timeline)
 
     data_sources = _collect_data_sources(
         summary=summary,
@@ -733,68 +724,26 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
         viewer_tips = agent_result.get("viewer_tips") or viewer_tips
 
     except Exception as e:
-        print(f"AnalyzeAgent failed, fallback to rule-based result: {e}")
+        logger.exception("AnalyzeAgent failed, fallback to rule-based result: %s", e)
         
     timer.mark("analyze_agent")
 
-    dominant = getattr(emotion, "dominant_emotion", {}) or {}
-    main_emotion = (
-        dominant.get("display_name")
-        or dominant.get("label")
-        or ""
-    )
-    
-    dashboard_data = _build_dashboard_data(
+    logger.info("Analyze timing report:\n%s", timer.report())
+    logger.info("Analyze total time: %s seconds", timer.total())
+
+    return _build_analyze_result(
+        url=url,
+        dataset=dataset,
+        summary=summary,
+        keyword=keyword,
         emotion=emotion,
         topics=topics,
-        keyword=keyword,
-        timeline=timeline,
         criticism=criticism,
+        timeline=timeline,
         video_content=video_content,
-        score=score,
-        opinion_label=opinion_label,
-        main_emotion=main_emotion,
-    )
-    
-    print("=== DASHBOARD DATA PREVIEW ===")
-    print("dashboard_data keys:", dashboard_data.keys())
-    print("emotion chart:", len(dashboard_data["emotion"]["chart_data"]))
-    print("topics chart:", len(dashboard_data["topics"]["chart_data"]))
-    print("timeline chart:", len(dashboard_data["timeline"]["chart_data"]))
-    print("keyword wordcloud:", len(dashboard_data["keyword"]["wordcloud_data"]))
-    
-    print("=== ANALYZE TIMING REPORT ===")
-    print(timer.report())
-    print(f"Total time: {timer.total()} seconds")
-    
-
-    return AnalyzeResult(
-        video_id=video_id,
-        title=title,
-        url=url,
-
+        tags=tags,
+        quick_summary=quick_summary,
+        creator_actions=creator_actions,
+        viewer_tips=viewer_tips,
         status="ok",
-        message=None,
-
-        total_comments=len(dataset.df),
-
-        public_opinion_score=score,
-        opinion_label=opinion_label,
-
-        main_emotion=main_emotion,
-        timeline_status=getattr(timeline, "status", ""),
-
-        tags=_dedup(tags + getattr(keyword, "top_tags", [])[:5], limit=8),
-        quick_summary=_dedup(quick_summary, limit=5),
-
-        top_topics=_dedup(top_topics, limit=5),
-        top_hotspot=top_hotspot,
-
-        creator_actions=_dedup(creator_actions, limit=5),
-        viewer_tips=_dedup(viewer_tips, limit=5),
-
-        data_sources=data_sources,
-        data_quality=data_quality,
-        
-        dashboard_data=dashboard_data,
     )

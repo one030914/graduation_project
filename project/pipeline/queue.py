@@ -21,19 +21,32 @@ from pipeline.video_content import build_video_content
 from pipeline.criticism import analyze_comment_criticism
 from pipeline.timeline import build_timeline
 from pipeline.dependencies import check_analysis_dependencies
+from configs.analysis_modes import SUPPORTED_JOB_MODES
 
 _yt_api = API()
 
 DEFAULT_CACHE_LIMITS_BY_MODE = {
+    **{mode: 50 for mode in SUPPORTED_JOB_MODES},
     "analyze": 10,
     "topics": 20,
     "video_content": 20,
-    "summary": 50,
-    "keyword": 50,
-    "emotion": 50,
-    "criticism": 50,
-    "timeline": 50,
     "default": 50,
+}
+
+def _build_analyze_with_partial(url: str, on_partial):
+    return build_analyze(url, on_partial=on_partial)
+
+
+# 新增分析模式時只需補這張表與依賴檢查，避免 worker 裡散落多段 if/elif。
+JOB_RUNNERS = {
+    "summary": build_summary,
+    "keyword": build_keyword,
+    "topics": build_topics,
+    "emotion": build_emotion,
+    "video_content": build_video_content,
+    "criticism": analyze_comment_criticism,
+    "timeline": build_timeline,
+    "analyze": _build_analyze_with_partial,
 }
 
 
@@ -111,6 +124,7 @@ class AnalysisQueue:
 
         # video_id -> asyncio.Lock (同影片只跑一次)
         self._locks: Dict[str, asyncio.Lock] = {}
+        self._lock_ref_counts: Dict[str, int] = {}
 
         # job_id -> JobStatus / Future / running event
         self._job_status: Dict[str, JobStatus] = {}
@@ -150,7 +164,19 @@ class AnalysisQueue:
         if lock is None:
             lock = asyncio.Lock()
             self._locks[key] = lock
+        self._lock_ref_counts[key] = self._lock_ref_counts.get(key, 0) + 1
         return lock
+
+    def _release_lock_ref(self, key: str) -> None:
+        ref_count = self._lock_ref_counts.get(key, 0) - 1
+        if ref_count > 0:
+            self._lock_ref_counts[key] = ref_count
+            return
+
+        self._lock_ref_counts.pop(key, None)
+        lock = self._locks.get(key)
+        if lock is not None and not lock.locked():
+            self._locks.pop(key, None)
 
     def _get_cached(self, key: str) -> Optional[object]:
         mode = self._mode_from_key(key)
@@ -408,6 +434,7 @@ class AnalysisQueue:
 
         while not self._stop_event.is_set():
             job = await self.queue.get()
+            lock_key = None
             try:
                 # 1) cache 命中就直接回
                 cached_key = self._key(job.video_id, job.mode)
@@ -418,7 +445,8 @@ class AnalysisQueue:
                     continue
 
                 # 2) 同影片去重：同一 video_id 同時只允許一個 worker 做
-                lock = self._get_lock(cached_key)
+                lock_key = cached_key
+                lock = self._get_lock(lock_key)
                 async with lock:
                     # double-check cache（可能另一個 worker 已算完）
                     cached2 = self._get_cached(cached_key)
@@ -440,31 +468,18 @@ class AnalysisQueue:
 
                     def _run():
                         check_analysis_dependencies(job.mode)
+                        runner = JOB_RUNNERS.get(job.mode, JOB_RUNNERS["analyze"])
 
-                        if job.mode == "summary":
-                            return build_summary(job.url)
-                        elif job.mode == "keyword":
-                            return build_keyword(job.url)
-                        elif job.mode == "topics":
-                            return build_topics(job.url)
-                        elif job.mode == "emotion":
-                            return build_emotion(job.url)
-                        elif job.mode == "video_content":
-                            return build_video_content(job.url)
-                        elif job.mode == "criticism":
-                            return analyze_comment_criticism(job.url)
-                        elif job.mode == "timeline":
-                            return build_timeline(job.url)
-                        elif job.mode == "analyze":
-                            def _on_partial(partial_result):
-                                partial_status = self._job_status.get(job.job_id)
-                                if partial_status and partial_status.status == "running":
-                                    partial_status.updated_at = datetime.utcnow()
-                                    partial_status.result = partial_result
+                        if job.mode != "analyze":
+                            return runner(job.url)
 
-                            return build_analyze(job.url, on_partial=_on_partial)
-                        
-                        return build_analyze(job.url)
+                        def _on_partial(partial_result):
+                            partial_status = self._job_status.get(job.job_id)
+                            if partial_status and partial_status.status == "running":
+                                partial_status.updated_at = datetime.utcnow()
+                                partial_status.result = partial_result
+
+                        return runner(job.url, _on_partial)
 
                     executor_future = loop.run_in_executor(None, _run)
                     self._running_executor_futures[job.job_id] = executor_future
@@ -504,4 +519,6 @@ class AnalysisQueue:
                 active_key = self._key(job.video_id, job.mode)
                 if self._active_jobs_by_key.get(active_key) == job.job_id:
                     self._active_jobs_by_key.pop(active_key, None)
+                if lock_key is not None:
+                    self._release_lock_ref(lock_key)
                 self.queue.task_done()

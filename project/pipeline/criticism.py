@@ -92,21 +92,50 @@ def _build_action_items(
     limit: int = 5,
 ) -> list[str]:
     """
-    給 /analyze 使用的初步行動項目。
-    優先使用 suggestions，其次從 discontent_reasons 補。
+    將觀眾建議轉成創作者可執行的任務，避免和 suggestions 原文重複。
     """
     items = []
+    seen = set()
 
-    for item in suggestions:
-        text = str(item or "").strip()
-        if text:
-            items.append(text)
+    suggestion_patterns = [
+        ("提升", "規劃一輪品質檢查與優化，優先處理：{text}"),
+        ("優化", "安排功能與體驗優化，聚焦在：{text}"),
+        ("增加", "評估新增需求的可行性與優先級：{text}"),
+        ("提供", "補充更清楚的說明或設定選項：{text}"),
+        ("希望", "將觀眾需求整理成待辦項目並排入後續規劃：{text}"),
+        ("建議", "把觀眾建議轉成可驗收的改善項目：{text}"),
+    ]
+
+    def add_action(text: str) -> None:
+        text = str(text or "").strip(" 。")
+        if not text:
+            return
+
+        key = text.casefold()
+        if key in seen:
+            return
+
+        seen.add(key)
+        items.append(text)
+
+    for suggestion in suggestions:
+        text = str(suggestion or "").strip()
+        if not text:
+            continue
+
+        action = ""
+        for marker, template in suggestion_patterns:
+            if marker in text:
+                action = template.format(text=text)
+                break
+
+        add_action(action or f"把觀眾建議拆成具體改版任務：{text}")
 
     if len(items) < limit:
         for reason in discontent_reasons:
             text = str(reason or "").strip()
             if text:
-                items.append(f"針對觀眾不滿原因補充說明：{text}")
+                add_action(f"針對不滿原因設計補充說明或修正方案：{text}")
 
             if len(items) >= limit:
                 break

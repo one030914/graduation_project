@@ -266,9 +266,8 @@ Tailscale Funnel 指令與限制請參考 [Tailscale 官方文件](https://tails
 | `POST` | `/jobs` | 建立非同步分析工作 |
 | `GET` | `/jobs/{job_id}` | 查詢工作狀態與部分結果 |
 | `GET` | `/jobs/{job_id}/result` | 取得完成結果 |
-| `POST` | `/queue` | 建立工作並等待結果，保留相容用途 |
 
-當 `INFERENCE_API_SECRET` 有設定時，`/status`、`/jobs*` 與 `/queue` 都需要：
+當 `INFERENCE_API_SECRET` 有設定時，`/status` 與 `/jobs*` 都需要：
 
 ```http
 Authorization: Bearer <INFERENCE_API_SECRET>

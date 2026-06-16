@@ -24,6 +24,19 @@ function fmtPercent(value) {
   return `${((Number(value) || 0) * 100).toFixed(1)}%`;
 }
 
+function uniqueAgainst(items, compareItems) {
+  const compareSet = new Set(
+    (compareItems ?? [])
+      .map((item) => String(item || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  return (items ?? []).filter((item) => {
+    const text = String(item || "").trim();
+    return text && !compareSet.has(text.toLowerCase());
+  });
+}
+
 export function CriticismResultView({ result }) {
   if (!result) return null;
 
@@ -38,7 +51,7 @@ export function CriticismResultView({ result }) {
   const mainCriticisms = result.main_criticisms ?? [];
   const reasons = result.discontent_reasons ?? [];
   const suggestions = result.suggestions ?? [];
-  const actionItems = result.action_items ?? [];
+  const actionItems = uniqueAgainst(result.action_items ?? [], suggestions);
   const chartData = result.chart_data ?? [];
 
   return (

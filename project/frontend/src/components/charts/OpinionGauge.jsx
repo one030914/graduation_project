@@ -38,7 +38,7 @@ export function OpinionGauge({ score = 0 }) {
 
   return (
     <section className="min-h-[390px] rounded-2xl border border-white/10 bg-[#070d20]/90 p-7 text-white shadow-[0_22px_60px_rgba(2,6,23,0.4)] ring-1 ring-indigo-300/5 backdrop-blur-md">
-      <h3 className="text-2xl font-black tracking-normal">輿情溫度計</h3>
+      <h3 className="text-2xl font-black tracking-normal text-indigo-200">輿情溫度計</h3>
 
       <div className="mt-9 flex flex-col items-center">
         <div className="h-48 w-full max-w-[480px]">

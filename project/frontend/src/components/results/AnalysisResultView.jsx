@@ -6,21 +6,27 @@ import { OpinionGauge } from "@/components/charts/OpinionGauge";
 import { TopicsBarChart } from "@/components/charts/TopicsBarChart";
 import { TimelineLineChart } from "@/components/charts/TimelineLineChart";
 import { EmotionRadarChart } from "@/components/charts/EmotionRadarChart";
-import { CriticismChart } from "@/components/charts/CriticismChart";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
+import { KeywordWordCloud } from "@/components/charts/KeywordWordCloud";
 import { VideoChapterTimeline } from "@/components/charts/VideoChapterTimeline";
 import { FallbackText, ResultFooter, ResultHeader } from "@/components/results/ResultCards";
 
-function TextCard({ title, children, tone = "indigo", className = "" }) {
-  const titleClass = tone === "amber" ? "text-amber-200" : "text-indigo-200";
-
+function TextCard({ title, children, className = "" }) {
   return (
     <section
       className={`rounded-2xl border border-white/10 bg-[#070d20]/90 p-6 text-white shadow-[0_18px_48px_rgba(2,6,23,0.3)] ring-1 ring-indigo-300/5 backdrop-blur-md ${className}`}
     >
-      <h3 className={`text-xl font-black tracking-normal ${titleClass}`}>{title}</h3>
+      <h3 className="text-xl font-black tracking-normal text-indigo-200">{title}</h3>
       <div className="mt-4 text-base font-semibold leading-8 text-white/72">{children}</div>
     </section>
+  );
+}
+
+function LargeListText({ items }) {
+  return (
+    <p className="whitespace-pre-line text-lg font-black leading-9 text-white/78">
+      {fmtList(items)}
+    </p>
   );
 }
 
@@ -46,6 +52,55 @@ function SkeletonChart() {
         <div className="h-10 rounded-xl bg-white/10" />
         <div className="h-10 rounded-xl bg-white/10" />
       </div>
+    </div>
+  );
+}
+
+function SkeletonActionCard() {
+  return (
+    <div className="animate-pulse space-y-4" aria-hidden="true">
+      <div className="h-4 w-full rounded-full bg-white/10" />
+      <div className="h-4 w-11/12 rounded-full bg-white/10" />
+      <div className="h-4 w-10/12 rounded-full bg-white/10" />
+      <div className="h-4 w-4/5 rounded-full bg-white/10" />
+    </div>
+  );
+}
+
+function SkeletonKeywordCloud() {
+  return (
+    <div className="animate-pulse space-y-4" aria-hidden="true">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-3">
+          <div className="h-6 w-24 rounded-full bg-white/10" />
+          <div className="h-4 w-44 rounded-full bg-white/10" />
+          <div className="flex gap-2">
+            <div className="h-7 w-20 rounded-full bg-white/10" />
+            <div className="h-7 w-20 rounded-full bg-white/10" />
+            <div className="h-7 w-28 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <div className="h-16 w-20 rounded-xl bg-white/10" />
+      </div>
+      <div className="relative h-[400px] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045]">
+        <div className="absolute left-[38%] top-[38%] h-12 w-36 rounded-full bg-white/12" />
+        <div className="absolute left-[22%] top-[52%] h-8 w-24 rounded-full bg-white/10" />
+        <div className="absolute left-[56%] top-[50%] h-9 w-28 rounded-full bg-white/10" />
+        <div className="absolute left-[44%] top-[62%] h-7 w-20 rounded-full bg-white/8" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonKeywordPair() {
+  return (
+    <div className="grid items-stretch gap-5 xl:grid-cols-2">
+      <TextCard title="熱門關鍵詞">
+        <SkeletonChart />
+      </TextCard>
+      <TextCard title="文字雲">
+        <SkeletonKeywordCloud />
+      </TextCard>
     </div>
   );
 }
@@ -243,6 +298,10 @@ export function AnalysisResultView({ result }) {
     const emotionDashboard = dashboardData.emotion ?? {};
     const criticismDashboard = dashboardData.criticism ?? {};
     const keywordDashboard = dashboardData.keyword ?? {};
+    const keywordChartData = keywordDashboard.chart_data ?? [];
+    const keywordWordCloudData = (keywordDashboard.wordcloud_data ?? []).length > 0
+      ? keywordDashboard.wordcloud_data
+      : keywordChartData;
     const videoContentDashboard = dashboardData.video_content ?? {};
     const isSourceLoading = (key) => isLoadingStatus(dataSources[key]);
 
@@ -322,7 +381,7 @@ export function AnalysisResultView({ result }) {
             </div>
           </section>
 
-          {/* 情緒心理圖譜 + 批評與改善比例 */}
+          {/* 情緒心理圖譜 + 創作者行動 */}
           <div className="grid gap-5 lg:grid-cols-2">
             {(emotionDashboard.chart_data ?? []).length > 0 ? (
               <EmotionRadarChart data={emotionDashboard.chart_data ?? []} />
@@ -336,30 +395,62 @@ export function AnalysisResultView({ result }) {
               </TextCard>
             )}
 
-            {(criticismDashboard.chart_data ?? []).length > 0 ? (
-              <CriticismChart data={criticismDashboard.chart_data ?? []} />
-            ) : (
-              <TextCard title="批評與改善比例">
-                {isSourceLoading("criticism") ? (
-                  <SkeletonChart />
-                ) : (
-                  <FallbackText>目前沒有可繪製的批評圖表資料。</FallbackText>
-                )}
-              </TextCard>
-            )}
-          </div>
+            <TextCard title="觀眾改進建議與創作者行動">
+              {(criticismDashboard.suggestions ?? []).length > 0 || creatorActions.length > 0 ? (
+                <div className="space-y-6">
+                  {(criticismDashboard.suggestions ?? []).length > 0 && (
+                    <div>
+                      <h4 className="text-base font-black tracking-normal text-white/52">觀眾提出的改進建議</h4>
+                      <div className="mt-3">
+                        <LargeListText items={criticismDashboard.suggestions} />
+                      </div>
+                    </div>
+                  )}
 
-          {/* 熱門關鍵詞 */}
-          {(keywordDashboard.chart_data ?? []).length > 0 ? (
-            <KeywordBarChart data={keywordDashboard.chart_data ?? []} />
-          ) : (
-            <TextCard title="熱門關鍵詞">
-              {isSourceLoading("keyword") ? (
-                <SkeletonChart />
+                  {creatorActions.length > 0 && (
+                    <div>
+                      <h4 className="text-base font-black tracking-normal text-white/52">可轉換為創作者行動</h4>
+                      <div className="mt-3">
+                        <LargeListText items={creatorActions} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : isSourceLoading("criticism") ? (
+                <SkeletonActionCard />
               ) : (
-                <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+                <FallbackText>目前沒有觀眾改進建議或可轉換為創作者行動的資料。</FallbackText>
               )}
             </TextCard>
+          </div>
+
+          {/* 熱門關鍵詞 + 文字雲 */}
+          {keywordChartData.length > 0 || keywordWordCloudData.length > 0 ? (
+            <div className="grid items-stretch gap-5 xl:grid-cols-2">
+              {keywordChartData.length > 0 ? (
+                <KeywordBarChart data={keywordChartData} compact />
+              ) : (
+                <TextCard title="熱門關鍵詞">
+                  <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+                </TextCard>
+              )}
+
+              {keywordWordCloudData.length > 0 ? (
+                <KeywordWordCloud data={keywordWordCloudData} compact />
+              ) : (
+                <TextCard title="文字雲">
+                  <FallbackText>目前沒有可產生文字雲的關鍵詞資料。</FallbackText>
+                </TextCard>
+              )}
+            </div>
+          ) : (
+            isSourceLoading("keyword") ? (
+              <SkeletonKeywordPair />
+            ) : (
+              <TextCard title="熱門關鍵詞">
+                <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+              </TextCard>
+            )
           )}
 
           {/* 留言時間軸熱點 */}

@@ -2,6 +2,7 @@
 
 import { clip, fmtKeywords } from "@/lib/analysisFormat";
 import { KeywordBarChart } from "@/components/charts/KeywordBarChart";
+import { KeywordWordCloud } from "@/components/charts/KeywordWordCloud";
 import { FallbackText, InfoTile, ResultCard, ResultFooter, ResultShell } from "@/components/results/ResultCards";
 
 function fmtPercent(value) {
@@ -24,6 +25,7 @@ export function KeywordResultView({ result }) {
   const keywordsZh = result.keywords_zh ?? [];
   const keywordsEn = result.keywords_en ?? [];
   const wordcloudData = result.wordcloud_data ?? [];
+  const wordCloudSource = wordcloudData.length > 0 ? wordcloudData : chartData;
 
   return (
     <ResultShell
@@ -57,13 +59,23 @@ export function KeywordResultView({ result }) {
         )}
       </ResultCard>
 
-      {chartData.length > 0 ? (
-        <KeywordBarChart data={chartData} />
-      ) : (
-        <ResultCard title="熱門關鍵詞圖表">
-          <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
-        </ResultCard>
-      )}
+      <div className="grid items-stretch gap-5 xl:grid-cols-2">
+        {chartData.length > 0 ? (
+          <KeywordBarChart data={chartData} compact />
+        ) : (
+          <ResultCard title="熱門關鍵詞圖表">
+            <FallbackText>目前沒有可繪製的關鍵詞圖表資料。</FallbackText>
+          </ResultCard>
+        )}
+
+        {wordCloudSource.length > 0 ? (
+          <KeywordWordCloud data={wordCloudSource} compact />
+        ) : (
+          <ResultCard title="文字雲">
+            <FallbackText>目前沒有可產生文字雲的關鍵詞資料。</FallbackText>
+          </ResultCard>
+        )}
+      </div>
 
       <ResultCard title="熱門關鍵詞分布">
         {chartData.length > 0 ? (
@@ -95,7 +107,7 @@ export function KeywordResultView({ result }) {
         {keywordsEn.length > 0 ? <p>{fmtKeywords(keywordsEn)}</p> : <FallbackText>No English keyword data is available.</FallbackText>}
       </ResultCard>
 
-      <ResultFooter>文字雲資料：{wordcloudData.length} 個詞項，可供後續圖表顯示。</ResultFooter>
+      <ResultFooter>文字雲依關鍵詞出現留言數調整大小，共 {wordCloudSource.length} 個詞項。</ResultFooter>
     </ResultShell>
   );
 }

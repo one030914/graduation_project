@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from configs.analysis_modes import SUPPORTED_JOB_MODES
 from configs.schema import Req
 from pipeline.queue import AnalysisQueue, AnalysisQueueFull
 
@@ -29,25 +30,28 @@ async def lifespan(app: FastAPI):
     await wq.stop()
 
 app = FastAPI(title="YouTube Comment Analyzer API", lifespan=lifespan)
-ALLOWED_JOB_MODES = {
-    "analyze",
-    "summary",
-    "keyword",
-    "topics",
-    "emotion",
-    "video_content",
-    "criticism",
-    "timeline",
-}
-
 inference_api_secret = os.getenv("INFERENCE_API_SECRET", "")
+PROTECTED_PATHS = {"/jobs", "/status"}
+
+
+class InvalidJobMode(ValueError):
+    pass
+
+
+def _is_protected_path(path: str) -> bool:
+    return path in PROTECTED_PATHS or path.startswith("/jobs/")
+
+
+def _validate_job_mode(mode: str) -> str:
+    if mode not in SUPPORTED_JOB_MODES:
+        available = ", ".join(sorted(SUPPORTED_JOB_MODES))
+        raise InvalidJobMode(f"無效的 job_mode: {mode}. 可用值: {available}")
+
+    return mode
 
 @app.middleware("http")
 async def verify_inference_api_secret(request: Request, call_next):
-    protected_path = request.url.path in {"/queue", "/jobs", "/status"}
-    protected_path = protected_path or request.url.path.startswith("/jobs/")
-
-    if inference_api_secret and protected_path:
+    if inference_api_secret and _is_protected_path(request.url.path):
         authorization = request.headers.get("Authorization", "")
         scheme, _, token = authorization.partition(" ")
         if scheme.lower() != "bearer" or not hmac.compare_digest(token, inference_api_secret):
@@ -57,6 +61,11 @@ async def verify_inference_api_secret(request: Request, call_next):
             )
 
     return await call_next(request)
+
+
+@app.exception_handler(InvalidJobMode)
+async def invalid_job_mode_handler(request: Request, exc: InvalidJobMode):
+    return JSONResponse({"error": str(exc)}, status_code=400)
 
 @app.get("/")
 def root():
@@ -76,40 +85,11 @@ def status(request: Request):
         "workers": wq.workers,
     }
 
-# ----------------------
-# POST: 經佇列的分析
-# ----------------------
-@app.post("/queue")
-async def queue(req: Req, request: Request):
-    """經 AnalysisQueue 執行；行為對齊 bot/cogs/slash.py 的 mode 呼叫方式。"""
-    wq = request.app.state.web_queue
-    video_url = req.video_url
-    mode = req.job_mode
-    if mode not in ALLOWED_JOB_MODES:
-        return JSONResponse(
-            {"error": f"無效的 job_mode: {mode}. 可用值: {sorted(ALLOWED_JOB_MODES)}"},
-            status_code=400,
-        )
-    try:
-        job_id = await wq.submit(video_url, mode=mode)
-        # 等待任務完成
-        result = await wq.wait_for_result(job_id, timeout=30)
-        return {"result": result}
-    except AnalysisQueueFull as e:
-        return JSONResponse({"error": str(e)}, status_code=429)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
 @app.post("/jobs")
 async def create_job(req: Req, request: Request):
     """建立 queue job，回傳 job_id 供前端輪詢。"""
     wq = request.app.state.web_queue
-    mode = req.job_mode
-    if mode not in ALLOWED_JOB_MODES:
-        return JSONResponse(
-            {"error": f"無效的 job_mode: {mode}. 可用值: {sorted(ALLOWED_JOB_MODES)}"},
-            status_code=400,
-        )
+    mode = _validate_job_mode(req.job_mode)
     try:
         job_id = await wq.submit(req.video_url, mode=mode)
         status = wq.get_status(job_id) or {}

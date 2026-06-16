@@ -5,21 +5,7 @@ import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-REQUIRED_YOUTUBE_MODES = {
-    "analyze",
-    "summary",
-    "keyword",
-    "topics",
-    "emotion",
-    "video_content",
-    "criticism",
-    "timeline",
-}
-
-REQUIRED_OLLAMA_MODES = {
-    "analyze",
-    "video_content",
-}
+from configs.analysis_modes import OLLAMA_REQUIRED_MODES, YOUTUBE_REQUIRED_MODES
 
 PLACEHOLDER_VALUES = {
     "",
@@ -79,10 +65,10 @@ def check_analysis_dependencies(mode: str) -> None:
     normalized_mode = str(mode or "analyze").strip()
     errors: list[str] = []
 
-    if normalized_mode in REQUIRED_YOUTUBE_MODES:
+    if normalized_mode in YOUTUBE_REQUIRED_MODES:
         _check_youtube_api_key(errors)
 
-    if normalized_mode in REQUIRED_OLLAMA_MODES:
+    if normalized_mode in OLLAMA_REQUIRED_MODES:
         _check_ollama(errors)
 
     if errors:
