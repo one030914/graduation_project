@@ -22,6 +22,13 @@ def get_topic_language(df) -> str:
         return "mixed"
     return "zh" if zh >= en else "en"
 
+def _candidate_topic_language(df) -> str:
+    supported = df[df["language"].isin(("zh", "en"))].copy()
+    supported = supported[
+        supported["clean_text"].astype(str).str.strip().ne("")
+    ]
+    return get_topic_language(supported)
+
 def _build_topic_name(keywords: list[str], fallback: str = "未命名主題") -> str:
     words = [str(w).strip() for w in keywords if str(w).strip()]
 
@@ -43,6 +50,10 @@ def _prepare_topic_comments(df):
     supported = df[df["language"].isin(("zh", "en"))].copy()
     supported = supported[
         supported["clean_text"].astype(str).str.strip().ne("")
+    ]
+    supported = supported[
+        (supported["language"] != "en")
+        | (supported["clean_text"].astype(str).str.strip().str.len() >= 6)
     ]
     supported = supported[
         ~supported["clean_text"].astype(str).str.lower().isin(
@@ -213,11 +224,24 @@ def build_topics_from_dataset(comments) -> TopicsResult:
             error="No comments found",
         )
 
+    topic_language = _candidate_topic_language(df)
     df_supported = _prepare_topic_comments(df)
-    topic_language = get_topic_language(df_supported)
 
     analyzed_comments = len(df_supported)
     filtered_comments = max(0, len(df) - analyzed_comments)
+
+    if topic_language == "unknown":
+        return TopicsResult(
+            url=comments.url,
+            title=comments.title,
+            total_comments=len(df),
+            analyzed_comments=analyzed_comments,
+            filtered_comments=filtered_comments,
+            language=topic_language,
+            status="error",
+            message="Cannot analyze this language",
+            error="Cannot analyze this language",
+        )
 
     if analyzed_comments < MIN_TOPIC_COMMENTS:
         return TopicsResult(
@@ -232,19 +256,6 @@ def build_topics_from_dataset(comments) -> TopicsResult:
                 f"可分析留言數僅 {analyzed_comments} 則，"
                 f"至少需要 {MIN_TOPIC_COMMENTS} 則才能形成較穩定主題。"
             ),
-        )
-
-    if topic_language == "unknown":
-        return TopicsResult(
-            url=comments.url,
-            title=comments.title,
-            total_comments=len(df),
-            analyzed_comments=analyzed_comments,
-            filtered_comments=filtered_comments,
-            language=topic_language,
-            status="error",
-            message="Cannot analyze this language",
-            error="Cannot analyze this language",
         )
 
     topics: list[TopicCluster] = []
@@ -268,10 +279,9 @@ def build_topics_from_dataset(comments) -> TopicsResult:
 
     topics = _enrich_topics(topics)
     topics.sort(key=lambda topic: topic.size, reverse=True)
-    clustered_total = sum(topic.size for topic in topics)
     for cluster_id, topic in enumerate(topics):
         topic.cluster_id = cluster_id
-        topic.ratio = topic.size / max(1, clustered_total)
+        topic.ratio = topic.size / max(1, analyzed_comments)
 
     quality = _calc_topic_quality(
         analyzed_comments=analyzed_comments,

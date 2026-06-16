@@ -47,14 +47,19 @@ def build_topics_en(df_lang: pd.DataFrame) -> List[TopicCluster]:
         cluster_comments = [comments[i] for i in idxs]
 
         joined = ". ".join(cluster_comments)
-        kws = kw_model.extract_keywords(
-            joined,
-            keyphrase_ngram_range=(1, 1),
-            top_n=8,
-            stop_words="english",
-            use_mmr=True,
-            diversity=0.5,
-        )
+        try:
+            kws = kw_model.extract_keywords(
+                joined,
+                keyphrase_ngram_range=(1, 1),
+                top_n=8,
+                stop_words="english",
+                use_mmr=True,
+                diversity=0.5,
+            )
+        except ValueError as exc:
+            if "empty vocabulary" not in str(exc).lower():
+                raise
+            kws = []
         keywords = [
             word
             for word, _ in kws

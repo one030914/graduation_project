@@ -70,7 +70,13 @@ export function TopicsResultView({ result }) {
   const chartData = result.chart_data ?? [];
   const topics = result.topics ?? [];
   const languageLabel =
-    result.language === "zh" ? "中文" : result.language === "en" ? "英文" : "中英混合";
+    result.language === "zh"
+      ? "中文"
+      : result.language === "en"
+        ? "英文"
+        : result.language === "mixed"
+          ? "中英混合"
+          : "不支援";
   const coverageRatio = Number(result.coverage_ratio || 0);
   const coverageLabel = `${(coverageRatio * 100).toFixed(1)}%`;
   const analyzedCount = Number(result.analyzed_comments ?? 0);

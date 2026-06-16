@@ -8,10 +8,11 @@ MAX_TOPIC_SIZE = 20
 
 
 def get_min_topic_size(comment_count: int) -> int:
-    return max(
+    target = max(
         MIN_TOPIC_SIZE,
         min(MAX_TOPIC_SIZE, round(comment_count * 0.01)),
     )
+    return min(max(1, comment_count), target)
 
 
 def build_topic_clusterer(comment_count: int) -> hdbscan.HDBSCAN:
