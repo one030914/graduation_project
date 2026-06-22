@@ -304,6 +304,8 @@ export function AnalysisResultView({ result }) {
       : keywordChartData;
     const videoContentDashboard = dashboardData.video_content ?? {};
     const isSourceLoading = (key) => isLoadingStatus(dataSources[key]);
+    const isAnalyzeLoading = isLoadingStatus(result.status);
+    const isQuickSummaryLoading = isAnalyzeLoading || isSourceLoading("summary");
 
     return (
       <article className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.32)] ring-1 ring-indigo-300/5 backdrop-blur-md sm:p-7">
@@ -362,7 +364,7 @@ export function AnalysisResultView({ result }) {
             <div className="mt-4 text-base font-semibold leading-8 text-white/72">
               {quickSummary.length > 0 ? (
                 <p className="whitespace-pre-line">{fmtList(quickSummary)}</p>
-              ) : isSourceLoading("summary") ? (
+              ) : isQuickSummaryLoading ? (
                 <SkeletonLines lines={4} />
               ) : (
                 <FallbackText>目前沒有 AI 智慧快報資料。</FallbackText>
