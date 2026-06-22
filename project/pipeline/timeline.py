@@ -52,6 +52,20 @@ def _safe_int(value) -> int:
         return int(value)
     except Exception:
         return 0
+
+def _coerce_duration_seconds(value) -> int | None:
+    if value is None:
+        return None
+
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    if seconds < 0:
+        return None
+
+    return seconds
     
 def _one_line(text: str, limit: int = 160) -> str:
     text = "" if text is None else str(text)
@@ -238,6 +252,9 @@ def build_timeline_from_dataset(
     buckets = defaultdict(list)
     timestamp_comment_ids = set()
     total_timestamp_mentions = 0
+    duration_seconds = _coerce_duration_seconds(
+        getattr(comments, "duration_seconds", None)
+    )
 
     for index, row in df.iterrows():
         timestamps = row.get("timestamps") or []
@@ -251,7 +268,7 @@ def build_timeline_from_dataset(
             continue
 
         comment_id = row.get("comment_id") or str(index)
-        timestamp_comment_ids.add(comment_id)
+        has_valid_timestamp = False
 
         for ts in timestamps:
             seconds = _safe_int(ts.get("seconds", 0))
@@ -259,9 +276,16 @@ def build_timeline_from_dataset(
             if seconds < 0:
                 continue
 
+            if duration_seconds is not None and seconds > duration_seconds:
+                continue
+
             b = bucket_seconds(seconds, bucket_size=bucket_size)
             buckets[b].append(raw_text)
             total_timestamp_mentions += 1
+            has_valid_timestamp = True
+
+        if has_valid_timestamp:
+            timestamp_comment_ids.add(comment_id)
 
     timestamp_comment_count = len(timestamp_comment_ids)
     timestamp_comment_ratio = timestamp_comment_count / max(1, len(df))

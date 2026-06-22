@@ -494,6 +494,7 @@ def build_analyze(url: str, on_partial: Callable[[AnalyzeResult], None] | None =
         title=timeline_dataset.title,
         url=timeline_dataset.url,
         df=timeline_dataset.df.drop_duplicates(subset=["clean_text"]).copy(),
+        duration_seconds=getattr(timeline_dataset, "duration_seconds", None),
         error=None,
     )
     timer.mark("prepare_analysis_dataset")

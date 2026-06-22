@@ -34,6 +34,7 @@ def collect_comments(
 
     info = api.get_video_info(video_id)
     title = (info or {}).get("title") or video_id
+    duration_seconds = (info or {}).get("duration_seconds")
 
     comments = api.get_comments(
         url=url,
@@ -54,6 +55,7 @@ def collect_comments(
             title=title,
             url=url,
             df=pd.DataFrame(),
+            duration_seconds=duration_seconds,
             error="No comments found.",
         )
         
@@ -67,6 +69,7 @@ def collect_comments(
             title=title,
             url=url,
             df=df,
+            duration_seconds=duration_seconds,
             error="No valid comments after preprocessing.",
         )
 
@@ -75,5 +78,6 @@ def collect_comments(
         title=title,
         url=url,
         df=df,
+        duration_seconds=duration_seconds,
         error=None,
     )

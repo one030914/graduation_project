@@ -32,6 +32,7 @@ class CommentDataset:
     title: str
     url: str
     df: pd.DataFrame
+    duration_seconds: Optional[int] = None
     error: Optional[str] = None
 
 # ========================================
